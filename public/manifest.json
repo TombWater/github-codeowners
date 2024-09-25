@@ -17,16 +17,20 @@
     "default_popup": "popup.html"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "tabs"
   ],
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "https://github.com/*"
       ],
       "run_at": "document_idle",
       "js": [
         "contentScript.js"
+      ],
+      "css": [
+        "contentScript.css"
       ]
     }
   ]

@@ -1,5 +1,7 @@
 'use strict';
 
+import './content.css';
+
 // Content script file will run in the context of web page.
 // With content script you can manipulate the web pages using
 // Document Object Model (DOM).
@@ -32,8 +34,15 @@ chrome.runtime.sendMessage(
 
 // Listen for message
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'COUNT') {
-    console.log(`Current count is ${request.payload.count}`);
+  switch (request.type) {
+    case 'COUNT':
+      console.log(`Current count is ${request.payload.count}`);
+      break;
+    case 'URL':
+      console.log(`Current URL is ${request.payload.url}`);
+      break;
+    default:
+      break;
   }
 
   // Send an empty response
@@ -41,3 +50,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   sendResponse({});
   return true;
 });
+
+const files = document.querySelectorAll('div.file-info a[title]');
+console.log(files);

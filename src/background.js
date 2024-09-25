@@ -19,3 +19,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
   }
 });
+
+console.log('Background script is running.');
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  console.log('Tab updated:', tabId, changeInfo, tab);
+  // chrome.runtime.sendMessage({
+  //   type: 'URL',
+  //   payload: {
+  //     url: tab.url,
+  //   },
+  // });
+});

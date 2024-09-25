@@ -1,0 +1,15 @@
+.file {
+    .file-header {
+        background-color: rgb(255, 235, 239);
+
+        svg.octicon-shield-lock {
+            fill: red;
+        }
+        .file-info::before {
+            content: '🚫';
+            display: block;
+            position: absolute;
+            left: 5px;
+        }
+    }
+}
