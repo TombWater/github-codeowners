@@ -1,19 +1,28 @@
-.xfile {
-    .file-header {
-        background-color: rgb(255, 235, 239);
 
-        svg.octicon-shield-lock {
-            fill: red;
-        }
-        .file-info::before {
-            content: '🚫';
-            display: block;
-            position: absolute;
-            left: 5px;
-        }
-    }
+.owners-decoration {
+    display: block;
+    padding: 2px 5px;
+    background-color: var(--bgColor-muted, var(--color-canvas-subtle));
+    border-bottom: var(--borderWidth-thin) solid var(--borderColor-default, var(--color-border-default));
+    color: var(--fgColor-muted, var(--color-fg-muted));
 }
 
-.file-header.approved {
-    background-color: greenyellow;
+.owners-team {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: var(--base-text-weight-medium, 500);
+    line-height: 18px;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    border-radius: 2em;
+    margin-right: 5px;
+    padding: 0 5px;
+    background-color: khaki;
+    color: black;
+}
+
+.file:not(.open) .owners-decoration {
+    border-top: var(--borderWidth-thin) solid var(--borderColor-default, var(--color-border-default));
+    border-bottom: 0;
+    border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
 }
