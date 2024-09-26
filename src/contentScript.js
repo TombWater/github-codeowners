@@ -35,21 +35,31 @@ const getFileHeadersForDecoration = () => {
   return fileHeaders;
 }
 
+let cachedReviews = {};
+
 const getReviews = async (pr) => {
   const token = await tokenStorage.get();
   console.log('Token', token);
-  if (!token) {
-    return null;
+
+  const url = `https://api.github.com/repos/${pr.user}/${pr.repo}/pulls/${pr.num}/reviews`;
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`https://api.github.com/repos/${pr.user}/${pr.repo}/pulls/${pr.num}/reviews`, {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${token}`,
-      'X-GitHub-Api-Version': '2022-11-28',
-    }
-  });
-  return await response.json();
+  if (cachedReviews.url === url && cachedReviews.token === token) {
+    return cachedReviews.reviews;
+  }
+
+  const response = await fetch(url, {headers});
+  const reviews = await response.json();
+
+  cachedReviews = {url, token, reviews};
+  return reviews;
 };
 
 // If we are on a PR files page, check which files have been approved
@@ -68,7 +78,7 @@ const checkPrFilesPage = async () => {
 
   const reviews = await getReviews(pr);
   console.log('Reviews', reviews);
-  if (typeof reviews !== 'array') {
+  if (!Array.isArray(reviews)) {
     return;
   }
 
