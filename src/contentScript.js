@@ -2,54 +2,80 @@
 
 import './content.css';
 
-// Content script file will run in the context of web page.
-// With content script you can manipulate the web pages using
-// Document Object Model (DOM).
-// You can also pass information to the parent extension.
-
-// We execute this script by making an entry in manifest.json file
-// under `content_scripts` property
-
 // For more information on Content Scripts,
 // See https://developer.chrome.com/extensions/content_scripts
 
-// Log `title` of current active web page
-const pageTitle = document.head.getElementsByTagName('title')[0].innerHTML;
-console.log(
-  `Page title is: '${pageTitle}' - evaluated by Chrome extension's 'contentScript.js' file`
-);
+const decorateFileHeader = (node) => {
+  node.classList.add('approved');
+};
 
-// Communicate with background file by sending a message
-chrome.runtime.sendMessage(
-  {
-    type: 'GREETINGS',
-    payload: {
-      message: 'Hello, my name is Con. I am from ContentScript.',
-    },
-  },
-  (response) => {
-    console.log(response.message);
+
+const getPrInfo = () => {
+  const url = window.location.href;
+  const match = url.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)\/files/);
+  if (!match) {
+    return null;
   }
-);
+  return {
+    user: match[1],
+    repo: match[2],
+    num: match[3],
+   };
+};
 
-// Listen for message
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  switch (request.type) {
-    case 'COUNT':
-      console.log(`Current count is ${request.payload.count}`);
-      break;
-    case 'URL':
-      console.log(`Current URL is ${request.payload.url}`);
-      break;
-    default:
-      break;
+let cachedLastFileHeader;
+
+const getFileHeadersForDecoration = () => {
+  const fileHeaders = document.querySelectorAll('div.file-header');
+  if (fileHeaders.length === 0  || cachedLastFileHeader === fileHeaders[fileHeaders.length - 1]) {
+    return [];
+  }
+  cachedLastFileHeader = fileHeaders[fileHeaders.length - 1];
+  return fileHeaders;
+}
+
+const getReviews = async (pr) => {
+  // TODO: Set in popup and retrieve from storage
+  const token = 'TODO';
+
+  const response = await fetch(`https://api.github.com/repos/${pr.user}/${pr.repo}/pulls/${pr.num}/reviews`, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${token}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+    }
+  });
+  return await response.json();
+};
+
+// If we are on a PR files page, check which files have been approved
+const checkPrFilesPage = async () => {
+  const pr = getPrInfo();
+  console.log('PR', pr);
+  if (!pr) {
+    return;
   }
 
-  // Send an empty response
-  // See https://github.com/mozilla/webextension-polyfill/issues/130#issuecomment-531531890
-  sendResponse({});
-  return true;
+  const fileHeaders = getFileHeadersForDecoration();
+  console.log('File headers', fileHeaders);
+  if (!fileHeaders) {
+    return;
+  }
+
+  const reviews = await getReviews(pr);
+  console.log('Reviews', reviews);
+  if (typeof reviews !== 'array') {
+    return;
+  }
+
+  // TODO: Use reviews to decorate file headers
+  fileHeaders.forEach(decorateFileHeader);
+};
+
+// Potentially refresh after every mutation, with debounce
+let mutationTimeout;
+const observer = new MutationObserver((_mutations) => {
+  clearTimeout(mutationTimeout);
+  mutationTimeout = setTimeout(checkPrFilesPage, 200);
 });
-
-const files = document.querySelectorAll('div.file-info a[title]');
-console.log(files);
+observer.observe(document.body, { childList: true, subtree: true });
