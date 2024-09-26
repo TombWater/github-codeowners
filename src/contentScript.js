@@ -1,6 +1,7 @@
 'use strict';
 
 import './content.css';
+import {tokenStorage} from './storage';
 
 // For more information on Content Scripts,
 // See https://developer.chrome.com/extensions/content_scripts
@@ -35,8 +36,11 @@ const getFileHeadersForDecoration = () => {
 }
 
 const getReviews = async (pr) => {
-  // TODO: Set in popup and retrieve from storage
-  const token = 'TODO';
+  const token = await tokenStorage.get();
+  console.log('Token', token);
+  if (!token) {
+    return null;
+  }
 
   const response = await fetch(`https://api.github.com/repos/${pr.user}/${pr.repo}/pulls/${pr.num}/reviews`, {
     headers: {
