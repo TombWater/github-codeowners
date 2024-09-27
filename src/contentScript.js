@@ -2,7 +2,7 @@
 
 import './content.css';
 
-import {getPrInfo, getReviews, getOwnersMatchers} from './github';
+import {getPrInfo, getReviews, getFolderOwners} from './github';
 
 // For more information on Content Scripts,
 // See https://developer.chrome.com/extensions/content_scripts
@@ -10,7 +10,6 @@ import {getPrInfo, getReviews, getOwnersMatchers} from './github';
 const decorateFileHeader = (node, folders) => {
   const path = node.dataset.path;
   const match = folders.find(({folderMatch}) => folderMatch.ignores(path));
-  console.log('File Header', path, match.teams);
 
   node.parentNode
     .querySelectorAll('.owners-decoration')
@@ -45,30 +44,29 @@ const getFileHeadersForDecoration = () => {
   return fileHeaders;
 };
 
+let alreadySawOnePr = false;
+
 // If we are on a PR files page, check which files have been approved
 const checkPrFilesPage = async () => {
-  const pr = getPrInfo();
-  console.log('PR', pr);
-  if (!pr) {
-    return;
-  }
-
-  const folderMatchers = await getOwnersMatchers(pr);
-  console.log('Owners', folderMatchers);
-
   const fileHeaders = getFileHeadersForDecoration();
-  console.log('File headers', fileHeaders);
-  if (!fileHeaders) {
+  // Don't do anything until the first time we're on a PR files page
+  if (!alreadySawOnePr && fileHeaders.length === 0) {
+    return;
+  }
+  alreadySawOnePr = true;
+
+  // Owners and reviewers are cached, so get them every time in order to invalidate the cache as needed.
+  const folderOwners = await getFolderOwners();
+  if (folderOwners.length === 0) {
     return;
   }
 
-  const reviews = await getReviews(pr);
-  console.log('Reviews', reviews);
-  if (!Array.isArray(reviews)) {
+  const reviews = await getReviews();
+  if (reviews.length === 0) {
     return;
   }
 
-  fileHeaders.forEach((node) => decorateFileHeader(node, folderMatchers));
+  fileHeaders.forEach((node) => decorateFileHeader(node, folderOwners));
 };
 
 // Potentially refresh after every mutation, with debounce

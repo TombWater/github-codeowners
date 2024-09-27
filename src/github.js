@@ -1,25 +1,66 @@
 import ignore from 'ignore';
+import {memoize} from 'lodash-es';
 
 import './content.css';
 import {tokenStorage} from './storage';
 
+// Cache just one key-value pair to refresh data when the key changes.
+class CacheOneKey {
+  constructor() {
+    this.clear();
+  }
+
+  clear() {
+    this.key = undefined;
+    this.value = undefined;
+  }
+
+  delete(key) {
+    if (this.key === key) {
+      this.clear();
+    }
+  }
+
+  get(key) {
+    return this.key === key ? this.value : undefined;
+  }
+
+  has(key) {
+    return this.key === key;
+  }
+
+  set(key, value) {
+    this.key = key;
+    this.value = value;
+    return this;
+  }
+}
+
+memoize.Cache = CacheOneKey;
+
 export const getPrInfo = () => {
   const url = window.location.href;
-  const match = url.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)\/files/);
+  const match = url.match(
+    /github\.com\/([^/]+)\/([^/]+)(\/pull\/(\d+)(\/([^/]+))?)?/
+  );
+
+  // Return null when not on a PR page
   if (!match) {
     return null;
   }
-  let owner, repo, num;
-  [, owner, repo, num] = match;
+  let owner, repo, num, page;
+  [, owner, repo, , num, , page] = match;
 
   return {
     owner,
     repo,
     num,
+    page,
   };
 };
 
-const apiHeaders = async (pr) => {
+const headersKey = () => window.location.href;
+const apiHeaders = memoize(async () => {
   const token = await tokenStorage.get();
   console.log('Token', token);
 
@@ -33,36 +74,34 @@ const apiHeaders = async (pr) => {
   }
 
   return headers;
-};
+}, headersKey);
 
-let cachedReviews = {};
-
-export const getReviews = async (pr) => {
-  const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/pulls/${pr.num}/reviews`;
-  const headers = await apiHeaders(pr);
-  const key = JSON.stringify({url, headers});
-
-  if (cachedReviews.key === key) {
-    return cachedReviews.reviews;
+const reviewsKey = () => window.location.href;
+export const getReviews = memoize(async () => {
+  const pr = getPrInfo();
+  if (pr?.page !== 'files') {
+    return [];
   }
+  const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/pulls/${pr.num}/reviews`;
+  const headers = await apiHeaders();
 
   const response = await fetch(url, {headers});
   const reviews = await response.json();
+  return Array.isArray(reviews) ? reviews : [];
+}, reviewsKey);
 
-  cachedReviews = {key, reviews};
-  return reviews;
+const ownersKey = () => {
+  const pr = getPrInfo();
+  return pr ? `${pr.owner}/${pr.repo}` : '';
 };
-
-let ownersCache = null;
-
-export const getOwnersMatchers = async (pr) => {
-  if (ownersCache) {
-    return ownersCache;
+export const getFolderOwners = memoize(async () => {
+  const pr = getPrInfo();
+  if (!pr) {
+    return [];
   }
-
   const paths = ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS'];
 
-  const headers = await apiHeaders(pr);
+  const headers = await apiHeaders();
 
   for (const path of paths) {
     const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/contents/${path}`;
@@ -86,9 +125,8 @@ export const getOwnersMatchers = async (pr) => {
         });
       }
 
-      ownersCache = folders.reverse();
-
-      return ownersCache;
+      return folders.reverse();
     }
   }
-};
+  return [];
+}, ownersKey);
