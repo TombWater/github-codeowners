@@ -38,6 +38,12 @@ class CacheOneKey {
 
 memoize.Cache = CacheOneKey;
 
+const urlCacheKey = () => window.location.href;
+const repoCacheKey = () => {
+  const pr = getPrInfo();
+  return pr ? `${pr.owner}/${pr.repo}` : '';
+};
+
 export const getPrInfo = () => {
   const url = window.location.href;
   const match = url.match(
@@ -59,7 +65,6 @@ export const getPrInfo = () => {
   };
 };
 
-const headersKey = () => window.location.href;
 const apiHeaders = memoize(async () => {
   const token = await tokenStorage.get();
 
@@ -73,9 +78,8 @@ const apiHeaders = memoize(async () => {
   }
 
   return headers;
-}, headersKey);
+}, urlCacheKey);
 
-const reviewsKey = () => window.location.href;
 export const getReviews = memoize(async () => {
   const pr = getPrInfo();
   if (pr?.page !== 'files') {
@@ -87,12 +91,8 @@ export const getReviews = memoize(async () => {
   const response = await fetch(url, {headers});
   const reviews = await response.json();
   return Array.isArray(reviews) ? reviews : [];
-}, reviewsKey);
+}, urlCacheKey);
 
-const ownersKey = () => {
-  const pr = getPrInfo();
-  return pr ? `${pr.owner}/${pr.repo}` : '';
-};
 export const getFolderOwners = memoize(async () => {
   const pr = getPrInfo();
   if (!pr) {
@@ -128,7 +128,7 @@ export const getFolderOwners = memoize(async () => {
     }
   }
   return [];
-}, ownersKey);
+}, repoCacheKey);
 
 export const getTeamMembers = memoize(async (folderOwners) => {
   const pr = getPrInfo();
@@ -175,7 +175,7 @@ export const getTeamMembers = memoize(async (folderOwners) => {
   );
 
   return teams;
-}, ownersKey);
+}, repoCacheKey);
 
 export const getApprovals = async (reviews, teamMembers) => {
   // All users who have approved
