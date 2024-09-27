@@ -1,7 +1,7 @@
 import ignore from 'ignore';
 
 import './content.css';
-import { tokenStorage } from './storage';
+import {tokenStorage} from './storage';
 
 export const getPrInfo = () => {
   const url = window.location.href;
@@ -37,16 +37,16 @@ let cachedReviews = {};
 export const getReviews = async (pr) => {
   const url = `https://api.github.com/repos/${pr.user}/${pr.repo}/pulls/${pr.num}/reviews`;
   const headers = await apiHeaders(pr);
-  const key = JSON.stringify({ url, headers });
+  const key = JSON.stringify({url, headers});
 
   if (cachedReviews.key === key) {
     return cachedReviews.reviews;
   }
 
-  const response = await fetch(url, { headers });
+  const response = await fetch(url, {headers});
   const reviews = await response.json();
 
-  cachedReviews = { key, reviews };
+  cachedReviews = {key, reviews};
   return reviews;
 };
 
@@ -63,7 +63,7 @@ export const getOwnersMatchers = async (pr) => {
 
   for (const path of paths) {
     const url = `https://api.github.com/repos/${pr.user}/${pr.repo}/contents/${path}`;
-    const response = await fetch(url, { headers });
+    const response = await fetch(url, {headers});
     const file = await response.json();
     if (file.encoding === 'base64') {
       const codeowners = atob(file.content);

@@ -2,14 +2,14 @@
 
 import './content.css';
 
-import { getPrInfo, getReviews, getOwnersMatchers } from './github';
+import {getPrInfo, getReviews, getOwnersMatchers} from './github';
 
 // For more information on Content Scripts,
 // See https://developer.chrome.com/extensions/content_scripts
 
 const decorateFileHeader = (node, folders) => {
   const path = node.dataset.path;
-  const match = folders.find(({ folderMatch }) => folderMatch.ignores(path));
+  const match = folders.find(({folderMatch}) => folderMatch.ignores(path));
   console.log('File Header', path, match.teams);
 
   node.parentNode
@@ -77,4 +77,4 @@ const observer = new MutationObserver((_mutations) => {
   clearTimeout(mutationTimeout);
   mutationTimeout = setTimeout(checkPrFilesPage, 200);
 });
-observer.observe(document.body, { childList: true, subtree: true });
+observer.observe(document.body, {childList: true, subtree: true});

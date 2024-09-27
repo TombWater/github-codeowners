@@ -6,7 +6,7 @@ import {tokenStorage} from './storage';
 (function () {
   async function restoreToken() {
     const token = await tokenStorage.get();
-    const tokenInput = document.getElementById('token')
+    const tokenInput = document.getElementById('token');
 
     tokenInput.value = token ?? '';
 
