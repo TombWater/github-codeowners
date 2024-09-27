@@ -10,14 +10,12 @@ export const tokenStorage = {
   get: () =>
     new Promise((resolve) => {
       chrome.storage.local.get(['token'], (result) => {
-        console.log('Token currently is', result.token);
         resolve(result.token);
       });
     }),
   set: (token) =>
     new Promise((resolve) => {
       chrome.storage.local.set({token}, () => {
-        console.log('Token set to', token);
         resolve(token);
       });
     }),

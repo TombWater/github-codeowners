@@ -62,7 +62,6 @@ export const getPrInfo = () => {
 const headersKey = () => window.location.href;
 const apiHeaders = memoize(async () => {
   const token = await tokenStorage.get();
-  console.log('Token', token);
 
   const headers = {
     Accept: 'application/vnd.github+json',
