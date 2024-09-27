@@ -11,9 +11,6 @@ import {
   getTeamMembers,
 } from './github';
 
-// For more information on Content Scripts,
-// See https://developer.chrome.com/extensions/content_scripts
-
 const toggleOpen = (container, open) => {
   container.classList.toggle('open', open);
   container.classList.toggle('Details--on', open);

@@ -24,10 +24,10 @@
       ],
       "run_at": "document_idle",
       "js": [
-        "contentScript.js"
+        "content.js"
       ],
       "css": [
-        "contentScript.css"
+        "content.css"
       ]
     }
   ]
