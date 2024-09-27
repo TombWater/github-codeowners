@@ -9,25 +9,27 @@
 
 .owners-team {
     display: inline-block;
+    margin-right: 5px;
+    padding: 0 5px;
     font-size: 12px;
     font-weight: var(--base-text-weight-medium, 500);
     line-height: 18px;
     white-space: nowrap;
-    border: 1px solid transparent;
+    border-width: 1px;
+    border-style: solid;
     border-radius: 2em;
-    margin-right: 5px;
-    padding: 0 5px;
-    background-color: khaki;
-    color: black;
+    border-color: var(--borderColor-attention-muted);
+    background-color: var(--bgColor-attention-muted);
+    color: var(--fgColor-muted);
 }
 
 .owners-team-approved {
-    background-color: lightgreen;
-    color: black;
+    border-color: var(--borderColor-success-muted);
+    background-color: var(--bgColor-success-muted);
 }
 
 .owners-team-approved:before {
-    content: '✔';
+    content: '✓';
     margin-right: 5px;
 }
 
