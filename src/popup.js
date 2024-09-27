@@ -1,6 +1,9 @@
 'use strict';
 
+import {debounce} from 'lodash-es';
+
 import './popup.css';
+
 import {tokenStorage} from './storage';
 
 (function () {
@@ -10,14 +13,8 @@ import {tokenStorage} from './storage';
 
     tokenInput.value = token ?? '';
 
-    let timeout;
-
-    tokenInput.addEventListener('input', () => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        tokenStorage.set(tokenInput.value);
-      }, 500);
-    });
+    const storeToken = () => tokenStorage.set(tokenInput.value);
+    tokenInput.addEventListener('input', debounce(storeToken, 500));
   }
 
   document.addEventListener('DOMContentLoaded', restoreToken);

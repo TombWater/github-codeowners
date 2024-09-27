@@ -1,5 +1,7 @@
 'use strict';
 
+import {debounce} from 'lodash-es';
+
 import './content.css';
 
 import {
@@ -87,9 +89,5 @@ const checkPrFilesPage = async () => {
 };
 
 // Potentially refresh after every mutation, with debounce
-let mutationTimeout;
-const observer = new MutationObserver((_mutations) => {
-  clearTimeout(mutationTimeout);
-  mutationTimeout = setTimeout(checkPrFilesPage, 200);
-});
+const observer = new MutationObserver(debounce(checkPrFilesPage, 100));
 observer.observe(document.body, {childList: true, subtree: true});
