@@ -44,7 +44,8 @@ const expandOwnerFiles = (owner) => {
 
 const decorateFileHeader = (node, folderOwners, teamApprovals) => {
   const path = node.dataset.path;
-  const match = folderOwners.find(({folderMatch}) => folderMatch.ignores(path));
+   // ignore() is a function from the ignore package, meant to match in .gitignore style
+  const {teams} = folderOwners.find(({folderMatch}) => folderMatch.ignores(path));
 
   node.parentNode
     .querySelectorAll('.owners-decoration')
@@ -52,29 +53,30 @@ const decorateFileHeader = (node, folderOwners, teamApprovals) => {
       decoration.remove();
     });
 
-  if (match) {
-    const decoration = document.createElement('div');
-    decoration.classList.add('owners-decoration', 'js-skip-tagsearch');
-    match.teams.forEach((team) => {
-      const span = document.createElement('span');
-      span.classList.add('owners-team');
-      if (teamApprovals.has(team)) {
-        span.classList.add('owners-team-approved');
-      }
-      span.classList.add('owners-team');
-      span.textContent = team;
-      span.dataset.owner = team;
-      span.addEventListener('click', (ev) => {
-        const oldTop = ev.target.getBoundingClientRect().top;
-        expandOwnerFiles(team);
-        const newTop = ev.target.getBoundingClientRect().top;
-        const top = window.scrollY + newTop - oldTop;
-        window.scrollTo({top});
-      });
-      decoration.appendChild(span);
-    });
-    node.parentNode.insertBefore(decoration, node.nextSibling);
+  if (!teams) {
+    return;
   }
+
+  const decoration = document.createElement('div');
+  decoration.classList.add('owners-decoration', 'js-skip-tagsearch');
+  teams.forEach((team) => {
+    const span = document.createElement('span');
+    span.classList.add('owners-team');
+    if (teamApprovals.has(team)) {
+      span.classList.add('owners-team-approved');
+    }
+    span.textContent = team;
+    span.dataset.owner = team;
+    span.addEventListener('click', (ev) => {
+      const oldTop = ev.target.getBoundingClientRect().top;
+      expandOwnerFiles(team);
+      const newTop = ev.target.getBoundingClientRect().top;
+      const top = window.scrollY + newTop - oldTop;
+      window.scrollTo({top});
+    });
+    decoration.appendChild(span);
+  });
+  node.parentNode.insertBefore(decoration, node.nextSibling);
 };
 
 let cachedLastFileHeader;
