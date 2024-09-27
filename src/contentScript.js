@@ -20,7 +20,7 @@ const decorateFileHeader = (node, folders) => {
 
   if (match) {
     const decoration = document.createElement('div');
-    decoration.classList.add('owners-decoration');
+    decoration.classList.add('owners-decoration', 'js-skip-tagsearch');
     match.teams.forEach((team) => {
       const span = document.createElement('span');
       span.classList.add('owners-team');
