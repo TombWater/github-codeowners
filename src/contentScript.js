@@ -14,6 +14,34 @@ import {
 // For more information on Content Scripts,
 // See https://developer.chrome.com/extensions/content_scripts
 
+const toggleOpen = (container, open) => {
+  container.classList.toggle('open', open);
+  container.classList.toggle('Details--on', open);
+
+  const containerTargets = [
+    ...container.querySelectorAll('.js-details-target'),
+  ].filter((target) => target.closest('.js-details-container') === container);
+  for (const target of containerTargets) {
+    target.setAttribute('aria-expanded', open.toString());
+    const ariaLabel = target.getAttribute(
+      `data-aria-label-${open ? 'open' : 'closed'}`
+    );
+    if (ariaLabel) {
+      target.setAttribute('aria-label', ariaLabel);
+    }
+  }
+};
+
+const expandOwnerFiles = (owner) => {
+  const containers = document.querySelectorAll('div.file');
+  containers.forEach((container) => {
+    const open = !!container.querySelector(
+      `.owners-team[data-owner="${owner}"]`
+    );
+    toggleOpen(container, open);
+  });
+};
+
 const decorateFileHeader = (node, folderOwners, teamApprovals) => {
   const path = node.dataset.path;
   const match = folderOwners.find(({folderMatch}) => folderMatch.ignores(path));
@@ -35,6 +63,14 @@ const decorateFileHeader = (node, folderOwners, teamApprovals) => {
       }
       span.classList.add('owners-team');
       span.textContent = team;
+      span.dataset.owner = team;
+      span.addEventListener('click', (ev) => {
+        const oldTop = ev.target.getBoundingClientRect().top;
+        expandOwnerFiles(team);
+        const newTop = ev.target.getBoundingClientRect().top;
+        const top = window.scrollY + newTop - oldTop;
+        window.scrollTo({top});
+      });
       decoration.appendChild(span);
     });
     node.parentNode.insertBefore(decoration, node.nextSibling);

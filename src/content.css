@@ -23,9 +23,21 @@
     color: var(--fgColor-muted);
 }
 
+.owners-team:hover {
+    border-color: var(--borderColor-attention-emphasis);
+    background-color: var(--bgColor-attention-emphasis);
+    color: var(--fgColor-onEmphasis);
+    cursor: pointer;
+}
+
 .owners-team-approved {
     border-color: var(--borderColor-success-muted);
     background-color: var(--bgColor-success-muted);
+}
+
+.owners-team-approved:hover {
+    border-color: var(--borderColor-success-emphasis);
+    background-color: var(--bgColor-success-emphasis);
 }
 
 .owners-team-approved:before {
