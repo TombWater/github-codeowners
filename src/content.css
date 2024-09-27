@@ -21,6 +21,16 @@
     color: black;
 }
 
+.owners-team-approved {
+    background-color: lightgreen;
+    color: black;
+}
+
+.owners-team-approved:before {
+    content: '✔';
+    margin-right: 5px;
+}
+
 .file:not(.open) .owners-decoration {
     border-top: var(--borderWidth-thin) solid var(--borderColor-default, var(--color-border-default));
     border-bottom: 0;

@@ -129,3 +129,75 @@ export const getFolderOwners = memoize(async () => {
   }
   return [];
 }, ownersKey);
+
+export const getTeamMembers = memoize(async (folderOwners) => {
+  const pr = getPrInfo();
+  if (!pr) {
+    return [];
+  }
+  const headers = await apiHeaders();
+
+  const org = pr.owner;
+
+  // Array of all unique owner names mentioned in CODEOWNERS file
+  const teamNames = Array.from(
+    new Set(folderOwners.flatMap(({teams}) => Array.from(teams)))
+  );
+
+  // Filter out names that are not teams in the org owning the PR
+  const prefix = `@${org}/`;
+  const teamsToFetch = teamNames.filter((teamName) =>
+    teamName.startsWith(prefix)
+  );
+
+  // Fetch all org teams in parallel, mapping team names to their members
+  const orgTeams = new Map(
+    await Promise.all(
+      teamsToFetch.map(async (teamName) => {
+        const teamSlug = teamName.replace(prefix, '');
+        const url = `https://api.github.com/orgs/${org}/teams/${teamSlug}/members`;
+        const response = await fetch(url, {headers});
+        const members = await response.json();
+        return [teamName, members];
+      })
+    )
+  );
+
+  // Map owners to their members, or to the owner name if it's not a team
+  const teams = new Map(
+    teamNames.map((teamName) => {
+      const members = orgTeams.get(teamName);
+      const logins = Array.isArray(members)
+        ? members.map((member) => member.login)
+        : [teamName];
+      return [teamName, logins];
+    })
+  );
+
+  return teams;
+}, ownersKey);
+
+export const getApprovals = async (reviews, teamMembers) => {
+  // All users who have approved
+  const users = reviews
+    .filter((review) => review.state === 'APPROVED')
+    .map((review) => review.user.login);
+
+  // Map of team names to their members
+  const userTeams = teamMembers.entries().reduce((acc, [team, members]) => {
+    for (const member of members) {
+      if (!acc.has(member)) {
+        acc.set(member, new Set());
+      }
+      acc.get(member).add(team);
+    }
+    return acc;
+  }, new Map());
+
+  // Set of teams that at least one approving user is a member of
+  const teams = new Set(
+    users.map((app) => Array.from(userTeams.get(app))).flat()
+  );
+
+  return {users, teams};
+};

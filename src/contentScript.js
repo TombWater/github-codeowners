@@ -2,14 +2,19 @@
 
 import './content.css';
 
-import {getPrInfo, getReviews, getFolderOwners} from './github';
+import {
+  getReviews,
+  getFolderOwners,
+  getApprovals,
+  getTeamMembers,
+} from './github';
 
 // For more information on Content Scripts,
 // See https://developer.chrome.com/extensions/content_scripts
 
-const decorateFileHeader = (node, folders) => {
+const decorateFileHeader = (node, folderOwners, teamApprovals) => {
   const path = node.dataset.path;
-  const match = folders.find(({folderMatch}) => folderMatch.ignores(path));
+  const match = folderOwners.find(({folderMatch}) => folderMatch.ignores(path));
 
   node.parentNode
     .querySelectorAll('.owners-decoration')
@@ -22,6 +27,10 @@ const decorateFileHeader = (node, folders) => {
     decoration.classList.add('owners-decoration', 'js-skip-tagsearch');
     match.teams.forEach((team) => {
       const span = document.createElement('span');
+      span.classList.add('owners-team');
+      if (teamApprovals.has(team)) {
+        span.classList.add('owners-team-approved');
+      }
       span.classList.add('owners-team');
       span.textContent = team;
       decoration.appendChild(span);
@@ -55,18 +64,26 @@ const checkPrFilesPage = async () => {
   }
   alreadySawOnePr = true;
 
-  // Owners and reviewers are cached, so get them every time in order to invalidate the cache as needed.
+  // Owners is cached, so get it every time to invalidate the cache when needed
   const folderOwners = await getFolderOwners();
+
+  // Bail out if the repo doesn't have a CODEOWNERS file
   if (folderOwners.length === 0) {
     return;
   }
 
-  const reviews = await getReviews();
-  if (reviews.length === 0) {
-    return;
-  }
+  // Reviews and team members are cached, so get them every time to invalidate the cache when needed
+  let reviews, teamMembers;
+  [reviews, teamMembers] = await Promise.all([
+    getReviews(),
+    getTeamMembers(folderOwners),
+  ]);
 
-  fileHeaders.forEach((node) => decorateFileHeader(node, folderOwners));
+  const approvals = await getApprovals(reviews, teamMembers);
+
+  fileHeaders.forEach((node) =>
+    decorateFileHeader(node, folderOwners, approvals.teams)
+  );
 };
 
 // Potentially refresh after every mutation, with debounce
