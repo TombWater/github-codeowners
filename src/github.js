@@ -9,10 +9,13 @@ export const getPrInfo = () => {
   if (!match) {
     return null;
   }
+  let owner, repo, num;
+  [, owner, repo, num] = match;
+
   return {
-    user: match[1],
-    repo: match[2],
-    num: match[3],
+    owner,
+    repo,
+    num,
   };
 };
 
@@ -35,7 +38,7 @@ const apiHeaders = async (pr) => {
 let cachedReviews = {};
 
 export const getReviews = async (pr) => {
-  const url = `https://api.github.com/repos/${pr.user}/${pr.repo}/pulls/${pr.num}/reviews`;
+  const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/pulls/${pr.num}/reviews`;
   const headers = await apiHeaders(pr);
   const key = JSON.stringify({url, headers});
 
@@ -62,7 +65,7 @@ export const getOwnersMatchers = async (pr) => {
   const headers = await apiHeaders(pr);
 
   for (const path of paths) {
-    const url = `https://api.github.com/repos/${pr.user}/${pr.repo}/contents/${path}`;
+    const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/contents/${path}`;
     const response = await fetch(url, {headers});
     const file = await response.json();
     if (file.encoding === 'base64') {
