@@ -38,7 +38,6 @@ class CacheOneKey {
 
 memoize.Cache = CacheOneKey;
 
-const onceCacheKey = () => 'key';
 const urlCacheKey = () => window.location.href;
 const repoCacheKey = () => {
   const pr = getPrInfo();
@@ -80,12 +79,6 @@ const apiHeaders = memoize(async () => {
 
   return headers;
 }, urlCacheKey);
-
-export const getUser = memoize(async () => {
-  const headers = await apiHeaders();
-  const response = await fetch('https://api.github.com/user', {headers});
-  return await response.json();
-}, onceCacheKey);
 
 export const getReviews = memoize(async () => {
   const pr = getPrInfo();

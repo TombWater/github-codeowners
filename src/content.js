@@ -91,6 +91,10 @@ const getFileHeadersForDecoration = () => {
   return fileHeaders;
 };
 
+const getUserLogin = () => {
+  return document.head.querySelector('meta[name="user-login"]')?.content;
+};
+
 let alreadySawOnePr = false;
 
 // If we are on a PR files page, check which files have been approved
@@ -111,16 +115,15 @@ const checkPrFilesPage = async () => {
   }
 
   // Get these every time to invalidate their cache when needed
-  let user, reviews, teamMembers;
-  [user, reviews, teamMembers] = await Promise.all([
-    github.getUser(),
+  let reviews, teamMembers;
+  [reviews, teamMembers] = await Promise.all([
     github.getReviews(),
     github.getTeamMembers(folderOwners),
   ]);
 
   const userTeamsMap = github.getUserTeamsMap(teamMembers);
   const ownerApprovals = await github.getOwnerApprovals(reviews, userTeamsMap);
-  const userTeams = new Set(userTeamsMap.get(user.login) ?? []);
+  const userTeams = new Set(userTeamsMap.get(getUserLogin()) ?? []);
 
   fileHeaders.forEach((node) =>
     decorateFileHeader(node, folderOwners, ownerApprovals, userTeams)
