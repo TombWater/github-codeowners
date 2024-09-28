@@ -7,7 +7,7 @@
     color: var(--fgColor-muted, var(--color-fg-muted));
 }
 
-.owners-team {
+.owners-label {
     display: inline-block;
     margin-right: 5px;
     padding: 0 5px;
@@ -23,24 +23,24 @@
     color: var(--fgColor-muted);
 }
 
-.owners-team:hover {
+.owners-label:hover {
     border-color: var(--borderColor-attention-emphasis);
     background-color: var(--bgColor-attention-emphasis);
     color: var(--fgColor-onEmphasis);
     cursor: pointer;
 }
 
-.owners-team-approved {
+.owners-label--approved {
     border-color: var(--borderColor-success-muted);
     background-color: var(--bgColor-success-muted);
 }
 
-.owners-team-approved:hover {
+.owners-label--approved:hover {
     border-color: var(--borderColor-success-emphasis);
     background-color: var(--bgColor-success-emphasis);
 }
 
-.owners-team-approved:before {
+.owners-label--approved:before {
     content: '✓';
     margin-right: 5px;
 }

@@ -7,7 +7,7 @@ import './content.css';
 import {
   getReviews,
   getFolderOwners,
-  getApprovals,
+  getOwnerApprovals,
   getTeamMembers,
 } from './github';
 
@@ -33,7 +33,7 @@ const expandOwnerFiles = (owner) => {
   const containers = document.querySelectorAll('div.file');
   containers.forEach((container) => {
     const open = !!container.querySelector(
-      `.owners-team[data-owner="${owner}"]`
+      `.owners-label[data-owner="${owner}"]`
     );
     toggleOpen(container, open);
   });
@@ -47,10 +47,10 @@ const onClickOwner = (ev) => {
   window.scrollTo({top});
 }
 
-const decorateFileHeader = (node, folderOwners, teamApprovals) => {
+const decorateFileHeader = (node, folderOwners, ownerApprovals) => {
   const path = node.dataset.path;
    // ignore() is a function from the ignore package, meant to match in .gitignore style
-  const {teams} = folderOwners.find(({folderMatch}) => folderMatch.ignores(path));
+  const {owners} = folderOwners.find(({folderMatch}) => folderMatch.ignores(path));
 
   node.parentNode
     .querySelectorAll('.owners-decoration')
@@ -58,20 +58,20 @@ const decorateFileHeader = (node, folderOwners, teamApprovals) => {
       decoration.remove();
     });
 
-  if (!teams) {
+  if (!owners) {
     return;
   }
 
   const decoration = document.createElement('div');
   decoration.classList.add('owners-decoration', 'js-skip-tagsearch');
-  teams.forEach((team) => {
+  owners.forEach((owner) => {
     const span = document.createElement('span');
-    span.classList.add('owners-team');
-    if (teamApprovals.has(team)) {
-      span.classList.add('owners-team-approved');
+    span.classList.add('owners-label');
+    if (ownerApprovals.has(owner)) {
+      span.classList.add('owners-label--approved');
     }
-    span.textContent = team;
-    span.dataset.owner = team;
+    span.textContent = owner;
+    span.dataset.owner = owner;
     span.addEventListener('click', onClickOwner);
     decoration.appendChild(span);
   });
@@ -118,10 +118,10 @@ const checkPrFilesPage = async () => {
     getTeamMembers(folderOwners),
   ]);
 
-  const approvals = await getApprovals(reviews, teamMembers);
+  const ownerApprovals = await getOwnerApprovals(reviews, teamMembers);
 
   fileHeaders.forEach((node) =>
-    decorateFileHeader(node, folderOwners, approvals.teams)
+    decorateFileHeader(node, folderOwners, ownerApprovals)
   );
 };
 

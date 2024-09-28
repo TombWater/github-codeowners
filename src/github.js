@@ -116,11 +116,11 @@ export const getFolderOwners = memoize(async () => {
           continue;
         }
 
-        const [folder, ...teams] = trimmed.split(/\s+/);
+        const [folder, ...owners] = trimmed.split(/\s+/);
 
         folders.push({
           folderMatch: ignore().add(folder),
-          teams: new Set(teams),
+          owners: new Set(owners),
         });
       }
 
@@ -140,20 +140,18 @@ export const getTeamMembers = memoize(async (folderOwners) => {
   const org = pr.owner;
 
   // Array of all unique owner names mentioned in CODEOWNERS file
-  const teamNames = Array.from(
-    new Set(folderOwners.flatMap(({teams}) => Array.from(teams)))
+  const allOwners = Array.from(
+    new Set(folderOwners.flatMap(({owners}) => Array.from(owners)))
   );
 
   // Filter out names that are not teams in the org owning the PR
   const prefix = `@${org}/`;
-  const teamsToFetch = teamNames.filter((teamName) =>
-    teamName.startsWith(prefix)
-  );
+  const teamNames = allOwners.filter((teamName) => teamName.startsWith(prefix));
 
   // Fetch all org teams in parallel, mapping team names to their members
   const orgTeams = new Map(
     await Promise.all(
-      teamsToFetch.map(async (teamName) => {
+      teamNames.map(async (teamName) => {
         const teamSlug = teamName.replace(prefix, '');
         const url = `https://api.github.com/orgs/${org}/teams/${teamSlug}/members`;
         const response = await fetch(url, {headers});
@@ -163,41 +161,42 @@ export const getTeamMembers = memoize(async (folderOwners) => {
     )
   );
 
-  // Map owners to their members, or to the owner name if it's not a team
-  const teams = new Map(
-    teamNames.map((teamName) => {
-      const members = orgTeams.get(teamName);
+  // Map owner teams to a list of members, or if not a team then a pseudo-team with just the owner
+  const owners = new Map(
+    allOwners.map((owner) => {
+      const members = orgTeams.get(owner);
       const logins = Array.isArray(members)
         ? members.map((member) => member.login)
-        : [teamName];
-      return [teamName, logins];
+        : [owner];
+      return [owner, logins];
     })
   );
 
-  return teams;
+  return owners;
 }, repoCacheKey);
 
-export const getApprovals = async (reviews, teamMembers) => {
+export const getOwnerApprovals = async (reviews, teamMembers) => {
   // All users who have approved
   const users = reviews
     .filter((review) => review.state === 'APPROVED')
     .map((review) => review.user.login);
 
-  // Map of team names to their members
+  // Map of user names to the teams they are members of
   const userTeams = teamMembers.entries().reduce((acc, [team, members]) => {
     for (const member of members) {
       if (!acc.has(member)) {
-        acc.set(member, new Set());
+        // Users are members of the pseudo-team with their own name
+        acc.set(member, new Set([member]));
       }
       acc.get(member).add(team);
     }
     return acc;
   }, new Map());
 
-  // Set of teams that at least one approving user is a member of
-  const teams = new Set(
-    users.map((app) => Array.from(userTeams.get(app))).flat()
+  // Set of owners that at least one approving team member is a member of
+  const owners = new Set(
+    users.map((approver) => Array.from(userTeams.get(approver))).flat()
   );
 
-  return {users, teams};
+  return owners;
 };
