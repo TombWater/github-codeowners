@@ -9,15 +9,25 @@
 export const tokenStorage = {
   get: () =>
     new Promise((resolve) => {
-      chrome.storage.local.get(['token'], (result) => {
-        resolve(result.token);
-      });
+      try {
+        chrome.storage.local.get(['token'], (result) => {
+          resolve(result.token);
+        });
+      } catch (e) {
+        console.log(e);
+        resolve(undefined);
+      }
     }),
   set: (token) =>
     new Promise((resolve) => {
-      chrome.storage.local.set({token}, () => {
-        resolve(token);
-      });
+      try {
+        chrome.storage.local.set({token}, () => {
+          resolve(token);
+        });
+      } catch (e) {
+        console.log(e);
+        resolve(undefined);
+      }
     }),
   listen: (cb) => {
     chrome.storage.onChanged.addListener((changes) => {
