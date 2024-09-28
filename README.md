@@ -5,14 +5,15 @@ GitHub Codeowners Chrome Extension
 ## Features
 
 - Decorate each file header with labels showing the owners who must approve that file
-- Owner labels that the reviewer can approve have the severe color and a star (★)
-- Owner labels that are already approved have the success color and a checkmark (✓)
-  - For the user's own teams the star becomes hollow (☆)
+- Owner labels of teams that you're a member of are shown in red and have a star (★)
+- Owner labels of teams that have already approved are shown in green and have a checkmark (✓)
+  - The star becomes lighter in your own teams (☆)
+- Hovering on an owner label shows a tooltip with the members of that team
 - Clicking an owner label expands all the files with that owner, and collapses the others
 
 ## Install
 
-[**Chrome** extension]() <!-- TODO: Add chrome extension link inside parenthesis -->
+[**Chrome** extension]() (coming soon) <!-- TODO: Add chrome extension link inside parenthesis -->
 
 If your repo needs a GitHub token to access it, paste it in the extension's popup UI by clicking on its icon.
 

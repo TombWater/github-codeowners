@@ -41,13 +41,17 @@ const onClickOwner = (ev) => {
   window.scrollTo({top});
 };
 
-const decorateFileHeader = (node, folderOwners, ownerApprovals, userTeams) => {
+const decorateFileHeader = (
+  node,
+  {folderOwners, ownerApprovals, userTeams, teamMembers}
+) => {
   const path = node.dataset.path;
-  // ignore() is a function from the ignore package, meant to match in .gitignore style
   const {owners} = folderOwners.find(({folderMatch}) =>
+    // ignores() means it matches, as it's meant to match in .gitignore files
     folderMatch.ignores(path)
   );
 
+  // Remove any previous owners decoration
   node.parentNode
     .querySelectorAll('.owners-decoration')
     .forEach((decoration) => {
@@ -58,19 +62,28 @@ const decorateFileHeader = (node, folderOwners, ownerApprovals, userTeams) => {
     return;
   }
 
+  // Create the new owners decoration containing labels for each owner
   const decoration = document.createElement('div');
   decoration.classList.add('owners-decoration', 'js-skip-tagsearch');
   owners.forEach((owner) => {
     const label = document.createElement('span');
+    const userOwns = userTeams.has(owner);
+    const approved = ownerApprovals.has(owner);
+    const star = approved ? '☆' : '★';
+
     label.classList.add('owners-label');
-    if (userTeams.has(owner)) {
-      label.classList.add('owners-label--user');
-    }
-    if (ownerApprovals.has(owner)) {
-      label.classList.add('owners-label--approved');
-    }
-    label.textContent = owner;
+    label.classList.toggle('owners-label--user', userOwns);
+    label.classList.toggle('owners-label--approved', approved);
+
+    label.textContent = `${owner}${userOwns ? ` ${star}` : ''}`;
     label.dataset.owner = owner;
+
+    const tooltip = teamMembers.get(owner).join('\n');
+    if (tooltip) {
+      label.classList.add('tooltipped', 'tooltipped-s');
+      label.setAttribute('aria-label', tooltip);
+    }
+
     label.addEventListener('click', onClickOwner);
     decoration.appendChild(label);
   });
@@ -126,7 +139,12 @@ const checkPrFilesPage = async () => {
   const userTeams = new Set(userTeamsMap.get(getUserLogin()) ?? []);
 
   fileHeaders.forEach((node) =>
-    decorateFileHeader(node, folderOwners, ownerApprovals, userTeams)
+    decorateFileHeader(node, {
+      folderOwners,
+      ownerApprovals,
+      userTeams,
+      teamMembers,
+    })
   );
 };
 

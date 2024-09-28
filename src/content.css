@@ -40,16 +40,6 @@
   background-color: var(--bgColor-severe-emphasis);
 }
 
-.owners-label--user:after {
-  content: '★';
-  margin-left: 5px;
-}
-
-.owners-label--user.owners-label--approved:after {
-  content: '☆';
-  margin-left: 5px;
-}
-
 .owners-label--approved {
   border-color: var(--borderColor-success-muted);
   background-color: var(--bgColor-success-muted);
