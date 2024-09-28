@@ -13,22 +13,13 @@
     "default_title": "Github Codeowners",
     "default_popup": "popup.html"
   },
-  "permissions": [
-    "storage",
-    "tabs"
-  ],
+  "permissions": ["storage"],
   "content_scripts": [
     {
-      "matches": [
-        "https://github.com/*"
-      ],
+      "matches": ["https://github.com/*"],
       "run_at": "document_idle",
-      "js": [
-        "content.js"
-      ],
-      "css": [
-        "content.css"
-      ]
+      "js": ["content.js"],
+      "css": ["content.css"]
     }
   ]
 }
