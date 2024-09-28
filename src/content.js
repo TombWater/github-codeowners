@@ -3,13 +3,7 @@
 import {debounce} from 'lodash-es';
 
 import './content.css';
-
-import {
-  getReviews,
-  getFolderOwners,
-  getOwnerApprovals,
-  getTeamMembers,
-} from './github';
+import * as github from './github';
 
 const toggleOpen = (container, open) => {
   container.classList.toggle('open', open);
@@ -45,12 +39,14 @@ const onClickOwner = (ev) => {
   const newTop = ev.target.getBoundingClientRect().top;
   const top = window.scrollY + newTop - oldTop;
   window.scrollTo({top});
-}
+};
 
-const decorateFileHeader = (node, folderOwners, ownerApprovals) => {
+const decorateFileHeader = (node, folderOwners, ownerApprovals, userTeams) => {
   const path = node.dataset.path;
-   // ignore() is a function from the ignore package, meant to match in .gitignore style
-  const {owners} = folderOwners.find(({folderMatch}) => folderMatch.ignores(path));
+  // ignore() is a function from the ignore package, meant to match in .gitignore style
+  const {owners} = folderOwners.find(({folderMatch}) =>
+    folderMatch.ignores(path)
+  );
 
   node.parentNode
     .querySelectorAll('.owners-decoration')
@@ -65,15 +61,18 @@ const decorateFileHeader = (node, folderOwners, ownerApprovals) => {
   const decoration = document.createElement('div');
   decoration.classList.add('owners-decoration', 'js-skip-tagsearch');
   owners.forEach((owner) => {
-    const span = document.createElement('span');
-    span.classList.add('owners-label');
-    if (ownerApprovals.has(owner)) {
-      span.classList.add('owners-label--approved');
+    const label = document.createElement('span');
+    label.classList.add('owners-label');
+    if (userTeams.has(owner)) {
+      label.classList.add('owners-label--user');
     }
-    span.textContent = owner;
-    span.dataset.owner = owner;
-    span.addEventListener('click', onClickOwner);
-    decoration.appendChild(span);
+    if (ownerApprovals.has(owner)) {
+      label.classList.add('owners-label--approved');
+    }
+    label.textContent = owner;
+    label.dataset.owner = owner;
+    label.addEventListener('click', onClickOwner);
+    decoration.appendChild(label);
   });
   node.parentNode.insertBefore(decoration, node.nextSibling);
 };
@@ -104,24 +103,27 @@ const checkPrFilesPage = async () => {
   alreadySawOnePr = true;
 
   // Owners is cached, so get it every time to invalidate the cache when needed
-  const folderOwners = await getFolderOwners();
+  const folderOwners = await github.getFolderOwners();
 
   // Bail out if the repo doesn't have a CODEOWNERS file
   if (folderOwners.length === 0) {
     return;
   }
 
-  // Reviews and team members are cached, so get them every time to invalidate the cache when needed
-  let reviews, teamMembers;
-  [reviews, teamMembers] = await Promise.all([
-    getReviews(),
-    getTeamMembers(folderOwners),
+  // Get these every time to invalidate their cache when needed
+  let user, reviews, teamMembers;
+  [user, reviews, teamMembers] = await Promise.all([
+    github.getUser(),
+    github.getReviews(),
+    github.getTeamMembers(folderOwners),
   ]);
 
-  const ownerApprovals = await getOwnerApprovals(reviews, teamMembers);
+  const userTeamsMap = github.getUserTeamsMap(teamMembers);
+  const ownerApprovals = await github.getOwnerApprovals(reviews, userTeamsMap);
+  const userTeams = new Set(userTeamsMap.get(user.login) ?? []);
 
   fileHeaders.forEach((node) =>
-    decorateFileHeader(node, folderOwners, ownerApprovals)
+    decorateFileHeader(node, folderOwners, ownerApprovals, userTeams)
   );
 };
 

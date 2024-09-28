@@ -1,52 +1,73 @@
-
 .owners-decoration {
-    display: block;
-    padding: 2px 5px;
-    background-color: var(--bgColor-muted, var(--color-canvas-subtle));
-    border-bottom: var(--borderWidth-thin) solid var(--borderColor-default, var(--color-border-default));
-    color: var(--fgColor-muted, var(--color-fg-muted));
+  display: block;
+  padding: 2px 5px;
+  background-color: var(--bgColor-muted, var(--color-canvas-subtle));
+  border-bottom: var(--borderWidth-thin) solid
+    var(--borderColor-default, var(--color-border-default));
+  color: var(--fgColor-muted, var(--color-fg-muted));
 }
 
 .owners-label {
-    display: inline-block;
-    margin-right: 5px;
-    padding: 0 5px;
-    font-size: 12px;
-    font-weight: var(--base-text-weight-medium, 500);
-    line-height: 18px;
-    white-space: nowrap;
-    border-width: 1px;
-    border-style: solid;
-    border-radius: 2em;
-    border-color: var(--borderColor-attention-muted);
-    background-color: var(--bgColor-attention-muted);
-    color: var(--fgColor-muted);
+  display: inline-block;
+  margin-right: 5px;
+  padding: 0 5px;
+  font-size: 12px;
+  font-weight: var(--base-text-weight-medium, 500);
+  line-height: 18px;
+  white-space: nowrap;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 2em;
+  border-color: var(--borderColor-attention-muted);
+  background-color: var(--bgColor-attention-muted);
+  color: var(--fgColor-muted);
 }
 
 .owners-label:hover {
-    border-color: var(--borderColor-attention-emphasis);
-    background-color: var(--bgColor-attention-emphasis);
-    color: var(--fgColor-onEmphasis);
-    cursor: pointer;
+  border-color: var(--borderColor-attention-emphasis);
+  background-color: var(--bgColor-attention-emphasis);
+  color: var(--fgColor-onEmphasis);
+  cursor: pointer;
+}
+
+.owners-label--user {
+  border-color: var(--borderColor-severe-muted);
+  background-color: var(--bgColor-severe-muted);
+}
+
+.owners-label--user:hover {
+  border-color: var(--borderColor-severe-emphasis);
+  background-color: var(--bgColor-severe-emphasis);
+}
+
+.owners-label--user:after {
+  content: '★';
+  margin-left: 5px;
+}
+
+.owners-label--user.owners-label--approved:after {
+  content: '☆';
+  margin-left: 5px;
 }
 
 .owners-label--approved {
-    border-color: var(--borderColor-success-muted);
-    background-color: var(--bgColor-success-muted);
+  border-color: var(--borderColor-success-muted);
+  background-color: var(--bgColor-success-muted);
 }
 
 .owners-label--approved:hover {
-    border-color: var(--borderColor-success-emphasis);
-    background-color: var(--bgColor-success-emphasis);
+  border-color: var(--borderColor-success-emphasis);
+  background-color: var(--bgColor-success-emphasis);
 }
 
 .owners-label--approved:before {
-    content: '✓';
-    margin-right: 5px;
+  content: '✓';
+  margin-right: 5px;
 }
 
 .file:not(.open) .owners-decoration {
-    border-top: var(--borderWidth-thin) solid var(--borderColor-default, var(--color-border-default));
-    border-bottom: 0;
-    border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
+  border-top: var(--borderWidth-thin) solid
+    var(--borderColor-default, var(--color-border-default));
+  border-bottom: 0;
+  border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
 }

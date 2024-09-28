@@ -38,6 +38,7 @@ class CacheOneKey {
 
 memoize.Cache = CacheOneKey;
 
+const onceCacheKey = () => 'key';
 const urlCacheKey = () => window.location.href;
 const repoCacheKey = () => {
   const pr = getPrInfo();
@@ -79,6 +80,12 @@ const apiHeaders = memoize(async () => {
 
   return headers;
 }, urlCacheKey);
+
+export const getUser = memoize(async () => {
+  const headers = await apiHeaders();
+  const response = await fetch('https://api.github.com/user', {headers});
+  return await response.json();
+}, onceCacheKey);
 
 export const getReviews = memoize(async () => {
   const pr = getPrInfo();
@@ -161,7 +168,7 @@ export const getTeamMembers = memoize(async (folderOwners) => {
     )
   );
 
-  // Map owner teams to a list of members, or if not a team then a pseudo-team with just the owner
+  // Map owner teams to an array of members, or if not a team then a pseudo-team with just the owner
   const owners = new Map(
     allOwners.map((owner) => {
       const members = orgTeams.get(owner);
@@ -175,14 +182,9 @@ export const getTeamMembers = memoize(async (folderOwners) => {
   return owners;
 }, repoCacheKey);
 
-export const getOwnerApprovals = async (reviews, teamMembers) => {
-  // All users who have approved
-  const users = reviews
-    .filter((review) => review.state === 'APPROVED')
-    .map((review) => review.user.login);
-
-  // Map of user names to the teams they are members of
-  const userTeams = teamMembers.entries().reduce((acc, [team, members]) => {
+// Map user names to the teams they are members of
+export const getUserTeamsMap = (teamMembers) => {
+  return teamMembers.entries().reduce((acc, [team, members]) => {
     for (const member of members) {
       if (!acc.has(member)) {
         // Users are members of the pseudo-team with their own name
@@ -192,10 +194,17 @@ export const getOwnerApprovals = async (reviews, teamMembers) => {
     }
     return acc;
   }, new Map());
+};
+
+export const getOwnerApprovals = async (reviews, userTeamsMap) => {
+  // All users who have approved
+  const users = reviews
+    .filter((review) => review.state === 'APPROVED')
+    .map((review) => review.user.login);
 
   // Set of owners that at least one approving team member is a member of
   const owners = new Set(
-    users.map((approver) => Array.from(userTeams.get(approver))).flat()
+    users.map((approver) => Array.from(userTeamsMap.get(approver))).flat()
   );
 
   return owners;
