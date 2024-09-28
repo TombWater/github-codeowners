@@ -39,6 +39,14 @@ const expandOwnerFiles = (owner) => {
   });
 };
 
+const onClickOwner = (ev) => {
+  const oldTop = ev.target.getBoundingClientRect().top;
+  expandOwnerFiles(ev.target.dataset.owner);
+  const newTop = ev.target.getBoundingClientRect().top;
+  const top = window.scrollY + newTop - oldTop;
+  window.scrollTo({top});
+}
+
 const decorateFileHeader = (node, folderOwners, teamApprovals) => {
   const path = node.dataset.path;
    // ignore() is a function from the ignore package, meant to match in .gitignore style
@@ -64,13 +72,7 @@ const decorateFileHeader = (node, folderOwners, teamApprovals) => {
     }
     span.textContent = team;
     span.dataset.owner = team;
-    span.addEventListener('click', (ev) => {
-      const oldTop = ev.target.getBoundingClientRect().top;
-      expandOwnerFiles(team);
-      const newTop = ev.target.getBoundingClientRect().top;
-      const top = window.scrollY + newTop - oldTop;
-      window.scrollTo({top});
-    });
+    span.addEventListener('click', onClickOwner);
     decoration.appendChild(span);
   });
   node.parentNode.insertBefore(decoration, node.nextSibling);
