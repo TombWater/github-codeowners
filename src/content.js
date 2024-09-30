@@ -117,8 +117,8 @@ const getUserLogin = () => {
 
 let alreadySawOnePr = false;
 
-// If we are on a PR files page, check which files have been approved
-const checkPrFilesPage = async () => {
+// If we are on a PR files page, update reviewer decorations on the files
+const updatePrFilesPage = async () => {
   const fileHeaders = getFileHeadersForDecoration();
   // Don't do anything until the first time we're on a PR files page
   if (!alreadySawOnePr && fileHeaders.length === 0) {
@@ -141,12 +141,27 @@ const checkPrFilesPage = async () => {
     github.getTeamMembers(folderOwners),
   ]);
 
-  const userTeamsMap = github.getUserTeamsMap(teamMembers);
-  const approvers = github.getApprovers(reviews);
-  const ownerApprovals = await github.getOwnerApprovals(
-    approvers,
-    userTeamsMap
+  // Array of users who approved the PR
+  const approvers = reviews
+    .filter((review) => review.state === 'APPROVED')
+    .map((review) => review.user.login);
+
+  // Map of users to a set of teams they are a member of
+  const userTeamsMap = teamMembers.entries().reduce((acc, [team, members]) => {
+    members.forEach((member) => {
+      // Initialize the set with a pseudo-team that is the member's own login
+      const teams = acc.get(member) ?? new Set([member]);
+      acc.set(member, teams.add(team));
+    });
+    return acc;
+  }, new Map());
+
+  // Set of owners/teams who approved the PR
+  const ownerApprovals = new Set(
+    approvers.map((approver) => Array.from(userTeamsMap.get(approver))).flat()
   );
+
+  // Set of teams the current user is a member of
   const userTeams = new Set(userTeamsMap.get(getUserLogin()) ?? []);
 
   fileHeaders.forEach((node) =>
@@ -161,5 +176,5 @@ const checkPrFilesPage = async () => {
 };
 
 // Potentially refresh after every mutation, with debounce
-const observer = new MutationObserver(debounce(checkPrFilesPage, 100));
+const observer = new MutationObserver(debounce(updatePrFilesPage, 100));
 observer.observe(document.body, {childList: true, subtree: true});

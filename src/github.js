@@ -174,29 +174,3 @@ export const getTeamMembers = memoize(async (folderOwners) => {
 
   return owners;
 }, repoCacheKey);
-
-// Map user names to the teams they are members of
-export const getUserTeamsMap = (teamMembers) => {
-  return teamMembers.entries().reduce((acc, [team, members]) => {
-    for (const member of members) {
-      if (!acc.has(member)) {
-        // Users are members of the pseudo-team with their own name
-        acc.set(member, new Set([member]));
-      }
-      acc.get(member).add(team);
-    }
-    return acc;
-  }, new Map());
-};
-
-export const getApprovers = (reviews) => {
-  return reviews
-    .filter((review) => review.state === 'APPROVED')
-    .map((review) => review.user.login);
-};
-
-export const getOwnerApprovals = (approvers, userTeamsMap) => {
-  return new Set(
-    approvers.map((approver) => Array.from(userTeamsMap.get(approver))).flat()
-  );
-};
