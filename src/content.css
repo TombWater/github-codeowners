@@ -50,9 +50,8 @@
   background-color: var(--bgColor-success-emphasis);
 }
 
-.owners-label--approved:before {
-  content: '✓';
-  margin-right: 5px;
+.owners-label.tooltipped::after {
+  text-align: left;
 }
 
 .file:not(.open) .owners-decoration {

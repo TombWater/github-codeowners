@@ -43,7 +43,7 @@ const onClickOwner = (ev) => {
 
 const decorateFileHeader = (
   node,
-  {folderOwners, ownerApprovals, userTeams, teamMembers}
+  {approversSet, folderOwners, ownerApprovals, userTeams, teamMembers}
 ) => {
   const path = node.dataset.path;
   const {owners} = folderOwners.find(({folderMatch}) =>
@@ -69,16 +69,23 @@ const decorateFileHeader = (
     const label = document.createElement('span');
     const userOwns = userTeams.has(owner);
     const approved = ownerApprovals.has(owner);
-    const star = approved ? '☆' : '★';
+    const checkmark = approved ? '✓ ' : '';
+    const star = !userOwns ? '' : approved ? ' ☆' : ' ★';
 
     label.classList.add('owners-label');
     label.classList.toggle('owners-label--user', userOwns);
     label.classList.toggle('owners-label--approved', approved);
 
-    label.textContent = `${owner}${userOwns ? ` ${star}` : ''}`;
+    label.textContent = `${checkmark}${owner}${star}`;
     label.dataset.owner = owner;
 
-    const tooltip = teamMembers.get(owner).join('\n');
+    const tooltip = teamMembers
+      .get(owner)
+      .map((member) => {
+        const memberCheckmark = approversSet.has(member) ? '  ✓\t' : '\t';
+        return `${approved ? memberCheckmark : ''}${member}`;
+      })
+      .join('\n');
     if (tooltip) {
       label.classList.add('tooltipped', 'tooltipped-s');
       label.setAttribute('aria-label', tooltip);
@@ -135,11 +142,16 @@ const checkPrFilesPage = async () => {
   ]);
 
   const userTeamsMap = github.getUserTeamsMap(teamMembers);
-  const ownerApprovals = await github.getOwnerApprovals(reviews, userTeamsMap);
+  const approvers = github.getApprovers(reviews);
+  const ownerApprovals = await github.getOwnerApprovals(
+    approvers,
+    userTeamsMap
+  );
   const userTeams = new Set(userTeamsMap.get(getUserLogin()) ?? []);
 
   fileHeaders.forEach((node) =>
     decorateFileHeader(node, {
+      approversSet: new Set(approvers),
       folderOwners,
       ownerApprovals,
       userTeams,

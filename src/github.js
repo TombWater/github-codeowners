@@ -189,16 +189,14 @@ export const getUserTeamsMap = (teamMembers) => {
   }, new Map());
 };
 
-export const getOwnerApprovals = async (reviews, userTeamsMap) => {
-  // All users who have approved
-  const users = reviews
+export const getApprovers = (reviews) => {
+  return reviews
     .filter((review) => review.state === 'APPROVED')
     .map((review) => review.user.login);
+};
 
-  // Set of owners that at least one approving team member is a member of
-  const owners = new Set(
-    users.map((approver) => Array.from(userTeamsMap.get(approver))).flat()
+export const getOwnerApprovals = (approvers, userTeamsMap) => {
+  return new Set(
+    approvers.map((approver) => Array.from(userTeamsMap.get(approver))).flat()
   );
-
-  return owners;
 };
