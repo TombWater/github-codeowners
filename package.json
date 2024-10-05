@@ -4,6 +4,7 @@
   "description": "GitHub Codeowners Chrome Extension",
   "private": true,
   "scripts": {
+    "postinstall": "patch-package",
     "watch": "webpack --mode=development --output-pathinfo --watch --config config/webpack.config.js",
     "build": "webpack --mode=production --config config/webpack.config.js",
     "pack": "node pack.js",
@@ -23,6 +24,7 @@
   },
   "dependencies": {
     "ignore": "^6.0.2",
-    "lodash-es": "^4.17.21"
+    "lodash-es": "^4.17.21",
+    "patch-package": "^8.0.0"
   }
 }
