@@ -16,6 +16,7 @@ html {
 
 body {
   width: 350px;
+  font-size: 1em;
 }
 
 .app {
@@ -28,9 +29,13 @@ body {
   padding: 20px;
 }
 
+.token-label {
+  font-size: 1em;
+}
+
 #token {
   width: 100%;
-  font-size: smaller;
+  font-size: 0.75em;
   margin-top: 10px;
   padding: 2px;
 }

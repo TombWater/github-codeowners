@@ -2,11 +2,11 @@
 
 import {debounce} from 'lodash-es';
 
-import './popup.css';
-
 import {tokenStorage} from './storage';
 
 (function () {
+  import('./popup.css');
+
   async function restoreToken() {
     const token = await tokenStorage.get();
     const tokenInput = document.getElementById('token');
