@@ -147,14 +147,14 @@ const updatePrFilesPage = async () => {
     .map((review) => review.user.login);
 
   // Map of users to a set of teams they are a member of
-  const userTeamsMap = teamMembers.entries().reduce((acc, [team, members]) => {
-    members.forEach((member) => {
+  const userTeamsMap = new Map();
+  for (const [team, members] of teamMembers.entries()) {
+    for (const member of members) {
       // Initialize the set with a pseudo-team that is the member's own login
-      const teams = acc.get(member) ?? new Set([member]);
-      acc.set(member, teams.add(team));
-    });
-    return acc;
-  }, new Map());
+      const teams = userTeamsMap.get(member) ?? new Set([member]);
+      userTeamsMap.set(member, teams.add(team));
+    }
+  }
 
   // Set of owners/teams who approved the PR
   const ownerApprovals = new Set(
