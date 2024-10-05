@@ -1,6 +1,6 @@
 # <img src="public/icons/icon_48.png" width="45" align="left"> GitHub Codeowners
 
-GitHub Codeowners Chrome Extension
+GitHub Codeowners Browser Extension
 
 ## Features
 
@@ -14,6 +14,7 @@ GitHub Codeowners Chrome Extension
 ## Install
 
 [**Chrome** extension]() (coming soon) <!-- TODO: Add chrome extension link inside parenthesis -->
+[**Firefox** extension]() (coming soon) <!-- TODO: Add Firefox extension link inside parenthesis -->
 
 If your repo needs a GitHub token to access it, paste it in the extension's popup UI by clicking on its icon.
 

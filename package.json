@@ -1,7 +1,7 @@
 {
   "name": "github-codeowners",
   "version": "0.1.0",
-  "description": "GitHub Codeowners Chrome Extension",
+  "description": "GitHub Codeowners Browser Extension",
   "private": true,
   "scripts": {
     "postinstall": "patch-package",
