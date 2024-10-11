@@ -148,13 +148,12 @@ export const getFolderOwners = memoize(async () => {
 }, prCacheKey);
 
 export const getTeamMembers = memoize(async (folderOwners) => {
-  const pr = getPrInfo();
-  if (!pr) {
+  const pr = getPrInfo() || {};
+  const {owner: org} = pr;
+  if (!org) {
     return [];
   }
   const headers = await apiHeaders();
-
-  const org = pr.owner;
 
   // Array of all unique owner names mentioned in CODEOWNERS file
   const allOwners = Array.from(
