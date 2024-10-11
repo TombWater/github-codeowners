@@ -81,7 +81,7 @@ const decorateFileHeader = (
 
     const tooltip = teamMembers
       .get(owner)
-      .map((member) => {
+      ?.map((member) => {
         const memberCheckmark = approversSet.has(member) ? '  ✓\t' : '\t';
         return `${approved ? memberCheckmark : ''}${member}`;
       })

@@ -43,6 +43,10 @@ const repoCacheKey = () => {
   const pr = getPrInfo();
   return pr ? `${pr.owner}/${pr.repo}` : '';
 };
+const prCacheKey = () => {
+  const pr = getPrInfo();
+  return pr ? `${pr.owner}/${pr.repo}/${pr.num}` : '';
+};
 
 export const getPrInfo = () => {
   const url = window.location.href;
@@ -80,6 +84,15 @@ const apiHeaders = memoize(async () => {
   return headers;
 }, urlCacheKey);
 
+export const getPrDetails = memoize(async () => {
+  const pr = getPrInfo();
+  const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/pulls/${pr.num}`;
+  const headers = await apiHeaders();
+  const response = await fetch(url, {headers});
+  const prDetails = await response.json();
+  return prDetails;
+}, prCacheKey);
+
 export const getReviews = memoize(async () => {
   const pr = getPrInfo();
   if (pr?.page !== 'files') {
@@ -98,12 +111,16 @@ export const getFolderOwners = memoize(async () => {
   if (!pr) {
     return [];
   }
-  const paths = ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS'];
 
+  const prDetails = await getPrDetails();
+  const baseBranch = prDetails?.base?.ref;
+  const refParam = baseBranch ? `ref=${baseBranch}` : '';
+
+  const paths = ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS'];
   const headers = await apiHeaders();
 
   for (const path of paths) {
-    const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/contents/${path}`;
+    const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/contents/${path}?${refParam}`;
     const response = await fetch(url, {headers});
     const file = await response.json();
     if (file.encoding === 'base64') {
@@ -128,7 +145,7 @@ export const getFolderOwners = memoize(async () => {
     }
   }
   return [];
-}, repoCacheKey);
+}, prCacheKey);
 
 export const getTeamMembers = memoize(async (folderOwners) => {
   const pr = getPrInfo();
