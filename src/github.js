@@ -5,38 +5,17 @@ import './content.css';
 import {tokenStorage} from './storage';
 
 // Cache just one key-value pair to refresh data when the key changes.
-class CacheOneKey {
-  constructor() {
-    this.clear();
-  }
-
-  clear() {
-    this.key = undefined;
-    this.value = undefined;
-  }
-
-  delete(key) {
-    if (this.key === key) {
-      this.clear();
-    }
-  }
-
-  get(key) {
-    return this.key === key ? this.value : undefined;
-  }
-
-  has(key) {
-    return this.key === key;
-  }
-
-  set(key, value) {
-    this.key = key;
-    this.value = value;
-    return this;
-  }
-}
-
-memoize.Cache = CacheOneKey;
+memoize.Cache = function () {
+  let key, value;
+  const cache = {
+    clear: () => (key = value = undefined),
+    delete: (k) => key === k && ((key = value = undefined), true),
+    has: (k) => key === k,
+    get: (k) => (key === k ? value : undefined),
+    set: (k, v) => ((key = k), (value = v), cache),
+  };
+  return cache;
+};
 
 const urlCacheKey = () => window.location.href;
 const repoCacheKey = () => {
