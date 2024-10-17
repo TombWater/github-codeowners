@@ -20,11 +20,11 @@ memoize.Cache = function () {
 const urlCacheKey = () => window.location.href;
 const repoCacheKey = () => {
   const pr = getPrInfo();
-  return pr ? `${pr.owner}/${pr.repo}` : '';
+  return pr.repo ? `${pr.owner}/${pr.repo}` : '';
 };
 const prCacheKey = () => {
   const pr = getPrInfo();
-  return pr ? `${pr.owner}/${pr.repo}/${pr.num}` : '';
+  return pr.num ? `${pr.owner}/${pr.repo}/${pr.num}` : '';
 };
 
 export const getPrInfo = () => {
@@ -33,12 +33,8 @@ export const getPrInfo = () => {
     /github\.com\/([^/]+)\/([^/]+)(\/pull\/(\d+)(\/([^/]+))?)?/
   );
 
-  // Return null when not on a PR page
-  if (!match) {
-    return null;
-  }
   let owner, repo, num, page;
-  [, owner, repo, , num, , page] = match;
+  [, owner, repo, , num, , page] = match || {};
 
   return {
     owner,
@@ -65,6 +61,9 @@ const apiHeaders = memoize(async () => {
 
 export const getPrDetails = memoize(async () => {
   const pr = getPrInfo();
+  if (!pr.num) {
+    return null;
+  }
   const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/pulls/${pr.num}`;
   const headers = await apiHeaders();
   const response = await fetch(url, {headers});
@@ -74,7 +73,7 @@ export const getPrDetails = memoize(async () => {
 
 export const getReviews = memoize(async () => {
   const pr = getPrInfo();
-  if (pr?.page !== 'files') {
+  if (pr.page !== 'files') {
     return [];
   }
   const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/pulls/${pr.num}/reviews`;
@@ -87,7 +86,7 @@ export const getReviews = memoize(async () => {
 
 export const getFolderOwners = memoize(async () => {
   const pr = getPrInfo();
-  if (!pr) {
+  if (!pr.num) {
     return [];
   }
 
@@ -127,7 +126,7 @@ export const getFolderOwners = memoize(async () => {
 }, prCacheKey);
 
 export const getTeamMembers = memoize(async (folderOwners) => {
-  const pr = getPrInfo() || {};
+  const pr = getPrInfo();
   const {owner: org} = pr;
   if (!org) {
     return [];
