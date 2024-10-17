@@ -7,6 +7,13 @@
   color: var(--fgColor-muted, var(--color-fg-muted));
 }
 
+.file:not(.open) .owners-decoration {
+  border-top: var(--borderWidth-thin) solid
+    var(--borderColor-default, var(--color-border-default));
+  border-bottom: 0;
+  border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
+}
+
 .owners-label {
   display: inline-block;
   margin-right: 5px;
@@ -52,11 +59,4 @@
 
 .owners-label.tooltipped::after {
   text-align: left;
-}
-
-.file:not(.open) .owners-decoration {
-  border-top: var(--borderWidth-thin) solid
-    var(--borderColor-default, var(--color-border-default));
-  border-bottom: 0;
-  border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
 }
