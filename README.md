@@ -2,6 +2,8 @@
 
 GitHub Codeowners Browser Extension
 
+<img src="Screenshot.png" alt="screenshot" width="354"/>
+
 ## Features
 
 - Decorate each file header with labels showing the owners who must approve that file
