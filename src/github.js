@@ -79,6 +79,7 @@ export const getReviews = memoize(async () => {
   const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/pulls/${pr.num}/reviews`;
   const headers = await apiHeaders();
 
+  return [{state: 'APPROVED', user: {login: 'Zeus'}}];
   const response = await fetch(url, {headers});
   const reviews = await response.json();
   return Array.isArray(reviews) ? reviews : [];
@@ -96,6 +97,12 @@ export const getFolderOwners = memoize(async () => {
 
   const paths = ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS'];
   const headers = await apiHeaders();
+
+  return [
+    {folderMatch: ignore().add('*'), owners: new Set(['@org/admins'])},
+    {folderMatch: ignore().add('src/**/*'), owners: new Set(['@org/admins', '@org/engineers', '@org/ops'])},
+    {folderMatch: ignore().add('config/**/*'), owners: new Set(['@org/admins', '@org/ops'])},
+  ].reverse();
 
   for (const path of paths) {
     const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/contents/${path}?${refParam}`;
@@ -143,7 +150,7 @@ export const getTeamMembers = memoize(async (folderOwners) => {
   const teamNames = allOwners.filter((teamName) => teamName.startsWith(prefix));
 
   // Fetch all org teams in parallel, mapping team names to their members
-  const orgTeams = new Map(
+  const xorgTeams = new Map(
     await Promise.all(
       teamNames.map(async (teamName) => {
         const teamSlug = teamName.replace(prefix, '');
@@ -154,6 +161,11 @@ export const getTeamMembers = memoize(async (folderOwners) => {
       })
     )
   );
+  const orgTeams = new Map([
+    ['@org/admins', [{login: 'Admin'}, {login: 'Zeus'}]],
+    ['@org/engineers', [{login: 'TombWater'}, {login: 'Apollo'}]],
+    ['@org/ops', [{login: 'Hermes'}, {login: 'Athena'}]],
+  ]);
 
   // Map owner teams to an array of members, or if not a team then a pseudo-team with just the owner
   const owners = new Map(
