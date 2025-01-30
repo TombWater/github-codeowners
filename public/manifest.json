@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "GitHub Codeowners",
   "version": "0.1.0",
-  "description": "GitHub Codeowners Browser Extension",
+  "description": "Show labels on the GitHub files page with the codeowners who can approve each file.",
   "icons": {
     "16": "icons/icon_16.png",
     "32": "icons/icon_32.png",
