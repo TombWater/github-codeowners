@@ -2,7 +2,8 @@
 
 GitHub Codeowners Browser Extension
 
-<img src="Screenshot.png" alt="screenshot" width="354"/>
+<img src="Screenshot_light.png" alt="light screenshot" width="350"/>
+<img src="Screenshot_dark.png" alt="dark screenshot" width="350"/>
 
 ## Features
 
