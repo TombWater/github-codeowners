@@ -9,7 +9,8 @@
     "build": "webpack --mode=production --config config/webpack.config.js",
     "pack": "node pack.js",
     "repack": "npm run build && npm run pack",
-    "format": "prettier --write --ignore-unknown \"{config,public,src}/**/*.{html,css,js,ts,json}\""
+    "format": "prettier --write --ignore-unknown \"{config,public,src}/**/*.{html,css,js,ts,json}\"",
+    "zip": "npm run build && cd build && zip -r ../github-codeowners.zip ."
   },
   "devDependencies": {
     "adm-zip": "^0.5.16",
