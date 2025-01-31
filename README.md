@@ -33,9 +33,15 @@ npm run build
 > [!IMPORTANT]
 > After installing the extension, if your repo needs a GitHub token to access it, paste it in the extension's popup UI by clicking on its icon.
 
-## Contribution
+## Privacy
 
-Suggestions and pull requests are welcomed!.
+All data collected by this extension is kept and used only within the browser; it is not transmitted out of the extension.
+
+The data collected includes:
+* The username of the logged-in GitHub user is read from the page metadata.
+* The GitHub access token provided by the user is kept in local storage.
+* The usernames and team names mentioned in the `CODEOWNERS` file are collected and cached in memory.
+* Team member usernames for teams mentioned in `CODEOWNERS` are collected and cached in memory.
 
 ---
 
