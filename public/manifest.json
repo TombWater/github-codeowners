@@ -21,5 +21,10 @@
       "js": ["content.js"],
       "css": ["content.css"]
     }
-  ]
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "github-codeowners@mindgear.com"
+    }
+  }
 }
