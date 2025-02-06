@@ -46,10 +46,13 @@ const decorateFileHeader = (
   {approversSet, folderOwners, ownerApprovals, userTeams, teamMembers}
 ) => {
   const path = node.dataset.path;
-  const {owners} = folderOwners.find(({folderMatch}) =>
-    // ignores() means it matches, as it's meant to match in .gitignore files
-    folderMatch.ignores(path)
-  );
+  const owners = folderOwners
+    .filter(({folderMatch}) =>
+      // ignores() means it matches, as it's meant to match in .gitignore files
+      folderMatch.ignores(path)
+    )
+    .map((m) => m.owners)
+    .reduce((acc, s) => new Set([...acc, ...s]), new Set());
 
   // Remove any previous owners decoration
   node.parentNode
@@ -58,7 +61,7 @@ const decorateFileHeader = (
       decoration.remove();
     });
 
-  if (!owners) {
+  if (!owners.size) {
     return;
   }
 
