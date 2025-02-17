@@ -16,9 +16,6 @@ GitHub Codeowners Browser Extension
 
 ## Install
 
-> [!IMPORTANT]
-> After installing the extension, if your repo needs a GitHub token to access it, paste it in the extension's popup UI by clicking on its icon.
-
 ### Chrome
 
 Install from [Chrome Store](https://chromewebstore.google.com/detail/GitHub%20Codeowners/bleicmjinodghcdonmnfgmjmhgnhppbk)
@@ -26,6 +23,16 @@ Install from [Chrome Store](https://chromewebstore.google.com/detail/GitHub%20Co
 ### Firefox
 
 Install from [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/github-codeowners/)
+
+### Access Token
+
+If you're using a private repo in an organization, make a classic access token with full control of private repositories. (https://github.com/settings/tokens)
+
+<img src="Repo_token.png" alt="personal access token scopes (repo)" width="333"/>
+
+(This allows the extension to read the PR and CODEOWNERS from the repository, as well as team members from the organization.)
+
+Paste the token in the extension's popup UI by clicking its icon.
 
 ## Building
 
