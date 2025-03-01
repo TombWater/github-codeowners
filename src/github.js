@@ -27,6 +27,16 @@ const prCacheKey = () => {
   return pr.num ? `${pr.owner}/${pr.repo}/${pr.num}` : '';
 };
 
+const loadPage = async (url) => {
+  const response = await fetch(url, {credentials: "include"});
+  if (!response.ok) {
+    return null;
+  }
+  const text = await response.text();
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  return doc;
+}
+
 export const getPrInfo = () => {
   const url = window.location.href;
   const match = url.match(
@@ -75,37 +85,29 @@ export const getFolderOwners = memoize(async () => {
   if (!pr.num) {
     return [];
   }
-
   console.log('[GHCO] PR', pr);
 
-  const refParam = pr.base ? `ref=${pr.base}` : '';
   const paths = ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS'];
-  const headers = await apiHeaders();
-
   for (const path of paths) {
-    const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/contents/${path}?${refParam}`;
-    const response = await fetch(url, {headers});
-    const file = await response.json();
-    if (file.encoding === 'base64') {
-      const codeowners = atob(file.content);
-      const folders = [];
-      for (const line of codeowners.split('\n')) {
-        const trimmed = line.trim();
-
-        if (!trimmed.length || trimmed.startsWith('#')) {
-          continue;
-        }
-
-        const [folder, ...owners] = trimmed.split(/\s+/);
-
-        folders.push({
-          folderMatch: ignore().add(folder),
-          owners: new Set(owners),
-        });
-      }
-
-      return folders.reverse();
+    const url = `https://github.com/${pr.owner}/${pr.repo}/blob/${pr.base}/${path}`;
+    const doc = await loadPage(url);
+    if (!doc) {
+      continue;
     }
+    const jsonData = doc.querySelector('react-app[app-name="react-code-view"] [data-target="react-app.embeddedData"]')?.textContent;
+    const data = JSON.parse(jsonData);
+    const lines = data?.payload?.blob?.rawLines ?? [];
+    const ownerLines = lines.map((line) => line.trim()).filter((line) => line.length && !line.startsWith('#'));
+    console.log('[GHCO] CODEOWNERS', url, ownerLines);
+
+    const folders = ownerLines.map((line) => {
+      const [folder, ...owners] = line.split(/\s+/);
+      return {
+        folderMatch: ignore().add(folder),
+        owners: new Set(owners),
+      };
+    });
+    return folders.reverse();
   }
   return [];
 }, prCacheKey);
