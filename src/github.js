@@ -36,12 +36,9 @@ export const getPrInfo = () => {
   let owner, repo, num, page;
   [, owner, repo, , num, , page] = match || {};
 
-  return {
-    owner,
-    repo,
-    num,
-    page,
-  };
+  const base = document.querySelector('#partial-discussion-header .base-ref')?.textContent;
+
+  return {page, owner, repo, num, base};
 };
 
 const apiHeaders = memoize(async () => {
@@ -59,16 +56,12 @@ const apiHeaders = memoize(async () => {
   return headers;
 }, urlCacheKey);
 
-export const getBaseBranch = memoize(async () => {
-  const headRefSpan = document.querySelector('#partial-discussion-header .head-ref');
-  return headRefSpan?.textContent;
-}, prCacheKey);
-
 export const getReviews = memoize(async () => {
   const pr = getPrInfo();
   if (pr.page !== 'files') {
     return [];
   }
+
   const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/pulls/${pr.num}/reviews`;
   const headers = await apiHeaders();
 
@@ -83,11 +76,9 @@ export const getFolderOwners = memoize(async () => {
     return [];
   }
 
-  const baseBranch = await getBaseBranch();
-  const refParam = baseBranch ? `ref=${baseBranch}` : '';
+  console.log('[GHCO] PR', pr);
 
-  console.log('GHCO: PR base branch =', baseBranch);
-
+  const refParam = pr.base ? `ref=${pr.base}` : '';
   const paths = ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS'];
   const headers = await apiHeaders();
 
