@@ -66,18 +66,19 @@ const apiHeaders = memoize(async () => {
   return headers;
 }, urlCacheKey);
 
-export const getReviews = memoize(async () => {
+export const getApprovers = memoize(async () => {
   const pr = getPrInfo();
   if (pr.page !== 'files') {
     return [];
   }
 
-  const url = `https://api.github.com/repos/${pr.owner}/${pr.repo}/pulls/${pr.num}/reviews`;
-  const headers = await apiHeaders();
-
-  const response = await fetch(url, {headers});
-  const reviews = await response.json();
-  return Array.isArray(reviews) ? reviews : [];
+  const url = `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.num}`;
+  const doc = await loadPage(url);
+  const assigneeNodes = doc?.querySelectorAll('[data-assignee-name]');
+  const approverNodes = Array.from(assigneeNodes || []).filter((assignee) => assignee.parentElement.querySelector('.octicon-check'));
+  const approvers = approverNodes.map((assignee) => assignee.dataset.assigneeName);
+  console.log('[GHCO] Approvers', approvers);
+  return approvers;
 }, urlCacheKey);
 
 export const getFolderOwners = memoize(async () => {

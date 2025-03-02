@@ -135,16 +135,11 @@ const updatePrFilesPage = async () => {
   }
 
   // Get these every time to invalidate their cache when needed
-  let reviews, teamMembers;
-  [reviews, teamMembers] = await Promise.all([
-    github.getReviews(),
+  let approvers, teamMembers;
+  [approvers, teamMembers] = await Promise.all([
+    github.getApprovers(),
     github.getTeamMembers(folderOwners),
   ]);
-
-  // Array of users who approved the PR
-  const approvers = reviews
-    .filter((review) => review.state === 'APPROVED')
-    .map((review) => review.user.login);
 
   // Map of users to a set of teams they are a member of
   const userTeamsMap = new Map();
