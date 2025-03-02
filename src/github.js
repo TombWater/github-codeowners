@@ -2,7 +2,6 @@ import ignore from 'ignore';
 import {memoize} from 'lodash-es';
 
 import './content.css';
-import {tokenStorage} from './storage';
 
 // Cache just one key-value pair to refresh data when the key changes.
 memoize.Cache = function () {
@@ -50,21 +49,6 @@ export const getPrInfo = () => {
 
   return {page, owner, repo, num, base};
 };
-
-const apiHeaders = memoize(async () => {
-  const token = await tokenStorage.get();
-
-  const headers = {
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-  };
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  return headers;
-}, urlCacheKey);
 
 export const getApprovers = memoize(async () => {
   const pr = getPrInfo();

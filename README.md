@@ -26,13 +26,7 @@ Install from [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/gi
 
 ### Access Token
 
-If you're using a private repo in an organization, make a classic access token with full control of private repositories. (https://github.com/settings/tokens)
-
-<img src="Repo_token.png" alt="personal access token scopes (repo)" width="333"/>
-
-(This allows the extension to read the PR and CODEOWNERS from the repository, as well as team members from the organization.)
-
-Paste the token in the extension's popup UI by clicking its icon.
+This extension doesn't need an access token.
 
 ## Building
 
@@ -52,9 +46,11 @@ All data collected by this extension is kept and used only within the browser; i
 
 The data collected includes:
 * The username of the logged-in GitHub user is read from the page metadata.
-* The GitHub access token provided by the user is kept in local storage.
 * The usernames and team names mentioned in the `CODEOWNERS` file are collected and cached in memory.
 * Team member usernames for teams mentioned in `CODEOWNERS` are collected and cached in memory.
+
+> [!NOTE]
+> Any GitHub access token that was previously stored by v0.1.0 of the extension will be deleted from storage.
 
 ---
 

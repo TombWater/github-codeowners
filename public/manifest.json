@@ -10,8 +10,7 @@
     "128": "icons/icon_128.png"
   },
   "action": {
-    "default_title": "GitHub Codeowners",
-    "default_popup": "popup.html"
+    "default_title": "GitHub Codeowners"
   },
   "permissions": ["storage"],
   "content_scripts": [
