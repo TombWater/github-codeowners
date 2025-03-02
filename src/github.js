@@ -26,6 +26,9 @@ const prCacheKey = () => {
   return pr.num ? `${pr.owner}/${pr.repo}/${pr.num}` : '';
 };
 
+// Swap the arguments to memoize to make it easier to see the cache key
+const cacheResult = (cacheKey, fn) => memoize(fn, cacheKey);
+
 const loadPage = async (url) => {
   const response = await fetch(url, {credentials: "include"});
   if (!response.ok) {
@@ -50,7 +53,7 @@ export const getPrInfo = () => {
   return {page, owner, repo, num, base};
 };
 
-export const getApprovers = memoize(async () => {
+export const getApprovers = cacheResult(urlCacheKey, async () => {
   const pr = getPrInfo();
   if (pr.page !== 'files') {
     return [];
@@ -63,9 +66,9 @@ export const getApprovers = memoize(async () => {
   const approvers = approverNodes.map((assignee) => assignee.dataset.assigneeName);
   console.log('[GHCO] Approvers', approvers);
   return approvers;
-}, urlCacheKey);
+});
 
-export const getFolderOwners = memoize(async () => {
+export const getFolderOwners = cacheResult(prCacheKey, async () => {
   const pr = getPrInfo();
   if (!pr.num) {
     return [];
@@ -95,7 +98,7 @@ export const getFolderOwners = memoize(async () => {
     return folders.reverse();
   }
   return [];
-}, prCacheKey);
+});
 
 const loadTeamMembers = async (org, teamSlug) => {
   const teamMembers = [];
@@ -112,7 +115,7 @@ const loadTeamMembers = async (org, teamSlug) => {
   return teamMembers;
 };
 
-export const getTeamMembers = memoize(async (folderOwners) => {
+export const getTeamMembers = cacheResult(repoCacheKey, async (folderOwners) => {
   const pr = getPrInfo();
   const {owner: org} = pr;
   if (!org) {
@@ -149,4 +152,4 @@ export const getTeamMembers = memoize(async (folderOwners) => {
   );
 
   return owners;
-}, repoCacheKey);
+});
