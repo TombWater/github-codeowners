@@ -113,13 +113,27 @@ export const getFolderOwners = memoize(async () => {
   return [];
 }, prCacheKey);
 
+const loadTeamMembers = async (org, teamSlug) => {
+  const teamMembers = [];
+  for (let page = 1, hasNext = true; hasNext; page++) {
+    const url = `https://github.com/orgs/${org}/teams/${teamSlug}?page=${page}`;
+    const doc = await loadPage(url);
+    const memberNodes = doc?.querySelectorAll('.member-list-item');
+    const members = Array.from(memberNodes || []).map((member) => member.dataset.bulkActionsId);
+    teamMembers.push(...members);
+
+    const next = doc?.querySelector('.next_page');
+    hasNext = next && !next.classList.contains('disabled');
+  }
+  return teamMembers;
+};
+
 export const getTeamMembers = memoize(async (folderOwners) => {
   const pr = getPrInfo();
   const {owner: org} = pr;
   if (!org) {
     return [];
   }
-  const headers = await apiHeaders();
 
   // Array of all unique owner names mentioned in CODEOWNERS file
   const allOwners = Array.from(
@@ -135,9 +149,8 @@ export const getTeamMembers = memoize(async (folderOwners) => {
     await Promise.all(
       teamNames.map(async (teamName) => {
         const teamSlug = teamName.replace(prefix, '');
-        const url = `https://api.github.com/orgs/${org}/teams/${teamSlug}/members`;
-        const response = await fetch(url, {headers});
-        const members = await response.json();
+        const members = await loadTeamMembers(org, teamSlug);
+        console.log('[GHCO] Team', teamName, members);
         return [teamName, members];
       })
     )
@@ -145,12 +158,9 @@ export const getTeamMembers = memoize(async (folderOwners) => {
 
   // Map owner teams to an array of members, or if not a team then a pseudo-team with just the owner
   const owners = new Map(
-    allOwners.map((owner) => {
-      const members = orgTeams.get(owner);
-      const logins = Array.isArray(members)
-        ? members.map((member) => member.login)
-        : [owner];
-      return [owner, logins];
+    allOwners.map((teamName) => {
+      const members = orgTeams.get(teamName) || [teamName];
+      return [teamName, members];
     })
   );
 
