@@ -7,12 +7,15 @@ GitHub Codeowners Browser Extension
 
 ## Features
 
-- Decorate each file header with labels showing the owners who must approve that file
+Decorate PR file headers with labels showing the owners who must approve that file
+
 - Owner labels of teams that you're a member of are shown in red and have a star (★)
 - Owner labels of teams that have already approved are shown in green and have a checkmark (✓)
-  - The star becomes lighter in your own teams that have approved (☆)
+- The star becomes lighter in your own teams that have approved (☆)
 - Hovering on an owner label shows a tooltip with the members of that team
 - Clicking an owner label expands all the files with that owner, and collapses the others
+
+Does not require a GitHub access token
 
 ## Install
 
@@ -23,10 +26,6 @@ Install from [Chrome Store](https://chromewebstore.google.com/detail/GitHub%20Co
 ### Firefox
 
 Install from [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/github-codeowners/)
-
-### Access Token
-
-This extension doesn't need an access token.
 
 ## Building
 
