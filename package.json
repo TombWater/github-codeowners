@@ -6,7 +6,7 @@
   "scripts": {
     "postinstall": "patch-package",
     "watch": "webpack --mode=development --output-pathinfo --watch --config config/webpack.config.js",
-    "build": "webpack --mode=production --config config/webpack.config.js",
+    "build": "rm -rf build && webpack --mode=production --config config/webpack.config.js",
     "pack": "node pack.js",
     "repack": "npm run build && npm run pack",
     "format": "prettier --write --ignore-unknown \"{config,public,src}/**/*.{html,css,js,ts,json}\"",
