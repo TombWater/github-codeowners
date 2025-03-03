@@ -115,16 +115,14 @@ const getUserLogin = () => {
   return document.head.querySelector('meta[name="user-login"]')?.content;
 };
 
-let alreadySawOnePr = false;
-
 // If we are on a PR files page, update reviewer decorations on the files
 const updatePrFilesPage = async () => {
   const fileHeaders = getFileHeadersForDecoration();
-  // Don't do anything until the first time we're on a PR files page
-  if (!alreadySawOnePr && fileHeaders.length === 0) {
+
+  // Don't do anything when not on a PR files page, or the files haven't changed
+  if (fileHeaders.length === 0) {
     return;
   }
-  alreadySawOnePr = true;
 
   // Owners is cached, so get it every time to invalidate the cache when needed
   const folderOwners = await github.getFolderOwners();

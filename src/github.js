@@ -21,9 +21,9 @@ const repoCacheKey = () => {
   const pr = getPrInfo();
   return pr.repo ? `${pr.owner}/${pr.repo}` : '';
 };
-const prCacheKey = () => {
+const prBaseCacheKey = () => {
   const pr = getPrInfo();
-  return pr.num ? `${pr.owner}/${pr.repo}/${pr.num}` : '';
+  return pr.num ? `${pr.owner}/${pr.repo}/${pr.base}` : '';
 };
 
 // Swap the arguments to memoize to make it easier to see the cache key
@@ -68,7 +68,7 @@ export const getApprovers = cacheResult(urlCacheKey, async () => {
   return approvers;
 });
 
-export const getFolderOwners = cacheResult(prCacheKey, async () => {
+export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
   const pr = getPrInfo();
   if (!pr.num) {
     return [];
