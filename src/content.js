@@ -50,6 +50,7 @@ const decorateFileHeader = (
     // ignores() means it matches, as it's meant to match in .gitignore files
     folderMatch.ignores(path)
   );
+  console.log('[GHCO] File', path, owners);
 
   // Remove any previous owners decoration
   node.parentNode
@@ -123,6 +124,7 @@ const updatePrFilesPage = async () => {
   if (fileHeaders.length === 0) {
     return;
   }
+  console.log('[GHCO] Decorate PR', github.getPrInfo());
 
   // Owners is cached, so get it every time to invalidate the cache when needed
   const folderOwners = await github.getFolderOwners();

@@ -73,7 +73,6 @@ export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
   if (!pr.num || !pr.base) {
     return [];
   }
-  console.log('[GHCO] PR', pr);
 
   const paths = ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS'];
   for (const path of paths) {
@@ -137,7 +136,6 @@ export const getTeamMembers = cacheResult(repoCacheKey, async (folderOwners) => 
       teamNames.map(async (teamName) => {
         const teamSlug = teamName.replace(prefix, '');
         const members = await loadTeamMembers(org, teamSlug);
-        console.log('[GHCO] Team', teamName, members);
         return [teamName, members];
       })
     )
@@ -151,5 +149,6 @@ export const getTeamMembers = cacheResult(repoCacheKey, async (folderOwners) => 
     })
   );
 
+  console.log('[GHCO] Teams', owners);
   return owners;
 });
