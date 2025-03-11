@@ -48,7 +48,7 @@ export const getPrInfo = () => {
   let owner, repo, num, page;
   [, owner, repo, , num, , page] = match || {};
 
-  const base = document.querySelector('#partial-discussion-header .base-ref')?.textContent;
+  const base = document.querySelector('#partial-discussion-header .base-ref, #partial-discussion-header .commit-ref')?.textContent;
 
   return {page, owner, repo, num, base};
 };
@@ -70,7 +70,7 @@ export const getApprovers = cacheResult(urlCacheKey, async () => {
 
 export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
   const pr = getPrInfo();
-  if (!pr.num) {
+  if (!pr.num || !pr.base) {
     return [];
   }
   console.log('[GHCO] PR', pr);
