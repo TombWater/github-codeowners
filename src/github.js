@@ -57,12 +57,14 @@ export const getReviewers = cacheResult(urlCacheKey, async () => {
   const pr = getPrInfo();
   const url = `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.num}`;
   const doc = await loadPage(url);
-  const assigneeNodes = doc?.querySelectorAll('[data-assignee-name]');
-  const reviewers = Array.from(assigneeNodes || []).reduce((acc, assignee) => {
-    acc.set(
-      assignee.dataset.assigneeName,
-      Boolean(assignee.parentElement.querySelector('.octicon-check')),
-    );
+  const reviewerNodes = doc?.querySelectorAll('[data-assignee-name], .js-reviewer-team');
+  const reviewers = Array.from(reviewerNodes || []).reduce((acc, node) => {
+    const statusIcon  = node.parentElement.querySelector('.reviewers-status-icon');
+    if (statusIcon && !statusIcon.classList.contains('v-hidden')) {
+      const name = node.dataset.assigneeName || node.textContent.trim();
+      const approved = Boolean(statusIcon.querySelector('.octicon-check'));
+      acc.set(name, approved);
+    }
     return acc;
   }, new Map());
   console.log('[GHCO] Reviewers', reviewers);
