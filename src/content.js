@@ -43,7 +43,7 @@ const onClickOwner = (ev) => {
 
 const decorateFileHeader = (
   node,
-  {approversSet, folderOwners, ownerApprovals, userTeams, teamMembers}
+  {reviewers, folderOwners, ownerApprovals, userTeams, teamMembers}
 ) => {
   const path = node.dataset.path;
   const {owners} = folderOwners.find(({folderMatch}) =>
@@ -83,7 +83,7 @@ const decorateFileHeader = (
     const tooltip = teamMembers
       .get(owner)
       ?.map((member) => {
-        const memberCheckmark = approversSet.has(member) ? '  ✓\t' : '\t';
+        const memberCheckmark = reviewers.get(member) ? '  ✓\t' : '\t';
         return `${approved ? memberCheckmark : ''}${member}`;
       })
       .join('\n');
@@ -135,9 +135,9 @@ const updatePrFilesPage = async () => {
   }
 
   // Get these every time to invalidate their cache when needed
-  let approvers, teamMembers;
-  [approvers, teamMembers] = await Promise.all([
-    github.getApprovers(),
+  let reviewers, teamMembers;
+  [reviewers, teamMembers] = await Promise.all([
+    github.getReviewers(),
     github.getTeamMembers(folderOwners),
   ]);
 
@@ -153,7 +153,9 @@ const updatePrFilesPage = async () => {
 
   // Set of owners/teams who approved the PR
   const ownerApprovals = new Set(
-    approvers.map((approver) => Array.from(userTeamsMap.get(approver))).flat()
+    Array.from(reviewers.entries())
+      .filter(([, approved]) => approved)
+      .flatMap(([approver]) => Array.from(userTeamsMap.get(approver)))
   );
 
   // Set of teams the current user is a member of
@@ -161,7 +163,7 @@ const updatePrFilesPage = async () => {
 
   fileHeaders.forEach((node) =>
     decorateFileHeader(node, {
-      approversSet: new Set(approvers),
+      reviewers,
       folderOwners,
       ownerApprovals,
       userTeams,

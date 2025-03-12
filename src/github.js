@@ -53,15 +53,20 @@ export const getPrInfo = () => {
   return {page, owner, repo, num, base};
 };
 
-export const getApprovers = cacheResult(urlCacheKey, async () => {
+export const getReviewers = cacheResult(urlCacheKey, async () => {
   const pr = getPrInfo();
   const url = `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.num}`;
   const doc = await loadPage(url);
   const assigneeNodes = doc?.querySelectorAll('[data-assignee-name]');
-  const approverNodes = Array.from(assigneeNodes || []).filter((assignee) => assignee.parentElement.querySelector('.octicon-check'));
-  const approvers = approverNodes.map((assignee) => assignee.dataset.assigneeName);
-  console.log('[GHCO] Approvers', approvers);
-  return approvers;
+  const reviewers = Array.from(assigneeNodes || []).reduce((acc, assignee) => {
+    acc.set(
+      assignee.dataset.assigneeName,
+      Boolean(assignee.parentElement.querySelector('.octicon-check')),
+    );
+    return acc;
+  }, new Map());
+  console.log('[GHCO] Reviewers', reviewers);
+  return reviewers;
 });
 
 export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
