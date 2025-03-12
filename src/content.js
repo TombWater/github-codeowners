@@ -41,6 +41,31 @@ const onClickOwner = (ev) => {
   window.scrollTo({top});
 };
 
+const createLabel = (owner, {userOwns, approved, members, reviewers}) => {
+  const label = document.createElement('span');
+  const checkmark = approved ? '✓ ' : '';
+  const star = !userOwns ? '' : approved ? ' ☆' : ' ★';
+
+  label.classList.add('owners-label');
+  label.classList.toggle('owners-label--user', userOwns);
+  label.classList.toggle('owners-label--approved', approved);
+
+  label.textContent = `${checkmark}${owner}${star}`;
+  label.dataset.owner = owner;
+
+  const tooltip = members?.map((member) => {
+      const memberCheckmark = reviewers.get(member) ? '  ✓\t' : '\t';
+      return `${approved ? memberCheckmark : ''}${member}`;
+    }).join('\n');
+  if (tooltip) {
+    label.classList.add('tooltipped', 'tooltipped-s');
+    label.setAttribute('aria-label', tooltip);
+  }
+
+  label.addEventListener('click', onClickOwner);
+  return label;
+};
+
 const decorateFileHeader = (
   node,
   {reviewers, folderOwners, ownerApprovals, userTeams, teamMembers}
@@ -66,35 +91,23 @@ const decorateFileHeader = (
   // Create the new owners decoration containing labels for each owner
   const decoration = document.createElement('div');
   decoration.classList.add('owners-decoration', 'js-skip-tagsearch');
-  owners.forEach((owner) => {
-    const label = document.createElement('span');
-    const userOwns = userTeams.has(owner);
-    const approved = ownerApprovals.has(owner);
-    const checkmark = approved ? '✓ ' : '';
-    const star = !userOwns ? '' : approved ? ' ☆' : ' ★';
+  if (owners.size) {
+    owners.forEach((owner) => {
+      const userOwns = userTeams.has(owner);
+      const approved = ownerApprovals.has(owner);
+      const members = teamMembers.get(owner);
 
-    label.classList.add('owners-label');
-    label.classList.toggle('owners-label--user', userOwns);
-    label.classList.toggle('owners-label--approved', approved);
+      const label = createLabel(owner, {userOwns, approved, members, reviewers});
+      decoration.appendChild(label);
+    });
+  } else {
+    const userOwns = true;
+    const approved = ownerApprovals.size > 0;
+    const members = Array.from(reviewers.keys());
 
-    label.textContent = `${checkmark}${owner}${star}`;
-    label.dataset.owner = owner;
-
-    const tooltip = teamMembers
-      .get(owner)
-      ?.map((member) => {
-        const memberCheckmark = reviewers.get(member) ? '  ✓\t' : '\t';
-        return `${approved ? memberCheckmark : ''}${member}`;
-      })
-      .join('\n');
-    if (tooltip) {
-      label.classList.add('tooltipped', 'tooltipped-s');
-      label.setAttribute('aria-label', tooltip);
-    }
-
-    label.addEventListener('click', onClickOwner);
+    const label = createLabel('anybody', {userOwns, approved, members, reviewers});
     decoration.appendChild(label);
-  });
+  }
   node.parentNode.insertBefore(decoration, node.nextSibling);
 };
 
