@@ -55,10 +55,6 @@ export const getPrInfo = () => {
 
 export const getApprovers = cacheResult(urlCacheKey, async () => {
   const pr = getPrInfo();
-  if (pr.page !== 'files') {
-    return [];
-  }
-
   const url = `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.num}`;
   const doc = await loadPage(url);
   const assigneeNodes = doc?.querySelectorAll('[data-assignee-name]');
