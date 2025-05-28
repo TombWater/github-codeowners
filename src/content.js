@@ -148,11 +148,18 @@ const updatePrFilesPage = async () => {
   }
 
   // Get these every time to invalidate their cache when needed
-  let reviewers, teamMembers;
-  [reviewers, teamMembers] = await Promise.all([
+  const [reviewers, teamMembers] = await Promise.all([
     github.getReviewers(),
     github.getTeamMembers(folderOwners),
   ]);
+
+  // Check if the base branch is protected
+  const isProtected = await github.isBranchProtected();
+  console.log('[GHCO] Base branch protection status:', isProtected);
+
+  if (!isProtected) {
+    return;
+  }
 
   // Map of users to a set of teams they are a member of
   const userTeamsMap = new Map();

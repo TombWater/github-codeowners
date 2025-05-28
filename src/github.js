@@ -155,3 +155,33 @@ export const getTeamMembers = cacheResult(repoCacheKey, async (folderOwners) => 
   console.log('[GHCO] Teams', owners);
   return owners;
 });
+
+export const isBranchProtected = cacheResult(prBaseCacheKey, async () => {
+  const pr = getPrInfo();
+  const {owner, repo, base} = pr;
+
+  if (!owner || !repo || !base) {
+    console.warn('[GHCO] Branch protection: missing info, defaulting true.');
+    return true;
+  }
+
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/branches/${base}/protection`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/vnd.github.v3+json',
+      },
+      credentials: 'include',
+    });
+
+    if (response.status === 200) return true;
+    if (response.status === 404) return false;
+    console.error(`[GHCO] Branch protection API error: ${response.status} for ${apiUrl}`);
+    return false;
+  } catch (error) {
+    console.error(`[GHCO] Branch protection fetch error: ${apiUrl}`, error);
+    return false;
+  }
+});
