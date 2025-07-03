@@ -41,7 +41,7 @@ const onClickOwner = (ev) => {
   window.scrollTo({top});
 };
 
-const createLabel = (owner, {userOwns, approved, members, reviewers}) => {
+const createLabel = (owner, {user, userOwns, approved, members, reviewers}) => {
   const container = document.createElement('span');
   container.classList.add('owners-label-container');
 
@@ -60,7 +60,7 @@ const createLabel = (owner, {userOwns, approved, members, reviewers}) => {
 
   container.appendChild(label);
 
-  const tooltip = createTooltip({approved, members, reviewers});
+  const tooltip = createTooltip({user, approved, members, reviewers});
   if (tooltip) {
     const anchorName = `--owners-anchor-${Math.random().toString(36).substring(2, 11)}`;
     tooltip.style.positionAnchor = anchorName;
@@ -106,10 +106,11 @@ const createLabel = (owner, {userOwns, approved, members, reviewers}) => {
   return container;
 };
 
-const createTooltip = ({approved, members, reviewers}) => {
+const createTooltip = ({user, approved, members, reviewers}) => {
   const tooltipContent = members?.map((member) => {
       const memberCheckmark = reviewers.get(member) ? '  ✓\t' : '\t';
-      return `${approved ? memberCheckmark : ''}${member}`;
+      const star = member === user ? ' ★' : '';
+      return `${approved ? memberCheckmark : ''}${member}${star}`;
     }).join('\n');
 
   if (!tooltipContent) {
@@ -128,7 +129,7 @@ const createTooltip = ({approved, members, reviewers}) => {
 
 const decorateFileHeader = (
   node,
-  {reviewers, folderOwners, ownerApprovals, userTeams, teamMembers, diffFilesMap}
+  {reviewers, folderOwners, ownerApprovals, user, userTeams, teamMembers, diffFilesMap}
 ) => {
   const link = node?.dataset.anchor || node.querySelector('[class^="DiffFileHeader-module__file-name"] a')?.href;
   const digest = link?.split('diff-')[1];
@@ -163,7 +164,7 @@ const decorateFileHeader = (
       const approved = ownerApprovals.has(owner);
       const members = teamMembers.get(owner);
 
-      const label = createLabel(owner, {userOwns, approved, members, reviewers});
+      const label = createLabel(owner, {user, userOwns, approved, members, reviewers});
       decoration.appendChild(label);
     });
   } else {
@@ -244,7 +245,8 @@ const updatePrFilesPage = async () => {
   );
 
   // Set of teams the current user is a member of
-  const userTeams = new Set(userTeamsMap.get(getUserLogin()) ?? []);
+  const user = getUserLogin();
+  const userTeams = new Set(userTeamsMap.get(user) ?? []);
 
   const diffFilesMap = await github.getDiffFilesMap();
   if (!diffFilesMap) {
@@ -257,6 +259,7 @@ const updatePrFilesPage = async () => {
       reviewers,
       folderOwners,
       ownerApprovals,
+      user,
       userTeams,
       teamMembers,
       diffFilesMap,
