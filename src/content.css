@@ -36,6 +36,11 @@ react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFile
   border-bottom-right-radius: 0;
 }
 
+.owners-label-container {
+  display: inline-block;
+  position: relative;
+}
+
 .owners-label {
   display: inline-block;
   margin-right: 5px;
@@ -79,6 +84,26 @@ react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFile
   background-color: var(--bgColor-success-emphasis);
 }
 
-.owners-label.tooltipped::after {
+.owners-tooltip {
+  /* Overriding the default popover styles */
+  inset: auto;
+  position: absolute;
+  top: calc(anchor(bottom) + 3px);
+  justify-self: anchor-center;
+  width: max-content;
+  padding: 0.5em 0.75em;
+  margin: 0;
+
+  /* Styling to look like GitHub's tooltips */
+  overflow: visible;
+  clip: auto;
+  font: normal normal 11px/1.5 var(--fontStack-system);
+  color: var(--tooltip-fgColor);
   text-align: left;
+  white-space: pre;
+  background: var(--tooltip-bgColor);
+  border: 0;
+  border-radius: var(--borderRadius-medium);
+  opacity: 1;
+  -webkit-font-smoothing: subpixel-antialiased;
 }

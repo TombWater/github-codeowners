@@ -42,7 +42,10 @@ const onClickOwner = (ev) => {
 };
 
 const createLabel = (owner, {userOwns, approved, members, reviewers}) => {
-  const label = document.createElement('span');
+  const container = document.createElement('span');
+  container.classList.add('owners-label-container');
+
+  const label = document.createElement('button');
   const checkmark = approved ? '✓ ' : '';
   const star = !userOwns ? '' : approved ? ' ☆' : ' ★';
 
@@ -53,17 +56,46 @@ const createLabel = (owner, {userOwns, approved, members, reviewers}) => {
   label.textContent = `${checkmark}${owner}${star}`;
   label.dataset.owner = owner;
 
-  const tooltip = members?.map((member) => {
+  label.addEventListener('click', onClickOwner);
+
+  container.appendChild(label);
+
+  const tooltip = createTooltip({approved, members, reviewers});
+  if (tooltip) {
+    const anchorName = `--owners-anchor-${Math.random().toString(36).substring(2, 11)}`;
+    tooltip.style.positionAnchor = anchorName;
+    container.appendChild(tooltip);
+
+    label.style.anchorName = anchorName;
+    label.popoverTargetElement = tooltip;
+    label.addEventListener('mouseenter', () => tooltip.showPopover());
+    label.addEventListener('mouseleave', () => tooltip.hidePopover());
+  }
+
+  return container;
+};
+
+const createTooltip = ({approved, members, reviewers}) => {
+  const tooltipContent = members?.map((member) => {
       const memberCheckmark = reviewers.get(member) ? '  ✓\t' : '\t';
       return `${approved ? memberCheckmark : ''}${member}`;
     }).join('\n');
-  if (tooltip) {
-    label.classList.add('tooltipped', 'tooltipped-s');
-    label.setAttribute('aria-label', tooltip);
+
+  if (!tooltipContent) {
+    return null;
   }
 
-  label.addEventListener('click', onClickOwner);
-  return label;
+  const tooltip = document.createElement('div');
+  tooltip.textContent = tooltipContent;
+  tooltip.classList.add('owners-tooltip');
+  tooltip.popover = 'hint'; // Use 'hint' like the MDN example
+  tooltip.setAttribute('role', 'tooltip');
+  tooltip.setAttribute('aria-label', tooltipContent);
+
+  return tooltip;
+
+  // container.classList.add('tooltipped', 'tooltipped-s');
+  // container.setAttribute('aria-label', tooltipContent);
 };
 
 const decorateFileHeader = (
