@@ -67,9 +67,40 @@ const createLabel = (owner, {userOwns, approved, members, reviewers}) => {
     container.appendChild(tooltip);
 
     label.style.anchorName = anchorName;
-    label.popoverTargetElement = tooltip;
-    label.addEventListener('mouseenter', () => tooltip.showPopover());
-    label.addEventListener('mouseleave', () => tooltip.hidePopover());
+
+    let hideTimeout;
+
+    label.addEventListener('mouseenter', () => {
+      clearTimeout(hideTimeout);
+      tooltip.showPopover();
+
+      // Start the opening animation
+      requestAnimationFrame(() => {
+        const labelWidth = label.offsetWidth;
+        const tooltipWidth = tooltip.offsetWidth;
+        if (tooltipWidth < labelWidth) {
+          // Firefox fallback: ensure tooltip is at least as wide as label
+          tooltip.style.width = `${labelWidth}px`;
+        } else if (tooltipWidth > labelWidth) {
+          // If tooltip is wider than label, make the overhanging corner round
+          tooltip.style.borderTopRightRadius = `${Math.min(tooltipWidth - labelWidth, 9)}px`;
+        }
+
+        tooltip.style.transform = 'scaleY(1)';
+        tooltip.style.opacity = '1';
+      });
+    });
+
+    label.addEventListener('mouseleave', () => {
+      // Start the closing animation immediately
+      tooltip.style.transform = 'scaleY(0)';
+      tooltip.style.opacity = '0';
+
+      // Hide the popover after the animation completes
+      hideTimeout = setTimeout(() => {
+        tooltip.hidePopover();
+      }, 200); // Match the CSS transition duration
+    });
   }
 
   return container;
@@ -88,14 +119,11 @@ const createTooltip = ({approved, members, reviewers}) => {
   const tooltip = document.createElement('div');
   tooltip.textContent = tooltipContent;
   tooltip.classList.add('owners-tooltip');
-  tooltip.popover = 'hint'; // Use 'hint' like the MDN example
+  tooltip.popover = 'manual';
   tooltip.setAttribute('role', 'tooltip');
   tooltip.setAttribute('aria-label', tooltipContent);
 
   return tooltip;
-
-  // container.classList.add('tooltipped', 'tooltipped-s');
-  // container.setAttribute('aria-label', tooltipContent);
 };
 
 const decorateFileHeader = (
