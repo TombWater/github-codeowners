@@ -51,59 +51,81 @@ react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFile
   white-space: nowrap;
   border-width: 1px;
   border-style: solid;
-  border-radius: 2em;
-  border-color: var(--borderColor-attention-muted);
-  background-color: var(--bgColor-attention-muted);
+  border-radius: 9px;
   color: var(--fgColor-muted);
 }
 
 .owners-label:hover {
-  border-color: var(--borderColor-attention-emphasis);
-  background-color: var(--bgColor-attention-emphasis);
   color: var(--fgColor-onEmphasis);
   cursor: pointer;
 }
 
-.owners-label--user {
+.owners-label:has(+ .owners-tooltip:popover-open):not(.owners-label--clicked) {
+  border-radius: 9px 9px 0 0;
+}
+
+.owners-tooltip {
+  /* Positioning - seamlessly connected to label */
+  inset: auto;
+  position: absolute;
+  top: anchor(bottom);
+  left: anchor(left);
+  min-width: calc(anchor-size(width));
+  width: max-content;
+  padding: 0.25em 0.75em 0.5em 0.75em;
+  margin: 0;
+
+  /* Visual continuity - match label colors */
+  background: var(--bgColor-attention-muted);
+  color: var(--fgColor-muted);
+  border: 1px solid;
+  border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
+
+  /* Typography */
+  font-size: 12px;
+  font-weight: var(--base-text-weight-medium, 500);
+  line-height: 18px;
+  text-align: left;
+  white-space: pre;
+  -webkit-font-smoothing: subpixel-antialiased;
+
+  /* Animation - grows from label */
+  transform-origin: top center;
+  transform: scaleY(0);
+  opacity: 0;
+  overflow: hidden;
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out, display 0.2s allow-discrete;
+}
+
+/* Default - yellow */
+.owners-label,
+.owners-label + .owners-tooltip {
+  border-color: var(--borderColor-attention-muted);
+  background-color: var(--bgColor-attention-muted);
+}
+.owners-label:hover {
+  border-color: var(--borderColor-attention-emphasis);
+  background-color: var(--bgColor-attention-emphasis);
+}
+
+/* User - red */
+.owners-label--user,
+.owners-label--user + .owners-tooltip {
   border-color: var(--borderColor-severe-muted);
   background-color: var(--bgColor-severe-muted);
 }
-
 .owners-label--user:hover {
   border-color: var(--borderColor-severe-emphasis);
   background-color: var(--bgColor-severe-emphasis);
 }
 
-.owners-label--approved {
+/* Approved - green */
+.owners-label--approved,
+.owners-label--approved + .owners-tooltip {
   border-color: var(--borderColor-success-muted);
   background-color: var(--bgColor-success-muted);
 }
-
 .owners-label--approved:hover {
   border-color: var(--borderColor-success-emphasis);
   background-color: var(--bgColor-success-emphasis);
-}
-
-.owners-tooltip {
-  /* Overriding the default popover styles */
-  inset: auto;
-  position: absolute;
-  top: calc(anchor(bottom) + 3px);
-  justify-self: anchor-center;
-  width: max-content;
-  padding: 0.5em 0.75em;
-  margin: 0;
-
-  /* Styling to look like GitHub's tooltips */
-  overflow: visible;
-  clip: auto;
-  font: normal normal 11px/1.5 var(--fontStack-system);
-  color: var(--tooltip-fgColor);
-  text-align: left;
-  white-space: pre;
-  background: var(--tooltip-bgColor);
-  border: 0;
-  border-radius: var(--borderRadius-medium);
-  opacity: 1;
-  -webkit-font-smoothing: subpixel-antialiased;
 }
