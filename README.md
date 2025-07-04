@@ -12,8 +12,8 @@ Decorate PR file headers with labels showing the owners who must approve that fi
 - Owner labels of teams that you're a member of are shown in red and have a star (★)
 - Owner labels of teams that have already approved are shown in green and have a checkmark (✓)
 - The star becomes lighter in your own teams that have approved (☆)
-- Hovering on an owner label shows a tooltip with the members of that team
-- Clicking an owner label expands all the files with that owner, and collapses the others
+- Hovering on an owner label shows a drawer with the members of that team
+- Clicking an owner label highlights that owner label in all file headers
 
 Does not require a GitHub access token
 
