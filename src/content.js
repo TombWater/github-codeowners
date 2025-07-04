@@ -11,11 +11,11 @@ const onClickOwner = (ev) => {
   const clickedLabel = ev.target;
 
   // Give feedback for the click
-  clickedLabel.classList.add('owners-label--clicked');
+  clickedLabel.classList.add('ghco-label--clicked');
 
   // Remove the class after the animation is complete
   setTimeout(() => {
-    clickedLabel.classList.remove('owners-label--clicked');
+    clickedLabel.classList.remove('ghco-label--clicked');
   }, 150); // Corresponds to animation duration in CSS
 
   // Defer the highlighting logic slightly to allow the animation to start smoothly
@@ -23,25 +23,25 @@ const onClickOwner = (ev) => {
     const owner = clickedLabel.dataset.owner;
     highlightedOwner = owner === highlightedOwner ? null : owner;
     document.body.classList.toggle('ghco-highlight-active', !!highlightedOwner);
-    const labels = document.querySelectorAll('.owners-label');
+    const labels = document.querySelectorAll('.ghco-label');
     labels.forEach((label) => {
       const isMatch = label.dataset.owner === highlightedOwner;
-      label.classList.toggle('owners-label--highlighted', isMatch);
+      label.classList.toggle('ghco-label--highlighted', isMatch);
     });
   });
 };
 
 const createLabel = (owner, {user, userOwns, approved, members, reviewers}) => {
   const container = document.createElement('span');
-  container.classList.add('owners-label-container');
+  container.classList.add('ghco-label-container');
 
   const label = document.createElement('button');
   const checkmark = approved ? '✓ ' : '';
   const star = !userOwns ? '' : approved ? ' ☆' : ' ★';
 
-  label.classList.add('owners-label');
-  label.classList.toggle('owners-label--user', userOwns);
-  label.classList.toggle('owners-label--approved', approved);
+  label.classList.add('ghco-label');
+  label.classList.toggle('ghco-label--user', userOwns);
+  label.classList.toggle('ghco-label--approved', approved);
 
   label.textContent = `${checkmark}${owner}${star}`;
   label.dataset.owner = owner;
@@ -52,7 +52,7 @@ const createLabel = (owner, {user, userOwns, approved, members, reviewers}) => {
 
   const tooltip = createTooltip({user, approved, members, reviewers});
   if (tooltip) {
-    const anchorName = `--owners-anchor-${Math.random().toString(36).substring(2, 11)}`;
+    const anchorName = `--ghco-anchor-${Math.random().toString(36).substring(2, 11)}`;
     tooltip.style.positionAnchor = anchorName;
     container.appendChild(tooltip);
 
@@ -109,7 +109,7 @@ const createTooltip = ({user, approved, members, reviewers}) => {
 
   const tooltip = document.createElement('div');
   tooltip.textContent = tooltipContent;
-  tooltip.classList.add('owners-tooltip');
+  tooltip.classList.add('ghco-tooltip');
   tooltip.popover = 'manual';
   tooltip.setAttribute('role', 'tooltip');
   tooltip.setAttribute('aria-label', tooltipContent);
@@ -136,7 +136,7 @@ const decorateFileHeader = (
 
   // Remove any previous owners decoration
   node.parentNode
-    .querySelectorAll('.owners-decoration')
+    .querySelectorAll('.ghco-decoration')
     .forEach((decoration) => {
       decoration.remove();
     });
@@ -147,7 +147,7 @@ const decorateFileHeader = (
 
   // Create the new owners decoration containing labels for each owner
   const decoration = document.createElement('div');
-  decoration.classList.add('owners-decoration', 'js-skip-tagsearch');
+  decoration.classList.add('ghco-decoration', 'js-skip-tagsearch');
   if (owners.size) {
     owners.forEach((owner) => {
       const userOwns = userTeams.has(owner);
