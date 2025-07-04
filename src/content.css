@@ -1,4 +1,4 @@
-.owners-decoration {
+.file .owners-decoration {
   display: block;
   padding: 2px 5px;
   background-color: var(--bgColor-muted, var(--color-canvas-subtle));
@@ -12,6 +12,28 @@
     var(--borderColor-default, var(--color-border-default));
   border-bottom: 0;
   border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
+}
+
+react-app .owners-decoration {
+  display: block;
+  padding: 2px 5px 3px;
+  background-color: var(--bgColor-muted, var(--color-canvas-subtle));
+  border: var(--borderWidth-thin) solid
+  var(--borderColor-default, var(--color-border-default));
+  color: var(--fgColor-muted, var(--color-fg-muted));
+  border-top: 0;
+  border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
+}
+
+react-app .owners-decoration:has(+ div) {
+  padding: 3px 5px;
+  border-bottom: 0;
+  border-radius: 0;
+}
+
+react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFileHeader-module__collapsed"] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .owners-label {

@@ -48,9 +48,35 @@ export const getPrInfo = () => {
   let owner, repo, num, page;
   [, owner, repo, , num, , page] = match || {};
 
-  const base = document.querySelector('#partial-discussion-header .base-ref, #partial-discussion-header .commit-ref')?.textContent;
+  const selectors = [
+    // Old Files Changed page
+    '#partial-discussion-header .base-ref',
+    '#partial-discussion-header .commit-ref',
+    // New Files Changed page
+    'div[class*="PageHeader-Description"] a[class*="BranchName-BranchName"]',
+  ];
+  const base = document.querySelector(selectors.join(', '))?.textContent;
 
   return {page, owner, repo, num, base};
+};
+
+export const getDiffFilesMap = async () => {
+    const jsonData = document.querySelector('[data-target="react-app.embeddedData"]')?.textContent;
+    let diffEntries = [];
+    if (jsonData) {
+        // New Files Changed page
+        const data = JSON.parse(jsonData);
+        const diffSummaries = data?.payload?.diffSummaries || [];
+        diffEntries = diffSummaries.map((file) => [file.pathDigest, file.path]);
+    }
+    if (diffEntries.length === 0) {
+        // Old Files Changed page
+        const nodes = Array.from(document.querySelectorAll('div.file-header'));
+        diffEntries = nodes.map((node) => [node.dataset.anchor?.replace('diff-', ''), node.dataset.path]);
+    }
+    const diffFilesMap = new Map(diffEntries);
+    console.log('[GHCO] Diff files map', diffFilesMap);
+    return diffFilesMap;
 };
 
 export const getReviewers = cacheResult(urlCacheKey, async () => {

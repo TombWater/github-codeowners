@@ -68,9 +68,15 @@ const createLabel = (owner, {userOwns, approved, members, reviewers}) => {
 
 const decorateFileHeader = (
   node,
-  {reviewers, folderOwners, ownerApprovals, userTeams, teamMembers}
+  {reviewers, folderOwners, ownerApprovals, userTeams, teamMembers, diffFilesMap}
 ) => {
-  const path = node.dataset.path;
+  const link = node?.dataset.anchor || node.querySelector('[class^="DiffFileHeader-module__file-name"] a')?.href;
+  const digest = link?.split('diff-')[1];
+  const path = diffFilesMap.get(digest);
+  if (!path) {
+    console.log('[GHCO] No path found for file header', node);
+    return;
+  }
   const {owners} = folderOwners.find(({folderMatch}) =>
     // ignores() means it matches, as it's meant to match in .gitignore files
     folderMatch.ignores(path)
@@ -114,7 +120,13 @@ const decorateFileHeader = (
 let cachedLastFileHeader;
 
 const getFileHeadersForDecoration = () => {
-  const fileHeaders = document.querySelectorAll('div.file-header');
+  const selectors = [
+    // Old Files Changed page
+    'div.file-header',
+    // New Files Changed page
+    'div[class^="Diff-module__diffHeaderWrapper"]',
+  ];
+  const fileHeaders = document.querySelectorAll(selectors.join(', '));
   if (
     fileHeaders.length === 0 ||
     cachedLastFileHeader === fileHeaders[fileHeaders.length - 1]
@@ -174,6 +186,12 @@ const updatePrFilesPage = async () => {
   // Set of teams the current user is a member of
   const userTeams = new Set(userTeamsMap.get(getUserLogin()) ?? []);
 
+  const diffFilesMap = await github.getDiffFilesMap();
+  if (!diffFilesMap) {
+    console.warn('[GHCO] No diff files found, cannot decorate file headers');
+    return;
+  }
+
   fileHeaders.forEach((node) =>
     decorateFileHeader(node, {
       reviewers,
@@ -181,6 +199,7 @@ const updatePrFilesPage = async () => {
       ownerApprovals,
       userTeams,
       teamMembers,
+      diffFilesMap,
     })
   );
 };
