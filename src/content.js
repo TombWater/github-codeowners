@@ -5,40 +5,30 @@ import {debounce} from 'lodash-es';
 import './content.css';
 import * as github from './github';
 
-const toggleOpen = (container, open) => {
-  container.classList.toggle('open', open);
-  container.classList.toggle('Details--on', open);
-
-  const containerTargets = [
-    ...container.querySelectorAll('.js-details-target'),
-  ].filter((target) => target.closest('.js-details-container') === container);
-  for (const target of containerTargets) {
-    target.setAttribute('aria-expanded', open.toString());
-    const ariaLabel = target.getAttribute(
-      `data-aria-label-${open ? 'open' : 'closed'}`
-    );
-    if (ariaLabel) {
-      target.setAttribute('aria-label', ariaLabel);
-    }
-  }
-};
-
-const expandOwnerFiles = (owner) => {
-  const containers = document.querySelectorAll('div.file');
-  containers.forEach((container) => {
-    const open = !!container.querySelector(
-      `.owners-label[data-owner="${owner}"]`
-    );
-    toggleOpen(container, open);
-  });
-};
+let highlightedOwner;
 
 const onClickOwner = (ev) => {
-  const oldTop = ev.target.getBoundingClientRect().top;
-  expandOwnerFiles(ev.target.dataset.owner);
-  const newTop = ev.target.getBoundingClientRect().top;
-  const top = window.scrollY + newTop - oldTop;
-  window.scrollTo({top});
+  const clickedLabel = ev.target;
+
+  // Give feedback for the click
+  clickedLabel.classList.add('owners-label--clicked');
+
+  // Remove the class after the animation is complete
+  setTimeout(() => {
+    clickedLabel.classList.remove('owners-label--clicked');
+  }, 150); // Corresponds to animation duration in CSS
+
+  // Defer the highlighting logic slightly to allow the animation to start smoothly
+  setTimeout(() => {
+    const owner = clickedLabel.dataset.owner;
+    highlightedOwner = owner === highlightedOwner ? null : owner;
+    document.body.classList.toggle('ghco-highlight-active', !!highlightedOwner);
+    const labels = document.querySelectorAll('.owners-label');
+    labels.forEach((label) => {
+      const isMatch = label.dataset.owner === highlightedOwner;
+      label.classList.toggle('owners-label--highlighted', isMatch);
+    });
+  });
 };
 
 const createLabel = (owner, {user, userOwns, approved, members, reviewers}) => {
