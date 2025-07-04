@@ -5,72 +5,129 @@ import {debounce} from 'lodash-es';
 import './content.css';
 import * as github from './github';
 
-const toggleOpen = (container, open) => {
-  container.classList.toggle('open', open);
-  container.classList.toggle('Details--on', open);
+let highlightedOwner;
 
-  const containerTargets = [
-    ...container.querySelectorAll('.js-details-target'),
-  ].filter((target) => target.closest('.js-details-container') === container);
-  for (const target of containerTargets) {
-    target.setAttribute('aria-expanded', open.toString());
-    const ariaLabel = target.getAttribute(
-      `data-aria-label-${open ? 'open' : 'closed'}`
-    );
-    if (ariaLabel) {
-      target.setAttribute('aria-label', ariaLabel);
-    }
-  }
-};
+const onClickOwner = (ev) => {
+  const clickedLabel = ev.target;
 
-const expandOwnerFiles = (owner) => {
-  const containers = document.querySelectorAll('div.file');
-  containers.forEach((container) => {
-    const open = !!container.querySelector(
-      `.owners-label[data-owner="${owner}"]`
-    );
-    toggleOpen(container, open);
+  // Give feedback for the click
+  clickedLabel.classList.add('ghco-label--clicked');
+
+  // Remove the class after the animation is complete
+  setTimeout(() => {
+    clickedLabel.classList.remove('ghco-label--clicked');
+  }, 150); // Corresponds to animation duration in CSS
+
+  // Defer the highlighting logic slightly to allow the animation to start smoothly
+  setTimeout(() => {
+    const owner = clickedLabel.dataset.owner;
+    highlightedOwner = owner === highlightedOwner ? null : owner;
+    document.body.classList.toggle('ghco-highlight-active', !!highlightedOwner);
+    const labels = document.querySelectorAll('.ghco-label');
+    labels.forEach((label) => {
+      const isMatch = label.dataset.owner === highlightedOwner;
+      label.classList.toggle('ghco-label--highlighted', isMatch);
+    });
   });
 };
 
-const onClickOwner = (ev) => {
-  const oldTop = ev.target.getBoundingClientRect().top;
-  expandOwnerFiles(ev.target.dataset.owner);
-  const newTop = ev.target.getBoundingClientRect().top;
-  const top = window.scrollY + newTop - oldTop;
-  window.scrollTo({top});
-};
+const createLabel = (owner, {user, userOwns, approved, members, reviewers}) => {
+  const container = document.createElement('span');
+  container.classList.add('ghco-label-container');
 
-const createLabel = (owner, {userOwns, approved, members, reviewers}) => {
-  const label = document.createElement('span');
+  const label = document.createElement('button');
   const checkmark = approved ? '✓ ' : '';
   const star = !userOwns ? '' : approved ? ' ☆' : ' ★';
 
-  label.classList.add('owners-label');
-  label.classList.toggle('owners-label--user', userOwns);
-  label.classList.toggle('owners-label--approved', approved);
+  label.classList.add('ghco-label');
+  label.classList.toggle('ghco-label--user', userOwns);
+  label.classList.toggle('ghco-label--approved', approved);
 
   label.textContent = `${checkmark}${owner}${star}`;
   label.dataset.owner = owner;
 
-  const tooltip = members?.map((member) => {
-      const memberCheckmark = reviewers.get(member) ? '  ✓\t' : '\t';
-      return `${approved ? memberCheckmark : ''}${member}`;
-    }).join('\n');
+  label.addEventListener('click', onClickOwner);
+
+  container.appendChild(label);
+
+  const tooltip = createTooltip({user, approved, members, reviewers});
   if (tooltip) {
-    label.classList.add('tooltipped', 'tooltipped-s');
-    label.setAttribute('aria-label', tooltip);
+    const anchorName = `--ghco-anchor-${Math.random().toString(36).substring(2, 11)}`;
+    tooltip.style.positionAnchor = anchorName;
+    container.appendChild(tooltip);
+
+    label.style.anchorName = anchorName;
+
+    let hideTimeout;
+
+    label.addEventListener('mouseenter', () => {
+      clearTimeout(hideTimeout);
+      tooltip.showPopover();
+
+      // Start the opening animation
+      requestAnimationFrame(() => {
+        const labelWidth = label.offsetWidth;
+        const tooltipWidth = tooltip.offsetWidth;
+        if (tooltipWidth < labelWidth) {
+          // Firefox fallback: ensure tooltip is at least as wide as label
+          tooltip.style.width = `${labelWidth}px`;
+        } else if (tooltipWidth > labelWidth) {
+          // If tooltip is wider than label, make the overhanging corner round
+          tooltip.style.borderTopRightRadius = `${Math.min(tooltipWidth - labelWidth, 9)}px`;
+        }
+
+        tooltip.style.transform = 'scaleY(1)';
+        tooltip.style.opacity = '1';
+      });
+    });
+
+    label.addEventListener('mouseleave', () => {
+      // Start the closing animation immediately
+      tooltip.style.transform = 'scaleY(0)';
+      tooltip.style.opacity = '0';
+
+      // Hide the popover after the animation completes
+      hideTimeout = setTimeout(() => {
+        tooltip.hidePopover();
+      }, 200); // Match the CSS transition duration
+    });
   }
 
-  label.addEventListener('click', onClickOwner);
-  return label;
+  return container;
+};
+
+const createTooltip = ({user, approved, members, reviewers}) => {
+  const tooltipContent = members?.map((member) => {
+      const memberCheckmark = reviewers.get(member) ? '  ✓\t' : '\t';
+      const star = member === user ? ' ★' : '';
+      return `${approved ? memberCheckmark : ''}${member}${star}`;
+    }).join('\n');
+
+  if (!tooltipContent) {
+    return null;
+  }
+
+  const tooltip = document.createElement('div');
+  tooltip.textContent = tooltipContent;
+  tooltip.classList.add('ghco-tooltip');
+  tooltip.popover = 'manual';
+  tooltip.setAttribute('role', 'tooltip');
+  tooltip.setAttribute('aria-label', tooltipContent);
+
+  return tooltip;
 };
 
 const decorateFileHeader = (
   node,
-  {reviewers, folderOwners, ownerApprovals, userTeams, teamMembers}
+  {reviewers, folderOwners, ownerApprovals, user, userTeams, teamMembers, diffFilesMap}
 ) => {
-  const path = node.dataset.path;
+  const link = node?.dataset.anchor || node.querySelector('[class^="DiffFileHeader-module__file-name"] a')?.href;
+  const digest = link?.split('diff-')[1];
+  const path = diffFilesMap.get(digest);
+  if (!path) {
+    console.log('[GHCO] No path found for file header', node);
+    return;
+  }
   const {owners} = folderOwners.find(({folderMatch}) =>
     // ignores() means it matches, as it's meant to match in .gitignore files
     folderMatch.ignores(path)
@@ -79,7 +136,7 @@ const decorateFileHeader = (
 
   // Remove any previous owners decoration
   node.parentNode
-    .querySelectorAll('.owners-decoration')
+    .querySelectorAll('.ghco-decoration')
     .forEach((decoration) => {
       decoration.remove();
     });
@@ -90,14 +147,14 @@ const decorateFileHeader = (
 
   // Create the new owners decoration containing labels for each owner
   const decoration = document.createElement('div');
-  decoration.classList.add('owners-decoration', 'js-skip-tagsearch');
+  decoration.classList.add('ghco-decoration', 'js-skip-tagsearch');
   if (owners.size) {
     owners.forEach((owner) => {
       const userOwns = userTeams.has(owner);
       const approved = ownerApprovals.has(owner);
       const members = teamMembers.get(owner);
 
-      const label = createLabel(owner, {userOwns, approved, members, reviewers});
+      const label = createLabel(owner, {user, userOwns, approved, members, reviewers});
       decoration.appendChild(label);
     });
   } else {
@@ -114,7 +171,13 @@ const decorateFileHeader = (
 let cachedLastFileHeader;
 
 const getFileHeadersForDecoration = () => {
-  const fileHeaders = document.querySelectorAll('div.file-header');
+  const selectors = [
+    // Old Files Changed page
+    'div.file-header',
+    // New Files Changed page
+    'div[class^="Diff-module__diffHeaderWrapper"]',
+  ];
+  const fileHeaders = document.querySelectorAll(selectors.join(', '));
   if (
     fileHeaders.length === 0 ||
     cachedLastFileHeader === fileHeaders[fileHeaders.length - 1]
@@ -165,22 +228,39 @@ const updatePrFilesPage = async () => {
   }
 
   // Set of owners/teams who approved the PR
-  const ownerApprovals = new Set(
-    Array.from(reviewers.entries())
-      .filter(([, approved]) => approved)
-      .flatMap(([approver]) => Array.from(userTeamsMap.get(approver)))
-  );
+  const entries = Array.from(reviewers.entries());
+  const filtered = entries.filter(([, approved]) => approved);
+  const mapped = filtered.flatMap(([approver]) => {
+    const teams = userTeamsMap.get(approver);
+    const arr = Array.from(teams ?? []);
+    return arr;
+  });
+  const ownerApprovals = new Set(mapped);
+  // const ownerApprovals = new Set(
+  //   Array.from(reviewers.entries())
+  //     .filter(([, approved]) => approved)
+  //     .flatMap(([approver]) => Array.from(userTeamsMap.get(approver)))
+  // );
 
   // Set of teams the current user is a member of
-  const userTeams = new Set(userTeamsMap.get(getUserLogin()) ?? []);
+  const user = getUserLogin();
+  const userTeams = new Set(userTeamsMap.get(user) ?? []);
+
+  const diffFilesMap = await github.getDiffFilesMap();
+  if (!diffFilesMap) {
+    console.warn('[GHCO] No diff files found, cannot decorate file headers');
+    return;
+  }
 
   fileHeaders.forEach((node) =>
     decorateFileHeader(node, {
       reviewers,
       folderOwners,
       ownerApprovals,
+      user,
       userTeams,
       teamMembers,
+      diffFilesMap,
     })
   );
 };

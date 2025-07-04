@@ -48,12 +48,39 @@ export const getPrInfo = () => {
   let owner, repo, num, page;
   [, owner, repo, , num, , page] = match || {};
 
-  const base = document.querySelector('#partial-discussion-header .base-ref, #partial-discussion-header .commit-ref')?.textContent;
+  const selectors = [
+    // Old Files Changed page
+    '#partial-discussion-header .base-ref',
+    '#partial-discussion-header .commit-ref',
+    // New Files Changed page
+    'div[class*="PageHeader-Description"] a[class*="BranchName-BranchName"]',
+  ];
+  const base = document.querySelector(selectors.join(', '))?.textContent;
 
   return {page, owner, repo, num, base};
 };
 
+export const getDiffFilesMap = async () => {
+    const jsonData = document.querySelector('[data-target="react-app.embeddedData"]')?.textContent;
+    let diffEntries;
+    if (jsonData) {
+        // New Files Changed page
+        const data = JSON.parse(jsonData);
+        const diffSummaries = data?.payload?.diffSummaries || [];
+        diffEntries = diffSummaries.map((file) => [file.pathDigest, file.path]);
+    } else {
+        // Old Files Changed page
+        const nodes = Array.from(document.querySelectorAll('div.file-header'));
+        diffEntries = nodes.map((node) => [node.dataset.anchor?.replace('diff-', ''), node.dataset.path]);
+    }
+    const diffFilesMap = new Map(diffEntries);
+    console.log('[GHCO] Diff files map', diffFilesMap);
+    return diffFilesMap;
+};
+
 export const getReviewers = cacheResult(urlCacheKey, async () => {
+  return new Map([['Zeus', true]]);
+
   const pr = getPrInfo();
   const url = `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.num}`;
   const doc = await loadPage(url);
@@ -67,11 +94,17 @@ export const getReviewers = cacheResult(urlCacheKey, async () => {
     }
     return acc;
   }, new Map());
-  console.log('[GHCO] Reviewers', reviewers);
+  console.log('--- [GHCO] Reviewers', reviewers);
   return reviewers;
 });
 
 export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
+  return [
+    {folderMatch: ignore().add('*'), owners: new Set(['@org/admins'])},
+    {folderMatch: ignore().add('src/**/*'), owners: new Set(['@org/admins', '@org/engineers', '@org/ops'])},
+    {folderMatch: ignore().add('config/**/*'), owners: new Set(['@org/admins', '@org/ops'])},
+  ].reverse();
+
   const pr = getPrInfo();
   if (!pr.num || !pr.base) {
     return [];
@@ -97,6 +130,7 @@ export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
         owners: new Set(owners),
       };
     });
+    console.log('--- [GHCO] Folders', folders);
     return folders.reverse();
   }
   return [];
@@ -118,6 +152,12 @@ const loadTeamMembers = async (org, teamSlug) => {
 };
 
 export const getTeamMembers = cacheResult(repoCacheKey, async (folderOwners) => {
+  return new Map([
+    ['@org/admins', ['Admin', 'Zeus']],
+    ['@org/engineers', ['TombWater', 'Apollo']],
+    ['@org/ops', ['Hermes', 'Athena']],
+  ]);
+
   const pr = getPrInfo();
   const {owner: org} = pr;
   if (!org) {
