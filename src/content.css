@@ -1,4 +1,4 @@
-.file .owners-decoration {
+.file .ghco-decoration {
   display: block;
   padding: 2px 5px;
   background-color: var(--bgColor-muted, var(--color-canvas-subtle));
@@ -7,14 +7,14 @@
   color: var(--fgColor-muted, var(--color-fg-muted));
 }
 
-.file:not(.open) .owners-decoration {
+.file:not(.open) .ghco-decoration {
   border-top: var(--borderWidth-thin) solid
     var(--borderColor-default, var(--color-border-default));
   border-bottom: 0;
   border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
 }
 
-react-app .owners-decoration {
+react-app .ghco-decoration {
   display: block;
   padding: 2px 5px 3px;
   background-color: var(--bgColor-muted, var(--color-canvas-subtle));
@@ -25,7 +25,7 @@ react-app .owners-decoration {
   border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
 }
 
-react-app .owners-decoration:has(+ div) {
+react-app .ghco-decoration:has(+ div) {
   padding: 3px 5px;
   border-bottom: 0;
   border-radius: 0;
@@ -36,12 +36,38 @@ react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFile
   border-bottom-right-radius: 0;
 }
 
-.owners-label-container {
+.ghco-label-container {
   display: inline-block;
   position: relative;
+
+  /* --- Theming using Custom Properties --- */
+  /* Default theme (yellow) */
+  --ghco-label-bgColor: var(--bgColor-attention-muted);
+  --ghco-label-borderColor: var(--borderColor-attention-muted);
+  --ghco-label-bgColor-hover: var(--bgColor-attention-emphasis);
+  --ghco-label-borderColor-hover: var(--borderColor-attention-emphasis);
+  --ghco-tooltip-theme-color: var(--bgColor-attention-muted);
 }
 
-.owners-label {
+/* User theme (red) */
+.ghco-label-container:has(.ghco-label--user) {
+  --ghco-label-bgColor: var(--bgColor-severe-muted);
+  --ghco-label-borderColor: var(--borderColor-severe-muted);
+  --ghco-label-bgColor-hover: var(--bgColor-severe-emphasis);
+  --ghco-label-borderColor-hover: var(--borderColor-severe-emphasis);
+  --ghco-tooltip-theme-color: var(--bgColor-severe-muted);
+}
+
+/* Approved theme (green) */
+.ghco-label-container:has(.ghco-label--approved) {
+  --ghco-label-bgColor: var(--bgColor-success-muted);
+  --ghco-label-borderColor: var(--borderColor-success-muted);
+  --ghco-label-bgColor-hover: var(--bgColor-success-emphasis);
+  --ghco-label-borderColor-hover: var(--borderColor-success-emphasis);
+  --ghco-tooltip-theme-color: var(--bgColor-success-muted);
+}
+
+.ghco-label {
   display: inline-block;
   margin-right: 5px;
   padding: 0 5px;
@@ -49,22 +75,20 @@ react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFile
   font-weight: var(--base-text-weight-medium, 500);
   line-height: 18px;
   white-space: nowrap;
-  border-width: 1px;
-  border-style: solid;
   border-radius: 9px;
   color: var(--fgColor-muted);
   transition: transform 0.15s ease-in-out;
 }
 
-.owners-label--clicked {
+.ghco-label--clicked {
   transform: scale(1.1);
 }
 
-.owners-label:has(+ .owners-tooltip:popover-open):not(.owners-label--clicked) {
+.ghco-label:has(+ .ghco-tooltip:popover-open):not(.ghco-label--clicked) {
   border-radius: 9px 9px 0 0;
 }
 
-.owners-tooltip {
+.ghco-tooltip {
   /* Positioning - seamlessly connected to label */
   inset: auto;
   position: absolute;
@@ -75,13 +99,13 @@ react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFile
   padding: 0.25em 0.75em 0.5em 0.75em;
   margin: 0;
 
-  /* Visual continuity - match label colors */
-  background: var(--bgColor-attention-muted);
-  color: var(--fgColor-muted);
-  border: 1px solid;
+  /* Themed background color */
   border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
+  background-clip: padding-box, border-box; /* Ensures solid background behind themed one */
+  background-origin: padding-box, border-box;
 
   /* Typography */
+  color: var(--fgColor-muted);
   font-size: 12px;
   font-weight: var(--base-text-weight-medium, 500);
   line-height: 18px;
@@ -97,48 +121,29 @@ react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFile
   transition: transform 0.2s ease-out, opacity 0.2s ease-out, display 0.2s allow-discrete;
 }
 
-.owners-label:hover,
-.owners-label.owners-label--highlighted {
+.ghco-label:hover,
+.ghco-label.ghco-label--highlighted {
   color: var(--fgColor-onEmphasis);
   cursor: pointer;
+  background-color: var(--ghco-label-bgColor-hover);
+  border-color: var(--ghco-label-borderColor-hover);
 }
 
-/* Default - yellow */
-.owners-label,
-.owners-label + .owners-tooltip {
-  border-color: var(--borderColor-attention-muted);
-  background-color: var(--bgColor-attention-muted);
-}
-.owners-label:hover,
-.owners-label.owners-label--highlighted {
-  border-color: var(--borderColor-attention-emphasis);
-  background-color: var(--bgColor-attention-emphasis);
+/* Apply variables to the label and tooltip */
+.ghco-label,
+.ghco-label + .ghco-tooltip {
+  border-width: 1px;
+  border-style: solid;
+  background-color: var(--ghco-label-bgColor);
+  border-color: var(--ghco-label-borderColor);
 }
 
-/* User - red */
-.owners-label--user,
-.owners-label--user + .owners-tooltip {
-  border-color: var(--borderColor-severe-muted);
-  background-color: var(--bgColor-severe-muted);
-}
-.owners-label--user:hover,
-.owners-label--user.owners-label--highlighted {
-  border-color: var(--borderColor-severe-emphasis);
-  background-color: var(--bgColor-severe-emphasis);
+/* Multi-layer background on the tooltip is necessary to avoid transparency with GitHub theme colors */
+.ghco-label + .ghco-tooltip {
+  background-image: linear-gradient(var(--ghco-tooltip-theme-color), var(--ghco-tooltip-theme-color)),
+    linear-gradient(var(--bgColor-muted, var(--color-canvas-subtle)), var(--bgColor-muted, var(--color-canvas-subtle)));
 }
 
-/* Approved - green */
-.owners-label--approved,
-.owners-label--approved + .owners-tooltip {
-  border-color: var(--borderColor-success-muted);
-  background-color: var(--bgColor-success-muted);
-}
-.owners-label--approved:hover,
-.owners-label--approved.owners-label--highlighted {
-  border-color: var(--borderColor-success-emphasis);
-  background-color: var(--bgColor-success-emphasis);
-}
-
-.ghco-highlight-active .owners-label:not(.owners-label--highlighted) {
+.ghco-highlight-active .ghco-label:not(.ghco-label--highlighted) {
   opacity: 0.5;
 }
