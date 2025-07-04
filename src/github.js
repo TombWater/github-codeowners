@@ -80,6 +80,8 @@ export const getDiffFilesMap = async () => {
 };
 
 export const getReviewers = cacheResult(urlCacheKey, async () => {
+  return new Map([['Zeus', true]]);
+
   const pr = getPrInfo();
   const url = `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.num}`;
   const doc = await loadPage(url);
@@ -93,11 +95,17 @@ export const getReviewers = cacheResult(urlCacheKey, async () => {
     }
     return acc;
   }, new Map());
-  console.log('[GHCO] Reviewers', reviewers);
+  console.log('--- [GHCO] Reviewers', reviewers);
   return reviewers;
 });
 
 export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
+  return [
+    {folderMatch: ignore().add('*'), owners: new Set(['@org/admins'])},
+    {folderMatch: ignore().add('src/**/*'), owners: new Set(['@org/admins', '@org/engineers', '@org/ops'])},
+    {folderMatch: ignore().add('config/**/*'), owners: new Set(['@org/admins', '@org/ops'])},
+  ].reverse();
+
   const pr = getPrInfo();
   if (!pr.num || !pr.base) {
     return [];
@@ -123,6 +131,7 @@ export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
         owners: new Set(owners),
       };
     });
+    console.log('--- [GHCO] Folders', folders);
     return folders.reverse();
   }
   return [];
@@ -144,6 +153,12 @@ const loadTeamMembers = async (org, teamSlug) => {
 };
 
 export const getTeamMembers = cacheResult(repoCacheKey, async (folderOwners) => {
+  return new Map([
+    ['@org/admins', ['Admin', 'Zeus']],
+    ['@org/engineers', ['TombWater', 'Apollo']],
+    ['@org/ops', ['Hermes', 'Athena']],
+  ]);
+
   const pr = getPrInfo();
   const {owner: org} = pr;
   if (!org) {

@@ -228,11 +228,19 @@ const updatePrFilesPage = async () => {
   }
 
   // Set of owners/teams who approved the PR
-  const ownerApprovals = new Set(
-    Array.from(reviewers.entries())
-      .filter(([, approved]) => approved)
-      .flatMap(([approver]) => Array.from(userTeamsMap.get(approver)))
-  );
+  const entries = Array.from(reviewers.entries());
+  const filtered = entries.filter(([, approved]) => approved);
+  const mapped = filtered.flatMap(([approver]) => {
+    const teams = userTeamsMap.get(approver);
+    const arr = Array.from(teams ?? []);
+    return arr;
+  });
+  const ownerApprovals = new Set(mapped);
+  // const ownerApprovals = new Set(
+  //   Array.from(reviewers.entries())
+  //     .filter(([, approved]) => approved)
+  //     .flatMap(([approver]) => Array.from(userTeamsMap.get(approver)))
+  // );
 
   // Set of teams the current user is a member of
   const user = getUserLogin();
