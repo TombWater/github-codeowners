@@ -244,6 +244,10 @@ const updatePrFilesPage = async () => {
     return;
   }
 
+  // Clear highlighted owner
+  highlightedOwner = null;
+  document.body.classList.remove('ghco-highlight-active');
+
   fileHeaders.forEach((node) =>
     decorateFileHeader(node, {
       reviewers,
