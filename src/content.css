@@ -46,7 +46,7 @@ react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFile
   --ghco-label-borderColor: var(--borderColor-attention-muted);
   --ghco-label-bgColor-hover: var(--bgColor-attention-emphasis);
   --ghco-label-borderColor-hover: var(--borderColor-attention-emphasis);
-  --ghco-tooltip-theme-color: var(--bgColor-attention-muted);
+  --ghco-drawer-theme-color: var(--bgColor-attention-muted);
 }
 
 /* User theme (red) */
@@ -55,7 +55,7 @@ react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFile
   --ghco-label-borderColor: var(--borderColor-severe-muted);
   --ghco-label-bgColor-hover: var(--bgColor-severe-emphasis);
   --ghco-label-borderColor-hover: var(--borderColor-severe-emphasis);
-  --ghco-tooltip-theme-color: var(--bgColor-severe-muted);
+  --ghco-drawer-theme-color: var(--bgColor-severe-muted);
 }
 
 /* Approved theme (green) */
@@ -64,7 +64,7 @@ react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFile
   --ghco-label-borderColor: var(--borderColor-success-muted);
   --ghco-label-bgColor-hover: var(--bgColor-success-emphasis);
   --ghco-label-borderColor-hover: var(--borderColor-success-emphasis);
-  --ghco-tooltip-theme-color: var(--bgColor-success-muted);
+  --ghco-drawer-theme-color: var(--bgColor-success-muted);
 }
 
 .ghco-label {
@@ -84,11 +84,11 @@ react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFile
   transform: scale(1.1);
 }
 
-.ghco-label:has(+ .ghco-tooltip:popover-open):not(.ghco-label--clicked) {
+.ghco-label:has(+ .ghco-drawer:popover-open):not(.ghco-label--clicked) {
   border-radius: 9px 9px 0 0;
 }
 
-.ghco-tooltip {
+.ghco-drawer {
   /* Positioning - seamlessly connected to label */
   inset: auto;
   position: absolute;
@@ -129,18 +129,18 @@ react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFile
   border-color: var(--ghco-label-borderColor-hover);
 }
 
-/* Apply variables to the label and tooltip */
+/* Apply variables to the label and drawer */
 .ghco-label,
-.ghco-label + .ghco-tooltip {
+.ghco-label + .ghco-drawer {
   border-width: 1px;
   border-style: solid;
   background-color: var(--ghco-label-bgColor);
   border-color: var(--ghco-label-borderColor);
 }
 
-/* Multi-layer background on the tooltip is necessary to avoid transparency with GitHub theme colors */
-.ghco-label + .ghco-tooltip {
-  background-image: linear-gradient(var(--ghco-tooltip-theme-color), var(--ghco-tooltip-theme-color)),
+/* Multi-layer background on the drawer is necessary to avoid transparency with GitHub theme colors */
+.ghco-label + .ghco-drawer {
+  background-image: linear-gradient(var(--ghco-drawer-theme-color), var(--ghco-drawer-theme-color)),
     linear-gradient(var(--bgColor-muted, var(--color-canvas-subtle)), var(--bgColor-muted, var(--color-canvas-subtle)));
 }
 

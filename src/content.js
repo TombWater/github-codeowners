@@ -50,11 +50,11 @@ const createLabel = (owner, {user, userOwns, approved, members, reviewers}) => {
 
   container.appendChild(label);
 
-  const tooltip = createTooltip({user, approved, members, reviewers});
-  if (tooltip) {
+  const drawer = createDrawer({user, approved, members, reviewers});
+  if (drawer) {
     const anchorName = `--ghco-anchor-${Math.random().toString(36).substring(2, 11)}`;
-    tooltip.style.positionAnchor = anchorName;
-    container.appendChild(tooltip);
+    drawer.style.positionAnchor = anchorName;
+    container.appendChild(drawer);
 
     label.style.anchorName = anchorName;
 
@@ -62,33 +62,33 @@ const createLabel = (owner, {user, userOwns, approved, members, reviewers}) => {
 
     label.addEventListener('mouseenter', () => {
       clearTimeout(hideTimeout);
-      tooltip.showPopover();
+      drawer.showPopover();
 
       // Start the opening animation
       requestAnimationFrame(() => {
         const labelWidth = label.offsetWidth;
-        const tooltipWidth = tooltip.offsetWidth;
-        if (tooltipWidth < labelWidth) {
-          // Firefox fallback: ensure tooltip is at least as wide as label
-          tooltip.style.width = `${labelWidth}px`;
-        } else if (tooltipWidth > labelWidth) {
-          // If tooltip is wider than label, make the overhanging corner round
-          tooltip.style.borderTopRightRadius = `${Math.min(tooltipWidth - labelWidth, 9)}px`;
+        const drawerWidth = drawer.offsetWidth;
+        if (drawerWidth < labelWidth) {
+          // Firefox fallback: ensure drawer is at least as wide as label
+          drawer.style.width = `${labelWidth}px`;
+        } else if (drawerWidth > labelWidth) {
+          // If drawer is wider than label, make the overhanging corner round
+          drawer.style.borderTopRightRadius = `${Math.min(drawerWidth - labelWidth, 9)}px`;
         }
 
-        tooltip.style.transform = 'scaleY(1)';
-        tooltip.style.opacity = '1';
+        drawer.style.transform = 'scaleY(1)';
+        drawer.style.opacity = '1';
       });
     });
 
     label.addEventListener('mouseleave', () => {
       // Start the closing animation immediately
-      tooltip.style.transform = 'scaleY(0)';
-      tooltip.style.opacity = '0';
+      drawer.style.transform = 'scaleY(0)';
+      drawer.style.opacity = '0';
 
       // Hide the popover after the animation completes
       hideTimeout = setTimeout(() => {
-        tooltip.hidePopover();
+        drawer.hidePopover();
       }, 200); // Match the CSS transition duration
     });
   }
@@ -96,25 +96,25 @@ const createLabel = (owner, {user, userOwns, approved, members, reviewers}) => {
   return container;
 };
 
-const createTooltip = ({user, approved, members, reviewers}) => {
-  const tooltipContent = members?.map((member) => {
+const createDrawer = ({user, approved, members, reviewers}) => {
+  const drawerContent = members?.map((member) => {
       const memberCheckmark = reviewers.get(member) ? '  ✓\t' : '\t';
       const star = member === user ? ' ★' : '';
       return `${approved ? memberCheckmark : ''}${member}${star}`;
     }).join('\n');
 
-  if (!tooltipContent) {
+  if (!drawerContent) {
     return null;
   }
 
-  const tooltip = document.createElement('div');
-  tooltip.textContent = tooltipContent;
-  tooltip.classList.add('ghco-tooltip');
-  tooltip.popover = 'manual';
-  tooltip.setAttribute('role', 'tooltip');
-  tooltip.setAttribute('aria-label', tooltipContent);
+  const drawer = document.createElement('div');
+  drawer.textContent = drawerContent;
+  drawer.classList.add('ghco-drawer');
+  drawer.popover = 'manual';
+  drawer.setAttribute('role', 'drawer');
+  drawer.setAttribute('aria-label', drawerContent);
 
-  return tooltip;
+  return drawer;
 };
 
 const decorateFileHeader = (
