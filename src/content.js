@@ -132,7 +132,7 @@ const decorateFileHeader = (
     // ignores() means it matches, as it's meant to match in .gitignore files
     folderMatch.ignores(path)
   );
-  console.log('[GHCO] File', path, owners);
+  console.log('[GHCO] File:', path, owners, node);
 
   // Remove any previous owners decoration
   node.parentNode
@@ -168,7 +168,7 @@ const decorateFileHeader = (
   node.parentNode.insertBefore(decoration, node.nextSibling);
 };
 
-let cachedLastFileHeader;
+let headersCache = new WeakSet();
 
 const getFileHeadersForDecoration = () => {
   const selectors = [
@@ -178,14 +178,9 @@ const getFileHeadersForDecoration = () => {
     'div[class^="Diff-module__diffHeaderWrapper"]',
   ];
   const fileHeaders = document.querySelectorAll(selectors.join(', '));
-  if (
-    fileHeaders.length === 0 ||
-    cachedLastFileHeader === fileHeaders[fileHeaders.length - 1]
-  ) {
-    return [];
-  }
-  cachedLastFileHeader = fileHeaders[fileHeaders.length - 1];
-  return fileHeaders;
+  const newHeaders = Array.from(fileHeaders).filter((node) => !headersCache.has(node));
+  headersCache = new WeakSet(fileHeaders);
+  return newHeaders;
 };
 
 const getUserLogin = () => {
@@ -248,6 +243,7 @@ const updatePrFilesPage = async () => {
   highlightedOwner = null;
   document.body.classList.remove('ghco-highlight-active');
 
+  console.log(`[GHCO] Decorating ${fileHeaders.length} file headers`);
   fileHeaders.forEach((node) =>
     decorateFileHeader(node, {
       reviewers,
