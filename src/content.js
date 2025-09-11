@@ -160,9 +160,10 @@ const decorateFileHeader = (
   } else {
     const userOwns = true;
     const approved = ownerApprovals.size > 0;
-    const members = Array.from(reviewers.keys());
+    // Anyone with write access can approve, but just show users (i.e. non-teams) who have already approved
+    const members = Array.from(ownerApprovals).filter((approver) => !teamMembers.has(approver));
 
-    const label = createLabel('anybody', {userOwns, approved, members, reviewers});
+    const label = createLabel('any reviewer', {userOwns, approved, members, reviewers});
     decoration.appendChild(label);
   }
   node.parentNode.insertBefore(decoration, node.nextSibling);
