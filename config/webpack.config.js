@@ -1,6 +1,6 @@
 'use strict';
 
-const { merge } = require('webpack-merge');
+const {merge} = require('webpack-merge');
 
 const common = require('./webpack.common.js');
 const PATHS = require('./paths');
@@ -9,7 +9,7 @@ const PATHS = require('./paths');
 const config = (env, argv) =>
   merge(common, {
     entry: {
-      content: PATHS.src + '/content.js',
+      content: PATHS.src + '/decorator.js',
     },
     devtool: argv.mode === 'production' ? false : 'source-map',
   });

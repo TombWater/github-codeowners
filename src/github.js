@@ -1,8 +1,6 @@
 import ignore from 'ignore';
 import {memoize} from 'lodash-es';
 
-import './content.css';
-
 // Cache just one key-value pair to refresh data when the key changes.
 memoize.Cache = function () {
   let key, value;
@@ -30,14 +28,14 @@ const prBaseCacheKey = () => {
 const cacheResult = (cacheKey, fn) => memoize(fn, cacheKey);
 
 const loadPage = async (url) => {
-  const response = await fetch(url, {credentials: "include"});
+  const response = await fetch(url, {credentials: 'include'});
   if (!response.ok) {
     return null;
   }
   const text = await response.text();
   const doc = new DOMParser().parseFromString(text, 'text/html');
   return doc;
-}
+};
 
 export const getPrInfo = () => {
   const url = window.location.href;
@@ -60,32 +58,45 @@ export const getPrInfo = () => {
   return {page, owner, repo, num, base};
 };
 
-export const getDiffFilesMap = async () => {
-    const jsonData = document.querySelector('[data-target="react-app.embeddedData"]')?.textContent;
-    let diffEntries = [];
-    if (jsonData) {
-        // New Files Changed page
-        const data = JSON.parse(jsonData);
-        const diffSummaries = data?.payload?.diffSummaries || [];
-        diffEntries = diffSummaries.map((file) => [file.pathDigest, file.path]);
-    }
-    if (diffEntries.length === 0) {
-        // Old Files Changed page
-        const nodes = Array.from(document.querySelectorAll('div.file-header'));
-        diffEntries = nodes.map((node) => [node.dataset.anchor?.replace('diff-', ''), node.dataset.path]);
-    }
-    const diffFilesMap = new Map(diffEntries);
-    console.log('[GHCO] Diff files map', diffFilesMap);
-    return diffFilesMap;
-};
+export const getDiffFilesMap = cacheResult(urlCacheKey, async () => {
+  const jsonData = document.querySelector(
+    '[data-target="react-app.embeddedData"]'
+  )?.textContent;
+  let diffEntries = [];
+
+  if (jsonData) {
+    // New Files Changed page
+    const data = JSON.parse(jsonData);
+    const diffSummaries = data?.payload?.diffSummaries || [];
+    diffEntries = diffSummaries.map((file) => [file.pathDigest, file.path]);
+  }
+
+  if (diffEntries.length === 0) {
+    // Old Files Changed page - fallback
+    const nodes = Array.from(document.querySelectorAll('div.file-header'));
+    diffEntries = nodes.map((node) => [
+      node.dataset.anchor?.replace('diff-', ''),
+      node.dataset.path,
+    ]);
+  }
+
+  const diffFilesMap = new Map(diffEntries);
+
+  console.log('[GHCO] Diff files map', diffFilesMap);
+  return diffFilesMap;
+});
 
 export const getReviewers = cacheResult(urlCacheKey, async () => {
   const pr = getPrInfo();
   const url = `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.num}`;
   const doc = await loadPage(url);
-  const reviewerNodes = doc?.querySelectorAll('[data-assignee-name], .js-reviewer-team');
+  const reviewerNodes = doc?.querySelectorAll(
+    '[data-assignee-name], .js-reviewer-team'
+  );
   const reviewers = Array.from(reviewerNodes || []).reduce((acc, node) => {
-    const statusIcon  = node.parentElement.querySelector('.reviewers-status-icon');
+    const statusIcon = node.parentElement.querySelector(
+      '.reviewers-status-icon'
+    );
     if (statusIcon && !statusIcon.classList.contains('v-hidden')) {
       const name = node.dataset.assigneeName || node.textContent.trim();
       const approved = Boolean(statusIcon.querySelector('.octicon-check'));
@@ -110,10 +121,14 @@ export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
     if (!doc) {
       continue;
     }
-    const jsonData = doc.querySelector('react-app[app-name="react-code-view"] [data-target="react-app.embeddedData"]')?.textContent;
+    const jsonData = doc.querySelector(
+      'react-app[app-name="react-code-view"] [data-target="react-app.embeddedData"]'
+    )?.textContent;
     const data = JSON.parse(jsonData);
     const lines = data?.payload?.blob?.rawLines ?? [];
-    const ownerLines = lines.map((line) => line.trim()).filter((line) => line.length && !line.startsWith('#'));
+    const ownerLines = lines
+      .map((line) => line.trim())
+      .filter((line) => line.length && !line.startsWith('#'));
     console.log('[GHCO] CODEOWNERS', url, ownerLines);
 
     const folders = ownerLines.map((line) => {
@@ -134,7 +149,9 @@ const loadTeamMembers = async (org, teamSlug) => {
     const url = `https://github.com/orgs/${org}/teams/${teamSlug}?page=${page}`;
     const doc = await loadPage(url);
     const memberNodes = doc?.querySelectorAll('.member-list-item');
-    const members = Array.from(memberNodes || []).map((member) => member.dataset.bulkActionsId);
+    const members = Array.from(memberNodes || []).map(
+      (member) => member.dataset.bulkActionsId
+    );
     teamMembers.push(...members);
 
     const next = doc?.querySelector('.next_page');
@@ -143,41 +160,46 @@ const loadTeamMembers = async (org, teamSlug) => {
   return teamMembers;
 };
 
-export const getTeamMembers = cacheResult(repoCacheKey, async (folderOwners) => {
-  const pr = getPrInfo();
-  const {owner: org} = pr;
-  if (!org) {
-    return [];
-  }
+export const getTeamMembers = cacheResult(
+  repoCacheKey,
+  async (folderOwners) => {
+    const pr = getPrInfo();
+    const {owner: org} = pr;
+    if (!org) {
+      return [];
+    }
 
-  // Array of all unique owner names mentioned in CODEOWNERS file
-  const allOwners = Array.from(
-    new Set(folderOwners.flatMap(({owners}) => Array.from(owners)))
-  );
+    // Array of all unique owner names mentioned in CODEOWNERS file
+    const allOwners = Array.from(
+      new Set(folderOwners.flatMap(({owners}) => Array.from(owners)))
+    );
 
-  // Filter out names that are not teams in the org owning the PR
-  const prefix = `@${org}/`;
-  const teamNames = allOwners.filter((teamName) => teamName.startsWith(prefix));
+    // Filter out names that are not teams in the org owning the PR
+    const prefix = `@${org}/`;
+    const teamNames = allOwners.filter((teamName) =>
+      teamName.startsWith(prefix)
+    );
 
-  // Fetch all org teams in parallel, mapping team names to their members
-  const orgTeams = new Map(
-    await Promise.all(
-      teamNames.map(async (teamName) => {
-        const teamSlug = teamName.replace(prefix, '');
-        const members = await loadTeamMembers(org, teamSlug);
+    // Fetch all org teams in parallel, mapping team names to their members
+    const orgTeams = new Map(
+      await Promise.all(
+        teamNames.map(async (teamName) => {
+          const teamSlug = teamName.replace(prefix, '');
+          const members = await loadTeamMembers(org, teamSlug);
+          return [teamName, members];
+        })
+      )
+    );
+
+    // Map owner teams to an array of members, or if not a team then a pseudo-team with just the owner
+    const owners = new Map(
+      allOwners.map((teamName) => {
+        const members = orgTeams.get(teamName) || [teamName];
         return [teamName, members];
       })
-    )
-  );
+    );
 
-  // Map owner teams to an array of members, or if not a team then a pseudo-team with just the owner
-  const owners = new Map(
-    allOwners.map((teamName) => {
-      const members = orgTeams.get(teamName) || [teamName];
-      return [teamName, members];
-    })
-  );
-
-  console.log('[GHCO] Teams', owners);
-  return owners;
-});
+    console.log('[GHCO] Teams', owners);
+    return owners;
+  }
+);

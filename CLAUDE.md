@@ -48,7 +48,7 @@ npm run zip
 ## Architecture
 
 ### Entry Point and Build
-- **Webpack entry**: `src/content.js` (configured in `config/webpack.config.js`)
+- **Webpack entry**: `src/decorator.js` (configured in `config/webpack.config.js`)
 - **Content script**: Runs on all `https://github.com/*` pages (manifest_version 3)
 - **Build output**: Bundled to `build/content.js` with CSS extracted to `build/content.css`
 - **Extension type**: Browser extension (Chrome/Firefox) that modifies GitHub's DOM
@@ -56,17 +56,30 @@ npm run zip
 
 ### Core Components
 
-**`src/content.js`** - Main UI and decoration logic
-- **Two main decorations**:
-  - **File header decoration**: Adds owner labels below each file header on PR files page
-  - **Merge box decoration**: Groups files by owner and displays them in PR conversation page merge box
-- **Code organization**: Top-down structure with sections for user/owner data, labels, file headers, merge box, and orchestration
-- Sets up MutationObserver with debounced PR file decoration updates
-- Creates owner labels with approval status indicators (✓ for approved, ★/☆ for user's teams)
-- Implements click-to-highlight functionality across all owner labels
-- Manages hover drawers showing team members using CSS anchor positioning and Popover API
+**`src/decorator.js`** - Main orchestration and entry point
+- Sets up MutationObserver with debounced updates for file page decoration
+- Coordinates calls to `updatePrFilesPage()` function
+- Imports CSS and manages top-level extension lifecycle
+- **Clean architecture**: Very minimal orchestration layer (17 lines)
+
+**`src/files-page.js`** - File header decoration
+- **`updatePrFilesPage()`**: Decorates file headers on PR files page with owner labels
+- **`decorateFileHeader()`**: Adds owner labels below each file header
+- **`getFileHeadersForDecoration()`**: Finds file headers that need decoration
+- **Ownership data handling**: Passes complete ownership data object to maintain architectural consistency
 - Handles both old and new GitHub PR UI selectors
+
+**`src/labels.js`** - Owner label creation and interaction
+- **`createOwnerLabels()`**: Creates owner labels with approval status indicators (✓ for approved, ★/☆ for user's teams)
+- **Ownership data interface**: Accepts `{owners, ownershipData}` parameters for clean separation of concerns
+- **`clearHighlightedOwner()`**: Manages click-to-highlight functionality across all owner labels
+- **Drawer management**: Hover drawers showing team members using CSS anchor positioning and Popover API
 - **Label sorting**: User's own teams always appear first in label lists
+
+**`src/ownership.js`** - Data aggregation and processing
+- **`getPrOwnershipData()`**: Aggregates data from multiple github.js functions and processes it for UI needs
+- **`getUserLogin()`**: Extracts current user information from GitHub DOM
+- **Team processing**: Handles team membership, approvals, and user team associations
 
 **`src/github.js`** - GitHub data fetching and caching
 - **Caching strategy**: Uses lodash `memoize` with custom single-entry cache implementation
@@ -85,14 +98,25 @@ npm run zip
 - **Team resolution**: Individual users in CODEOWNERS create "pseudo-teams" containing just that user for consistent handling
 - **User ownership**: Files with no CODEOWNERS entry show "any reviewer" label (anyone with write access can approve)
 - **Highlighting**: Clicking a label toggles `ghco-highlight-active` body class and `ghco-label--highlighted` on matching labels
-- **Merge box priority**: Owner groups sorted by user relevance (user-only owners → user co-owners → user approved → others needing approval → others approved)
-- **Shared label creation**: `createOwnerLabels()` is used by both file header and merge box decorations
-- **Data orchestration**: `getPrOwnershipData()` in content.js aggregates data from multiple github.js functions and processes it for UI needs
+- **Shared label creation**: `createOwnerLabels()` is used for file header decoration with consistent `{owners, ownershipData}` interface
+- **Data orchestration**: `getPrOwnershipData()` in ownership.js aggregates data from multiple github.js functions and processes it for UI needs
+- **Ownership data flow**: Complete ownership objects passed through call chain to avoid repetitive destructuring and reconstruction
 - **No API token required**: All data fetched by scraping GitHub HTML pages using `fetch()` with credentials
+- **Modular architecture**: Code split into focused modules (decorator.js, files-page.js, labels.js, ownership.js, github.js)
 
 ### CSS Architecture
-- All styles in `src/content.css` use `ghco-` prefix to avoid conflicts (e.g., `ghco-label`)
+- All styles in `src/decorator.css` use `ghco-` prefix to avoid conflicts (e.g., `ghco-label`)
 - Uses CSS anchor positioning for drawer placement below labels
 - Animated hover effects with transform/opacity transitions
 - Click feedback animation on labels
 - Theming via CSS custom properties: yellow (default), red (user's teams), green (approved)
+
+## Common Development Patterns
+
+- **File organization**: Each module has a single responsibility (orchestration, UI, data, etc.)
+- **Ownership data architecture**: Ownership data flows as cohesive object rather than being destructured/reconstructed multiple times throughout call chain
+- **Error handling**: Graceful degradation when GitHub changes DOM structure or CODEOWNERS is missing
+- **Performance**: Debounced updates (100ms) and memoized caching to handle GitHub's dynamic DOM
+- **Cross-browser**: ES6 modules with webpack bundling for Chrome/Firefox compatibility
+- **GitHub DOM changes**: Code handles both old and new GitHub UI patterns using fallback selectors
+- **Function signatures**: Clean parameter patterns - minimal destructuring, pass complete objects when appropriate

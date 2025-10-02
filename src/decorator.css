@@ -19,7 +19,7 @@ react-app .ghco-decoration {
   padding: 2px 5px 3px;
   background-color: var(--bgColor-muted, var(--color-canvas-subtle));
   border: var(--borderWidth-thin) solid
-  var(--borderColor-default, var(--color-border-default));
+    var(--borderColor-default, var(--color-border-default));
   color: var(--fgColor-muted, var(--color-fg-muted));
   border-top: 0;
   border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
@@ -31,7 +31,8 @@ react-app .ghco-decoration:has(+ div) {
   border-radius: 0;
 }
 
-react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFileHeader-module__collapsed"] {
+react-app
+  div[class*='DiffFileHeader-module__diff-file-header'][class*='DiffFileHeader-module__collapsed'] {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
@@ -118,7 +119,8 @@ react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFile
   transform: scaleY(0);
   opacity: 0;
   overflow: hidden;
-  transition: transform 0.2s ease-out, opacity 0.2s ease-out, display 0.2s allow-discrete;
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out,
+    display 0.2s allow-discrete;
 }
 
 .ghco-label:hover,
@@ -140,8 +142,14 @@ react-app div[class*="DiffFileHeader-module__diff-file-header"][class*="DiffFile
 
 /* Multi-layer background on the drawer is necessary to avoid transparency with GitHub theme colors */
 .ghco-label + .ghco-drawer {
-  background-image: linear-gradient(var(--ghco-drawer-theme-color), var(--ghco-drawer-theme-color)),
-    linear-gradient(var(--bgColor-muted, var(--color-canvas-subtle)), var(--bgColor-muted, var(--color-canvas-subtle)));
+  background-image: linear-gradient(
+      var(--ghco-drawer-theme-color),
+      var(--ghco-drawer-theme-color)
+    ),
+    linear-gradient(
+      var(--bgColor-muted, var(--color-canvas-subtle)),
+      var(--bgColor-muted, var(--color-canvas-subtle))
+    );
 }
 
 .ghco-highlight-active .ghco-label:not(.ghco-label--highlighted) {
