@@ -32,11 +32,19 @@ export const getPrOwnershipData = async () => {
   }
 
   // Set of owners/teams who approved the PR
-  const ownerApprovals = new Set(
-    Array.from(reviewers.entries())
-      .filter(([, approved]) => approved)
-      .flatMap(([approver]) => Array.from(userTeamsMap.get(approver)))
-  );
+  const entries = Array.from(reviewers.entries());
+  const filtered = entries.filter(([, approved]) => approved);
+  const mapped = filtered.flatMap(([approver]) => {
+    const teams = userTeamsMap.get(approver);
+    const arr = Array.from(teams ?? []);
+    return arr;
+  });
+  const ownerApprovals = new Set(mapped);
+  // const ownerApprovals = new Set(
+  //   Array.from(reviewers.entries())
+  //     .filter(([, approved]) => approved)
+  //     .flatMap(([approver]) => Array.from(userTeamsMap.get(approver)))
+  // );
 
   const user = getUserLogin();
   const userTeams = userTeamsMap.get(user) ?? new Set([user]);
