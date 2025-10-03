@@ -84,81 +84,50 @@ const parseDiffFilesFromDoc = (doc) => {
 };
 
 export const getDiffFilesMap = cacheResult(urlCacheKey, async () => {
-  // Try to get files from current page first
-  let diffFilesMap = parseDiffFilesFromDoc(document);
-
-  // If not on files page or no files found, fetch from files tab
-  if (diffFilesMap.size === 0) {
-    const pr = getPrInfo();
-    if (pr.num) {
-      const url = `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.num}/files`;
-      const doc = await loadPage(url);
-      if (doc) {
-        diffFilesMap = parseDiffFilesFromDoc(doc);
-      }
-    }
-  }
-
-  console.log('[GHCO] Diff files map', diffFilesMap);
-  return diffFilesMap;
+  // Fake data for diverse team ownership showcase
+  return new Map([
+    ['diff-abc123', 'src/ownership.js'],
+    ['diff-def456', 'src/github.js'],
+    ['diff-ghi789', 'config/webpack.config.js'],
+    ['diff-jkl012', 'public/manifest.json'],
+    ['diff-mno345', 'README.md']
+  ]);
 });
 
-export const getReviewers = cacheResult(urlCacheKey, async () => {
-  const pr = getPrInfo();
-  const url = `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.num}`;
-  const doc = await loadPage(url);
-  const reviewerNodes = doc?.querySelectorAll(
-    '[data-assignee-name], .js-reviewer-team'
-  );
-  const reviewers = Array.from(reviewerNodes || []).reduce((acc, node) => {
-    const statusIcon = node.parentElement.querySelector(
-      '.reviewers-status-icon'
-    );
-    if (statusIcon && !statusIcon.classList.contains('v-hidden')) {
-      const name = node.dataset.assigneeName || node.textContent.trim();
-      const approved = Boolean(statusIcon.querySelector('.octicon-check'));
-      acc.set(name, approved);
+export async function getReviewers(prNumber) {
+  // Fake data for Athena (ops) approved only
+  return new Map([
+    ['Athena', true]
+  ]);
+}
+
+export async function getFolderOwners() {
+  return [
+    {folderMatch: ignore().add('*'), owners: new Set(['@org/admins'])},
+    {folderMatch: ignore().add('src/**/*'), owners: new Set(['@org/admins', '@org/engineers'])},
+    {folderMatch: ignore().add('config/**/*'), owners: new Set(['@org/admins', '@org/engineers', '@org/ops'])},
+  ].reverse();
+
+  // Fake data for org teams with proper folderMatch structure
+  const srcMatcher = ignore().add('src/**');
+  const configMatcher = ignore().add('config/**');
+  const globalMatcher = ignore().add('**');
+
+  return [
+    {
+      folderMatch: srcMatcher,
+      owners: new Set(['@org/engineers'])
+    },
+    {
+      folderMatch: configMatcher,
+      owners: new Set(['@org/ops'])
+    },
+    {
+      folderMatch: globalMatcher,
+      owners: new Set(['@org/admins'])
     }
-    return acc;
-  }, new Map());
-  console.log('[GHCO] Reviewers', reviewers);
-  return reviewers;
-});
-
-export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
-  const pr = getPrInfo();
-  if (!pr.num || !pr.base) {
-    return [];
-  }
-
-  const paths = ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS'];
-  for (const path of paths) {
-    const url = `https://github.com/${pr.owner}/${pr.repo}/blob/${pr.base}/${path}`;
-    const doc = await loadPage(url);
-    if (!doc) {
-      continue;
-    }
-    const jsonData = doc.querySelector(
-      'react-app[app-name="react-code-view"] [data-target="react-app.embeddedData"]'
-    )?.textContent;
-    const data = JSON.parse(jsonData);
-    const lines = data?.payload?.blob?.rawLines ?? [];
-    const ownerLines = lines
-      .map((line) => line.trim())
-      .filter((line) => line.length && !line.startsWith('#'));
-    console.log('[GHCO] CODEOWNERS', url, ownerLines);
-
-    const folders = ownerLines.map((line) => {
-      const [folder, ...owners] = line.split(/\s+/);
-      return {
-        folderMatch: ignore().add(folder),
-        owners: new Set(owners),
-      };
-    });
-    return folders.reverse();
-  }
-  return [];
-});
+  ];
+}
 
 const loadTeamMembers = async (org, teamSlug) => {
   const teamMembers = [];
@@ -180,6 +149,12 @@ const loadTeamMembers = async (org, teamSlug) => {
 export const getTeamMembers = cacheResult(
   repoCacheKey,
   async (folderOwners) => {
+    return new Map([
+      ['@org/admins', ['Admin', 'Zeus']],
+      ['@org/engineers', ['TombWater', 'Apollo']],
+      ['@org/ops', ['Hermes', 'Athena']],
+    ]);
+
     const pr = getPrInfo();
     const {owner: org} = pr;
     if (!org) {
