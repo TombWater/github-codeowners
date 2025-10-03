@@ -155,3 +155,48 @@ react-app
 .ghco-highlight-active .ghco-label:not(.ghco-label--highlighted) {
   opacity: 0.5;
 }
+
+/* Merge box owner groups container */
+.ghco-merge-box-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-top: 12px;
+}
+
+.ghco-merge-box-owner-group {
+  padding: 8px 12px;
+  border-radius: var(--borderRadius-medium);
+  background-color: var(--bgColor-muted, var(--color-canvas-subtle));
+  border: var(--borderWidth-thin) solid
+    var(--borderColor-default, var(--color-border-default));
+}
+
+.ghco-merge-box-labels {
+  margin-bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ghco-merge-box-files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.ghco-merge-box-file-link {
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas,
+    Liberation Mono, monospace;
+  color: var(--fgColor-accent, var(--color-accent-fg));
+  text-decoration: none;
+  padding: 2px 0;
+}
+
+.ghco-merge-box-file-link:hover {
+  text-decoration: underline;
+}

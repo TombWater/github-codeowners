@@ -33,9 +33,15 @@ const common = {
         test: /\.css$/,
         use: [MiniCssExtractPlugin.loader, 'css-loader'],
       },
+      // Import SVG as raw string for inline use
+      {
+        test: /\.svg$/,
+        type: 'asset/source',
+      },
       // Check for images imported in .js files and
       {
         test: IMAGE_TYPES,
+        exclude: /\.svg$/,
         use: [
           {
             loader: 'file-loader',

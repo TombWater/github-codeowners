@@ -4,11 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a browser extension (Chrome/Firefox) that decorates GitHub PR file headers with labels showing the code owners who must approve each file. The extension works by:
+This is a browser extension (Chrome/Firefox) that decorates GitHub PR pages with code ownership information. The extension provides two main decorations:
+
+1. **File header decoration**: Adds owner labels below each file header on PR files page showing who must approve each file
+2. **Merge box decoration**: Creates an expandable "Code owners" section in the PR conversation page that groups files by owner and shows approval status
+
+The extension works by:
 1. Fetching and parsing the repository's CODEOWNERS file from the PR's base branch
 2. Matching PR files against CODEOWNERS patterns using the `ignore` library (gitignore-style matching)
 3. Fetching team membership data from GitHub org team pages
-4. Decorating file headers with owner labels that show approval status and team membership
+4. Decorating PR pages with owner labels that show approval status and team membership
 
 ## Build and Development Commands
 
@@ -57,8 +62,8 @@ npm run zip
 ### Core Components
 
 **`src/decorator.js`** - Main orchestration and entry point
-- Sets up MutationObserver with debounced updates for file page decoration
-- Coordinates calls to `updatePrFilesPage()` function
+- Sets up MutationObserver with debounced updates for both file page and conversation page
+- Coordinates calls to `updatePrFilesPage()` and `updateMergeBox()` functions
 - Imports CSS and manages top-level extension lifecycle
 - **Clean architecture**: Very minimal orchestration layer (17 lines)
 
@@ -68,6 +73,14 @@ npm run zip
 - **`getFileHeadersForDecoration()`**: Finds file headers that need decoration
 - **Ownership data handling**: Passes complete ownership data object to maintain architectural consistency
 - Handles both old and new GitHub PR UI selectors
+
+**`src/conversation-page.js`** - Merge box decoration
+- **`updateMergeBox()`**: Creates expandable "Code owners" section in PR conversation merge box
+- **Groups files by owner**: Shows owner groups with file lists and approval status
+- **Progressive loading**: Shows loading state immediately, then populates with data
+- **Expandable UI**: Uses GitHub's native expandable section styling with CSSOM-based class detection
+- **Priority sorting**: Owner groups sorted by user relevance (user-only → user co-owners → approved → others)
+- **Ownership data flow**: Maintains ownership data as cohesive object throughout function call chain
 
 **`src/labels.js`** - Owner label creation and interaction
 - **`createOwnerLabels()`**: Creates owner labels with approval status indicators (✓ for approved, ★/☆ for user's teams)
@@ -98,14 +111,16 @@ npm run zip
 - **Team resolution**: Individual users in CODEOWNERS create "pseudo-teams" containing just that user for consistent handling
 - **User ownership**: Files with no CODEOWNERS entry show "any reviewer" label (anyone with write access can approve)
 - **Highlighting**: Clicking a label toggles `ghco-highlight-active` body class and `ghco-label--highlighted` on matching labels
-- **Shared label creation**: `createOwnerLabels()` is used for file header decoration with consistent `{owners, ownershipData}` interface
+- **Merge box priority**: Owner groups sorted by user relevance (user-only owners → user co-owners → user approved → others needing approval → others approved)
+- **Shared label creation**: `createOwnerLabels()` is used by both file header and merge box decorations with consistent `{owners, ownershipData}` interface
 - **Data orchestration**: `getPrOwnershipData()` in ownership.js aggregates data from multiple github.js functions and processes it for UI needs
 - **Ownership data flow**: Complete ownership objects passed through call chain to avoid repetitive destructuring and reconstruction
 - **No API token required**: All data fetched by scraping GitHub HTML pages using `fetch()` with credentials
-- **Modular architecture**: Code split into focused modules (decorator.js, files-page.js, labels.js, ownership.js, github.js)
+- **Modular architecture**: Code split into focused modules (decorator.js, files-page.js, conversation-page.js, labels.js, ownership.js, github.js)
+- **CSSOM-based expandable detection**: Uses `document.styleSheets` parsing to find GitHub's CSS module class names (e.g., `MergeBoxExpandable-module__isExpanded--[hash]`) for native expandable section styling
 
 ### CSS Architecture
-- All styles in `src/decorator.css` use `ghco-` prefix to avoid conflicts (e.g., `ghco-label`)
+- All styles in `src/content.css` use `ghco-` prefix to avoid conflicts (e.g., `ghco-label`, `ghco-merge-box-container`)
 - Uses CSS anchor positioning for drawer placement below labels
 - Animated hover effects with transform/opacity transitions
 - Click feedback animation on labels

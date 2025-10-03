@@ -35,7 +35,8 @@ const sortOwnersByUserTeams = (owners, userTeams) => {
 };
 
 export const createOwnerLabels = ({owners, ownershipData}) => {
-  const {ownerApprovals, user, userTeams, teamMembers, reviewers} = ownershipData;
+  const {ownerApprovals, user, userTeams, teamMembers, reviewers} =
+    ownershipData;
   const labels = [];
 
   if (owners?.size > 0) {

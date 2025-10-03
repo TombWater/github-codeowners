@@ -58,8 +58,8 @@ export const getPrInfo = () => {
   return {page, owner, repo, num, base};
 };
 
-export const getDiffFilesMap = cacheResult(urlCacheKey, async () => {
-  const jsonData = document.querySelector(
+const parseDiffFilesFromDoc = (doc) => {
+  const jsonData = doc.querySelector(
     '[data-target="react-app.embeddedData"]'
   )?.textContent;
   let diffEntries = [];
@@ -73,14 +73,31 @@ export const getDiffFilesMap = cacheResult(urlCacheKey, async () => {
 
   if (diffEntries.length === 0) {
     // Old Files Changed page - fallback
-    const nodes = Array.from(document.querySelectorAll('div.file-header'));
+    const nodes = Array.from(doc.querySelectorAll('div.file-header'));
     diffEntries = nodes.map((node) => [
       node.dataset.anchor?.replace('diff-', ''),
       node.dataset.path,
     ]);
   }
 
-  const diffFilesMap = new Map(diffEntries);
+  return new Map(diffEntries);
+};
+
+export const getDiffFilesMap = cacheResult(urlCacheKey, async () => {
+  // Try to get files from current page first
+  let diffFilesMap = parseDiffFilesFromDoc(document);
+
+  // If not on files page or no files found, fetch from files tab
+  if (diffFilesMap.size === 0) {
+    const pr = getPrInfo();
+    if (pr.num) {
+      const url = `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.num}/files`;
+      const doc = await loadPage(url);
+      if (doc) {
+        diffFilesMap = parseDiffFilesFromDoc(doc);
+      }
+    }
+  }
 
   console.log('[GHCO] Diff files map', diffFilesMap);
   return diffFilesMap;
