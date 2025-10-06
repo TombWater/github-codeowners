@@ -494,9 +494,25 @@ const createMergeBoxOwnerGroup = ({
   const listDiv = document.createElement('div');
   listDiv.classList.add('ghco-merge-box-owner-group');
 
-  // Create owner labels section
+  // Create owner labels section with file count
   const labelsDiv = document.createElement('div');
   labelsDiv.classList.add('ghco-merge-box-labels');
+
+  // Add file count before labels
+  const fileCountContainer = document.createElement('span');
+  fileCountContainer.classList.add('ghco-file-count-container');
+
+  const fileCount = document.createElement('span');
+  fileCount.classList.add('Counter');
+  fileCount.textContent = paths.length;
+  fileCountContainer.appendChild(fileCount);
+
+  const fileText = document.createElement('span');
+  fileText.classList.add('ghco-file-text');
+  fileText.textContent = paths.length === 1 ? 'file' : 'files';
+  fileCountContainer.appendChild(fileText);
+
+  labelsDiv.appendChild(fileCountContainer);
 
   const labels = createOwnerLabels({
     owners,
@@ -504,6 +520,7 @@ const createMergeBoxOwnerGroup = ({
   });
 
   labels.forEach((label) => labelsDiv.appendChild(label));
+
   listDiv.appendChild(labelsDiv);
 
   // Create file links section
