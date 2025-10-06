@@ -53,7 +53,7 @@ const findExpandedClassName = () => {
 export const updateMergeBox = async () => {
   const pr = github.getPrInfo();
 
-  const priorSection = document.querySelector('section[aria-label="Checks"]');
+  const priorSection = document.querySelector('section[aria-label="Reviews"]');
   if (
     !priorSection ||
     priorSection.parentNode.querySelector('section[aria-label="Code owners"]')
@@ -143,6 +143,7 @@ const createHeaderText = (existingHeader, ownerGroupsMap, ownerApprovals) => {
 
   const description = document.createElement('p');
   description.classList.add('fgColor-muted', 'mb-0');
+  description.id = APPROVALS_DESCRIPTION_ID;
 
   // Support both loading state and actual counts
   if (ownerGroupsMap && ownerApprovals) {
@@ -172,7 +173,23 @@ const createHeaderText = (existingHeader, ownerGroupsMap, ownerApprovals) => {
   return textWrapper;
 };
 
-// Click handler for expand/collapse functionality
+const EXPAND_STATE_KEY = 'ghco-codeownersExpanded';
+const APPROVALS_DESCRIPTION_ID = 'ghco-approvals-description';
+
+const getExpandStateKey = () => {
+  const prId = document.querySelector('#partial-discussion-header')?.dataset.gid;
+  return `${prId}:${EXPAND_STATE_KEY}`;
+};
+
+const getSavedExpandState = () => {
+  const saved = sessionStorage.getItem(getExpandStateKey()) ?? 'false';
+  return saved === 'true';
+};
+
+const saveExpandState = (isExpanded) => {
+  sessionStorage.setItem(getExpandStateKey(), isExpanded.toString());
+};
+
 const onClickHeader = (event) => {
   const expandButton = event.currentTarget;
   const wasExpanded = expandButton.getAttribute('aria-expanded') === 'true';
@@ -182,6 +199,7 @@ const onClickHeader = (event) => {
   event.stopPropagation();
 
   expandButton.setAttribute('aria-expanded', isExpanded.toString());
+  saveExpandState(isExpanded);
 
   const chevronWrapper = expandButton.parentElement?.querySelector(
     'div[style*="transition"]'
@@ -231,13 +249,15 @@ const createMergeBoxSectionHeader = (
 
   // If we can't find the expanded class name, gracefully degrade to a non-expandable header
   if (expandedClassName) {
+    const isExpanded = getSavedExpandState();
+
     const existingButton = existingHeader?.querySelector(
       'button[aria-expanded]'
     );
     const expandButton = document.createElement('button');
     expandButton.setAttribute('aria-label', 'Code owners');
     expandButton.setAttribute('type', 'button');
-    expandButton.setAttribute('aria-expanded', 'true');
+    expandButton.setAttribute('aria-expanded', isExpanded.toString());
     expandButton.className = existingButton?.className ?? '';
     expandButton.dataset.expandedClassName = expandedClassName;
     expandButton.addEventListener('click', onClickHeader);
@@ -253,7 +273,7 @@ const createMergeBoxSectionHeader = (
         'div[style*="transition"]'
       );
       if (chevronWrapper) {
-        chevronWrapper.style.transform = 'rotate(0deg)'; // Expanded by default
+        chevronWrapper.style.transform = `rotate(${isExpanded ? 0 : 180}deg)`;
       }
       wrapper.appendChild(chevronContainer);
     }
@@ -343,8 +363,9 @@ const createMergeBoxSectionContent = (
   }
 
   if (expandedClassName) {
-    expandableContent.classList.add(expandedClassName);
-    expandableWrapper.classList.add(expandedClassName);
+    const isExpanded = getSavedExpandState();
+    expandableContent.classList.toggle(expandedClassName, isExpanded);
+    expandableWrapper.classList.toggle(expandedClassName, isExpanded);
   }
 
   expandableContent.appendChild(ownerGroupsContent);
@@ -380,11 +401,14 @@ const updateMergeBoxSectionWithContent = (
 ) => {
   const expandedClassName = findExpandedClassName();
 
+  // Set aria-describedby only after loading to avoid screen readers announcing the brief loading state
+  section.setAttribute('aria-describedby', APPROVALS_DESCRIPTION_ID);
+
   // Replace the loading header with an expandable one
   const existingHeader = section.querySelector(
     'div[class*="MergeBoxSectionHeader"]'
   );
-  const priorSection = document.querySelector('section[aria-label="Checks"]');
+  const priorSection = document.querySelector('section[aria-label="Reviews"]');
   if (existingHeader && priorSection) {
     const newHeader = createMergeBoxSectionHeader(
       priorSection,
