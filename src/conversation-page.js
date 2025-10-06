@@ -1,5 +1,6 @@
 import * as github from './github';
 import iconSvg from '../public/icons/icon.svg';
+import chevronUpSvg from './chevron-up.svg';
 import {getPrOwnershipData} from './ownership';
 import {createOwnerLabels} from './labels';
 
@@ -135,7 +136,7 @@ const createHeaderIcon = (approvalStatus) => {
   return iconWrapper;
 };
 
-const createHeaderText = (existingHeader, approvalStatus) => {
+const createHeaderText = (approvalStatus) => {
   const textWrapper = document.createElement('div');
   textWrapper.classList.add(
     'd-flex',
@@ -149,8 +150,14 @@ const createHeaderText = (existingHeader, approvalStatus) => {
   textInner.classList.add('flex-1');
 
   const heading = document.createElement('h3');
-  const existingHeading = existingHeader?.querySelector('h3');
-  heading.className = existingHeading?.className;
+  const existingHeading = document.querySelector(
+    'div[class*="MergeBox-module"] section h3[class*="MergeBoxSectionHeading"]'
+  );
+  if (existingHeading) {
+    heading.className = existingHeading.className;
+  } else {
+    console.warn('[GHCO] Could not find existing heading to copy classes from');
+  }
   heading.textContent = 'Code owners';
 
   const description = document.createElement('p');
@@ -217,17 +224,17 @@ const onClickHeader = (event) => {
   }
 };
 
-const createMergeBoxSectionHeader = (
-  existingSection,
-  expandedClassName,
-  approvalStatus
-) => {
-  const existingHeader = existingSection?.querySelector(
-    'div[class*="MergeBoxSectionHeader"]'
+const createMergeBoxSectionHeader = (expandedClassName, approvalStatus) => {
+  const existingHeader = document.querySelector(
+    'div[class*="MergeBox-module"] section > div[class*="MergeBoxSectionHeader-module__wrapper"]'
   );
 
   const header = document.createElement('div');
-  header.className = existingHeader?.className;
+  if (existingHeader) {
+    header.className = existingHeader.className;
+  } else {
+    console.warn('[GHCO] Could not find existing header to copy classes from');
+  }
 
   const wrapper = document.createElement('div');
   wrapper.classList.add('d-flex', 'width-full');
@@ -236,39 +243,40 @@ const createMergeBoxSectionHeader = (
   headerContent.classList.add('d-flex', 'width-full');
 
   headerContent.appendChild(createHeaderIcon(approvalStatus));
-  headerContent.appendChild(createHeaderText(existingHeader, approvalStatus));
+  headerContent.appendChild(createHeaderText(approvalStatus));
   wrapper.appendChild(headerContent);
 
   // If we can't find the expanded class name, gracefully degrade to a non-expandable header
   if (expandedClassName) {
     const isExpanded = getSavedExpandState();
 
-    const existingButton = existingHeader?.querySelector(
-      'button[aria-expanded]'
+    const existingButton = document.querySelector(
+      'div[class*="MergeBox-module"] section button[class*="MergeBoxSectionHeader-module__button"]'
     );
+
     const expandButton = document.createElement('button');
     expandButton.setAttribute('aria-label', 'Code owners');
     expandButton.setAttribute('type', 'button');
     expandButton.setAttribute('aria-expanded', isExpanded.toString());
-    expandButton.className = existingButton?.className ?? '';
+    if (existingButton) {
+      expandButton.className = existingButton.className;
+    } else {
+      console.warn('[GHCO] Could not find existing button to copy classes from');
+    }
     expandButton.dataset.expandedClassName = expandedClassName;
     expandButton.addEventListener('click', onClickHeader);
     wrapper.appendChild(expandButton);
 
-    const existingChevron = existingHeader?.querySelector(
-      '.octicon-chevron-up'
-    );
-    const chevronContainer =
-      existingChevron?.parentElement?.parentElement?.cloneNode(true);
-    if (chevronContainer) {
-      const chevronWrapper = chevronContainer.querySelector(
-        'div[style*="transition"]'
-      );
-      if (chevronWrapper) {
-        chevronWrapper.style.transform = `rotate(${isExpanded ? 0 : 180}deg)`;
-      }
-      wrapper.appendChild(chevronContainer);
-    }
+    const chevronContainer = document.createElement('div');
+    chevronContainer.className = 'fgColor-muted pr-2 pt-2';
+
+    const chevronWrapper = document.createElement('div');
+    chevronWrapper.style.transition = 'transform 0.15s ease-in-out';
+    chevronWrapper.style.transform = `rotate(${isExpanded ? 0 : 180}deg)`;
+    chevronWrapper.innerHTML = chevronUpSvg;
+
+    chevronContainer.appendChild(chevronWrapper);
+    wrapper.appendChild(chevronContainer);
   }
 
   header.appendChild(wrapper);
@@ -374,7 +382,7 @@ const createLoadingMergeBoxSection = (priorSection) => {
   section.setAttribute('aria-label', 'Code owners');
 
   // Create header WITHOUT expand functionality (no expandedClassName passed)
-  const sectionHeader = createMergeBoxSectionHeader(priorSection, null, null);
+  const sectionHeader = createMergeBoxSectionHeader(null, null);
   section.appendChild(sectionHeader);
 
   priorSection.parentNode.insertBefore(section, priorSection.nextSibling);
@@ -416,14 +424,12 @@ const updateMergeBoxSectionWithContent = (
   const existingHeader = section.querySelector(
     'div[class*="MergeBoxSectionHeader"]'
   );
-  const priorSection = document.querySelector('section[aria-label="Reviews"]');
-  if (existingHeader && priorSection) {
+  if (existingHeader) {
     const approvalStatus = calculateApprovalStatus(
       ownerGroupsMap,
       ownershipData.ownerApprovals
     );
     const newHeader = createMergeBoxSectionHeader(
-      priorSection,
       expandedClassName,
       approvalStatus
     );
