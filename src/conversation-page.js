@@ -93,7 +93,7 @@ export const updateMergeBox = async () => {
   });
 };
 
-const createHeaderIcon = () => {
+const createHeaderIcon = (approvalStatus) => {
   const iconWrapper = document.createElement('div');
   iconWrapper.classList.add('mr-2', 'flex-shrink-0');
 
@@ -103,6 +103,11 @@ const createHeaderIcon = () => {
 
   const iconInner = document.createElement('div');
   iconInner.classList.add('bgColor-neutral-muted');
+  if (approvalStatus) {
+    const allApproved =
+      approvalStatus.approvalsReceived === approvalStatus.totalApprovalsNeeded;
+    iconInner.classList.add(allApproved ? 'fgColor-success' : 'fgColor-danger');
+  }
   iconInner.style.cssText =
     'display: flex; width: 32px; height: 32px; align-items: center; justify-content: center;';
 
@@ -116,6 +121,13 @@ const createHeaderIcon = () => {
   svg.setAttribute('width', '32');
   svg.setAttribute('height', '32');
   svg.style.verticalAlign = 'text-bottom';
+
+  if (approvalStatus) {
+    svg.setAttribute('fill', 'currentColor');
+    // Remove inline fill attributes so currentColor works
+    svg.querySelectorAll('[fill]').forEach((el) => el.removeAttribute('fill'));
+  }
+
   iconInner.appendChild(svg);
 
   iconCircle.appendChild(iconInner);
@@ -123,7 +135,7 @@ const createHeaderIcon = () => {
   return iconWrapper;
 };
 
-const createHeaderText = (existingHeader, ownerGroupsMap, ownerApprovals) => {
+const createHeaderText = (existingHeader, approvalStatus) => {
   const textWrapper = document.createElement('div');
   textWrapper.classList.add(
     'd-flex',
@@ -144,28 +156,9 @@ const createHeaderText = (existingHeader, ownerGroupsMap, ownerApprovals) => {
   const description = document.createElement('p');
   description.classList.add('fgColor-muted', 'mb-0');
   description.id = APPROVALS_DESCRIPTION_ID;
-
-  // Support both loading state and actual counts
-  if (ownerGroupsMap && ownerApprovals) {
-    let approvalsReceived = 0;
-    let totalApprovalsNeeded = 0;
-
-    for (const [, group] of ownerGroupsMap.entries()) {
-      if (group.owners && group.owners.size > 0) {
-        totalApprovalsNeeded++;
-        const hasApproval = Array.from(group.owners).some((owner) =>
-          ownerApprovals.has(owner)
-        );
-        if (hasApproval) {
-          approvalsReceived++;
-        }
-      }
-    }
-
-    description.textContent = `${approvalsReceived} of ${totalApprovalsNeeded} approvals received`;
-  } else {
-    description.textContent = 'Loading code owners...';
-  }
+  description.textContent = approvalStatus
+    ? `${approvalStatus.approvalsReceived} of ${approvalStatus.totalApprovalsNeeded} required approvals received`
+    : 'Loading approval status...';
 
   textInner.appendChild(heading);
   textInner.appendChild(description);
@@ -177,7 +170,8 @@ const EXPAND_STATE_KEY = 'ghco-codeownersExpanded';
 const APPROVALS_DESCRIPTION_ID = 'ghco-approvals-description';
 
 const getExpandStateKey = () => {
-  const prId = document.querySelector('#partial-discussion-header')?.dataset.gid;
+  const prId = document.querySelector('#partial-discussion-header')?.dataset
+    .gid;
   return `${prId}:${EXPAND_STATE_KEY}`;
 };
 
@@ -226,8 +220,7 @@ const onClickHeader = (event) => {
 const createMergeBoxSectionHeader = (
   existingSection,
   expandedClassName,
-  ownerGroupsMap,
-  ownerApprovals
+  approvalStatus
 ) => {
   const existingHeader = existingSection?.querySelector(
     'div[class*="MergeBoxSectionHeader"]'
@@ -241,10 +234,9 @@ const createMergeBoxSectionHeader = (
 
   const headerContent = document.createElement('div');
   headerContent.classList.add('d-flex', 'width-full');
-  headerContent.appendChild(createHeaderIcon());
-  headerContent.appendChild(
-    createHeaderText(existingHeader, ownerGroupsMap, ownerApprovals)
-  );
+
+  headerContent.appendChild(createHeaderIcon(approvalStatus));
+  headerContent.appendChild(createHeaderText(existingHeader, approvalStatus));
   wrapper.appendChild(headerContent);
 
   // If we can't find the expanded class name, gracefully degrade to a non-expandable header
@@ -382,16 +374,32 @@ const createLoadingMergeBoxSection = (priorSection) => {
   section.setAttribute('aria-label', 'Code owners');
 
   // Create header WITHOUT expand functionality (no expandedClassName passed)
-  const sectionHeader = createMergeBoxSectionHeader(
-    priorSection,
-    null,
-    null,
-    null
-  );
+  const sectionHeader = createMergeBoxSectionHeader(priorSection, null, null);
   section.appendChild(sectionHeader);
 
   priorSection.parentNode.insertBefore(section, priorSection.nextSibling);
   return section;
+};
+
+const calculateApprovalStatus = (ownerGroupsMap, ownerApprovals) => {
+  if (!ownerGroupsMap || !ownerApprovals) return null;
+
+  let approvalsReceived = 0;
+  let totalApprovalsNeeded = 0;
+
+  for (const [, group] of ownerGroupsMap.entries()) {
+    if (group.owners && group.owners.size > 0) {
+      totalApprovalsNeeded++;
+      const hasApproval = Array.from(group.owners).some((owner) =>
+        ownerApprovals.has(owner)
+      );
+      if (hasApproval) {
+        approvalsReceived++;
+      }
+    }
+  }
+
+  return {approvalsReceived, totalApprovalsNeeded};
 };
 
 // Update the section with actual content after data is loaded
@@ -410,11 +418,14 @@ const updateMergeBoxSectionWithContent = (
   );
   const priorSection = document.querySelector('section[aria-label="Reviews"]');
   if (existingHeader && priorSection) {
+    const approvalStatus = calculateApprovalStatus(
+      ownerGroupsMap,
+      ownershipData.ownerApprovals
+    );
     const newHeader = createMergeBoxSectionHeader(
       priorSection,
       expandedClassName,
-      ownerGroupsMap,
-      ownershipData.ownerApprovals
+      approvalStatus
     );
     section.replaceChild(newHeader, existingHeader);
   }
