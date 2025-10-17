@@ -45,7 +45,10 @@ const getGithubClassNames = (() => {
         /\.(MergeBoxExpandable-module__expandableWrapper--[a-zA-Z0-9_-]+)/,
       expandableContent:
         /\.(MergeBoxExpandable-module__expandableContent--[a-zA-Z0-9_-]+)/,
-      button: /\.(MergeBoxSectionHeader-module__button--[a-zA-Z0-9_-]+)/,
+      headingButton: /\.(MergeBoxSectionHeader-module__button--[a-zA-Z0-9_-]+)/,
+      headingModule:
+        /\.(MergeBoxSectionHeader-module__MergeBoxSectionHeading--[a-zA-Z0-9_-]+)/,
+      headingPrimer: /\.(prc-Heading-Heading-[a-zA-Z0-9_-]+)/,
     };
 
     // Get all selectors from all stylesheets
@@ -67,6 +70,8 @@ const getGithubClassNames = (() => {
         return [key, match?.[1]];
       })
     );
+
+    console.log('[GHCO] GitHub class names:', cache);
 
     return cache;
   };
@@ -201,14 +206,8 @@ const createHeaderText = (approvalStatus) => {
   textInner.classList.add('flex-1');
 
   const heading = document.createElement('h3');
-  const existingHeading = document.querySelector(
-    'div[class*="MergeBox-module"] section h3[class*="MergeBoxSectionHeading"]'
-  );
-  if (existingHeading) {
-    heading.className = existingHeading.className;
-  } else {
-    console.info('[GHCO] Could not find existing heading to copy classes from');
-  }
+  const classNames = getGithubClassNames();
+  heading.classList.add(classNames.headingModule, classNames.headingPrimer);
   heading.textContent = 'Code owners';
 
   const description = document.createElement('p');
@@ -284,13 +283,9 @@ const createMergeBoxSectionHeader = (
 
   // Use CSSOM to find GitHub's wrapper class
   const classNames = getGithubClassNames();
-  if (classNames.wrapper) {
-    header.classList.add(classNames.wrapper);
-    if (expandedClassName && classNames.wrapperCanExpand) {
-      header.classList.add(classNames.wrapperCanExpand);
-    }
-  } else {
-    console.info('[GHCO] Could not find wrapper class via CSSOM');
+  header.classList.add(classNames.wrapper);
+  if (expandedClassName) {
+    header.classList.add(classNames.wrapperCanExpand);
   }
 
   const wrapper = document.createElement('div');
@@ -311,13 +306,7 @@ const createMergeBoxSectionHeader = (
     expandButton.setAttribute('aria-label', 'Code owners');
     expandButton.setAttribute('type', 'button');
     expandButton.setAttribute('aria-expanded', isExpanded.toString());
-
-    // Use CSSOM to find GitHub's button class
-    if (classNames.button) {
-      expandButton.classList.add(classNames.button);
-    } else {
-      console.info('[GHCO] Could not find button class via CSSOM');
-    }
+    expandButton.classList.add(classNames.headingButton);
 
     expandButton.dataset.expandedClassName = expandedClassName;
     expandButton.addEventListener('click', onClickHeader);
@@ -391,21 +380,11 @@ const createMergeBoxSectionContent = (
 ) => {
   const classNames = getGithubClassNames();
   const expandableWrapper = document.createElement('div');
-
-  if (classNames.expandableWrapper) {
-    expandableWrapper.classList.add(classNames.expandableWrapper);
-  } else {
-    console.info('[GHCO] Could not find expandable wrapper class via CSSOM');
-  }
+  expandableWrapper.classList.add(classNames.expandableWrapper);
   expandableWrapper.style.visibility = 'visible';
 
   const expandableContent = document.createElement('div');
-
-  if (classNames.expandableContent) {
-    expandableContent.classList.add(classNames.expandableContent);
-  } else {
-    console.info('[GHCO] Could not find expandable content class via CSSOM');
-  }
+  expandableContent.classList.add(classNames.expandableContent);
 
   if (expandedClassName) {
     const isExpanded = getSavedExpandState();
