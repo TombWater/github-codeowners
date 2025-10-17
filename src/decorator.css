@@ -167,12 +167,6 @@ react-app
   background-color: var(--bgColor-muted, var(--color-canvas-subtle));
 }
 
-.ghco-merge-box-header {
-  border: var(--borderWidth-thin) solid
-    var(--borderColor-default, var(--color-border-default));
-  padding: 20px;
-}
-
 .ghco-merge-box-owner-group {
   padding: 8px 12px;
   border-radius: var(--borderRadius-medium);

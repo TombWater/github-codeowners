@@ -29,14 +29,12 @@ const createOwnerGroupsMap = (diffFilesMap, folderOwners) => {
   return ownerGroupsMap;
 };
 
-const findExpandedClassName = () => {
+const findCssomClassName = (pattern) => {
   for (const styleSheet of document.styleSheets) {
     try {
       for (const rule of styleSheet.cssRules || styleSheet.rules) {
         if (rule.selectorText) {
-          const match = rule.selectorText.match(
-            /\.(MergeBoxExpandable-module__isExpanded--[a-zA-Z0-9_-]+)/
-          );
+          const match = rule.selectorText.match(pattern);
           if (match) {
             return match[1]; // Return the class name without the dot
           }
@@ -49,6 +47,31 @@ const findExpandedClassName = () => {
   }
   return null;
 };
+
+const findExpandedClassName = () =>
+  findCssomClassName(
+    /\.(MergeBoxExpandable-module__isExpanded--[a-zA-Z0-9_-]+)/
+  );
+
+const findWrapperClassName = () =>
+  findCssomClassName(
+    /\.(MergeBoxSectionHeader-module__wrapper--[a-zA-Z0-9_-]+)/
+  );
+
+const findWrapperCanExpandClassName = () =>
+  findCssomClassName(
+    /\.(MergeBoxSectionHeader-module__wrapperCanExpand--[a-zA-Z0-9_-]+)/
+  );
+
+const findExpandableWrapperClassName = () =>
+  findCssomClassName(
+    /\.(MergeBoxExpandable-module__expandableWrapper--[a-zA-Z0-9_-]+)/
+  );
+
+const findExpandableContentClassName = () =>
+  findCssomClassName(
+    /\.(MergeBoxExpandable-module__expandableContent--[a-zA-Z0-9_-]+)/
+  );
 
 // Store the last known state to detect changes
 let lastMergeBoxState = null;
@@ -341,12 +364,22 @@ const createMergeBoxSectionHeader = (
   approvalStatus,
   isMerged
 ) => {
-  const existingHeader = document.querySelector(
-    'div[class*="MergeBox-module"] section > div[class*="MergeBoxSectionHeader-module__wrapper"]'
-  );
-
   const header = document.createElement('div');
-  header.className = existingHeader?.className || 'ghco-merge-box-header';
+
+  // Use CSSOM to find GitHub's wrapper class
+  const wrapperClassName = findWrapperClassName();
+  const wrapperCanExpandClassName = expandedClassName
+    ? findWrapperCanExpandClassName()
+    : null;
+
+  if (wrapperClassName) {
+    header.classList.add(wrapperClassName);
+    if (wrapperCanExpandClassName) {
+      header.classList.add(wrapperCanExpandClassName);
+    }
+  } else {
+    console.info('[GHCO] Could not find wrapper class via CSSOM');
+  }
 
   const wrapper = document.createElement('div');
   wrapper.classList.add('d-flex', 'width-full');
@@ -447,33 +480,23 @@ const createMergeBoxSectionContent = (
   ownerGroupsContent,
   expandedClassName
 ) => {
-  const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
-
   const expandableWrapper = document.createElement('div');
-  const existingExpandable = mergeBox?.querySelector(
-    'div[class*="MergeBoxExpandable-module__expandableWrapper"]'
-  );
+  const wrapperClassName = findExpandableWrapperClassName();
 
-  if (existingExpandable) {
-    expandableWrapper.classList.add(...existingExpandable.classList);
+  if (wrapperClassName) {
+    expandableWrapper.classList.add(wrapperClassName);
   } else {
-    console.info(
-      '[GHCO] Could not find existing expandable wrapper to copy classes from'
-    );
+    console.info('[GHCO] Could not find expandable wrapper class via CSSOM');
   }
   expandableWrapper.style.visibility = 'visible';
 
   const expandableContent = document.createElement('div');
-  const existingContent = mergeBox?.querySelector(
-    'div[class*="MergeBoxExpandable-module__expandableContent"]'
-  );
+  const contentClassName = findExpandableContentClassName();
 
-  if (existingContent) {
-    expandableContent.classList.add(...existingContent.classList);
+  if (contentClassName) {
+    expandableContent.classList.add(contentClassName);
   } else {
-    console.info(
-      '[GHCO] Could not find existing expandable content to copy classes from'
-    );
+    console.info('[GHCO] Could not find expandable content class via CSSOM');
   }
 
   if (expandedClassName) {
@@ -498,20 +521,25 @@ const createLoadingMergeBoxSection = (
   const section = document.createElement('section');
   section.setAttribute('aria-label', 'Code owners');
 
-  // Check if we're in a context with existing sections (which have their own container with borders)
+  // Check if we're in a context with existing sections
   const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
-  const hasSectionsContainer = mergeBox?.querySelector(
-    'div.border.rounded-2, div[class*="mergeBoxAdjustBorders"]'
+  const existingSectionsContainer = mergeBox?.querySelector(
+    'div.border.rounded-2'
   );
   const existingSections = mergeBox?.querySelectorAll('section');
 
-  // If there are existing sections, use the same border pattern
+  let containerToInsert = section;
+
+  // If there are existing sections in a container, use the same border pattern
   if (existingSections && existingSections.length > 0) {
     section.classList.add('border-bottom', 'color-border-subtle');
-  } else if (!hasSectionsContainer) {
-    // No sections container at all (merged PR) - create border and background
-    section.classList.add('border', 'rounded-2', 'borderColor-default');
-    section.style.marginTop = '12px';
+  } else if (!existingSectionsContainer) {
+    // No sections container (merged PR) - wrap section in a border container
+    const wrapper = document.createElement('div');
+    wrapper.classList.add('border', 'rounded-2', 'borderColor-default');
+    wrapper.style.marginTop = '12px';
+    wrapper.appendChild(section);
+    containerToInsert = wrapper;
   } else {
     // We're the first section in an existing container
     section.classList.add('border-bottom', 'color-border-subtle');
@@ -521,11 +549,17 @@ const createLoadingMergeBoxSection = (
   const sectionHeader = createMergeBoxSectionHeader(null, null, isMerged);
   section.appendChild(sectionHeader);
 
-  // Insert the section at the appropriate location
+  // Insert the section (or wrapper) at the appropriate location
   if (insertBeforeElement) {
-    insertionPoint.parentNode.insertBefore(section, insertBeforeElement);
+    insertionPoint.parentNode.insertBefore(
+      containerToInsert,
+      insertBeforeElement
+    );
   } else {
-    insertionPoint.parentNode.insertBefore(section, insertionPoint.nextSibling);
+    insertionPoint.parentNode.insertBefore(
+      containerToInsert,
+      insertionPoint.nextSibling
+    );
   }
 
   return section;
