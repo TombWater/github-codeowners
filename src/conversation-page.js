@@ -78,33 +78,13 @@ const findButtonClassName = () =>
     /\.(MergeBoxSectionHeader-module__button--[a-zA-Z0-9_-]+)/
   );
 
-// Store the last known state to detect changes
-let lastMergeBoxState = null;
-
-const getMergeBoxState = (ownershipData) => {
-  const pr = github.getPrInfo();
-  const approvers = ownershipData
-    ? Array.from(ownershipData.ownerApprovals).sort()
-    : [];
-  return {
-    isMerged: pr.isMerged,
-    approvers: approvers.join(','),
-  };
-};
-
-const hasStateChanged = (newState) => {
-  if (!lastMergeBoxState) return true;
-  return (
-    lastMergeBoxState.isMerged !== newState.isMerged ||
-    lastMergeBoxState.approvers !== newState.approvers
-  );
-};
-
 // Update the merge box section with owner groups
 export const updateMergeBox = async () => {
   const pr = github.getPrInfo();
   const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
-  if (!mergeBox) return;
+  if (!mergeBox) {
+    return;
+  }
 
   let section = mergeBox.querySelector('section[aria-label="Code owners"]');
 
@@ -112,7 +92,9 @@ export const updateMergeBox = async () => {
     // No existing section, create new one with loading state immediately
     console.log('[GHCO] Decorate merge box', pr);
     section = createLoadingMergeBoxSection(mergeBox, pr.isMerged);
-    if (!section) return;
+    if (!section) {
+      return;
+    }
   }
 
   // Async load ownership then update the section
@@ -121,13 +103,16 @@ export const updateMergeBox = async () => {
     github.getDiffFilesMap(),
   ]);
 
-  // For existing sections, check if state changed
-  const newState = getMergeBoxState(ownershipData);
-  if (lastMergeBoxState && !hasStateChanged(newState)) {
-    return; // No changes, skip update to avoid infinite loop
+  // Check if state changed (to avoid infinite loop)
+  const state = Array.from(ownershipData?.ownerApprovals ?? []).sort();
+  state.unshift(pr.isMerged ? 'MERGED' : 'UNMERGED');
+  const newState = state.join(',');
+
+  if (section.dataset.state === newState) {
+    return; // No changes, skip update
   }
 
-  lastMergeBoxState = newState;
+  section.dataset.state = newState;
 
   if (!ownershipData || !diffFilesMap || diffFilesMap.size === 0) {
     const description = section.querySelector('p');
@@ -136,7 +121,6 @@ export const updateMergeBox = async () => {
         description.textContent = 'No CODEOWNERS file found';
       } else {
         description.textContent = 'No files to review';
-      }
     }
     return;
   }
