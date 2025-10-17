@@ -523,51 +523,24 @@ const createLoadingMergeBoxSection = (
 
   // Check if we're in a context with existing sections (excluding our own)
   const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
-  const existingSectionsContainer = mergeBox?.querySelector(
-    'div.border.rounded-2'
-  );
   const existingSections = Array.from(
     mergeBox?.querySelectorAll('section') || []
   ).filter((s) => s.getAttribute('aria-label') !== 'Code owners');
 
-  let containerToInsert = section;
-
-  // If there are existing sections in a container, use the same border pattern
-  if (existingSections && existingSections.length > 0) {
-    section.classList.add('border-bottom', 'color-border-subtle');
-  } else if (!existingSectionsContainer) {
-    // No sections container at all - wrap section in a border container
-    console.log('[GHCO] Creating standalone section wrapper (no container)');
-    const wrapper = document.createElement('div');
-    wrapper.classList.add('border', 'rounded-2', 'borderColor-default');
-    wrapper.style.marginTop = '12px';
-    section.classList.add('ghco-standalone-section');
-    wrapper.appendChild(section);
-    containerToInsert = wrapper;
-    console.log('[GHCO] Section classes:', section.className);
-    console.log('[GHCO] Wrapper classes:', wrapper.className);
-  } else {
-    // We're the first section in an existing container (merged PR with existing container)
-    console.log('[GHCO] First section in existing container');
-    section.classList.add('border-top', 'color-border-subtle');
-  }
+  section.classList.add(
+    existingSections?.length > 0 ? 'border-bottom' : 'border-top',
+    'color-border-subtle'
+  );
 
   // Create header WITHOUT expand functionality (no expandedClassName passed)
   const sectionHeader = createMergeBoxSectionHeader(null, null, isMerged);
   section.appendChild(sectionHeader);
 
   // Insert the section (or wrapper) at the appropriate location
-  if (insertBeforeElement) {
-    insertionPoint.parentNode.insertBefore(
-      containerToInsert,
-      insertBeforeElement
-    );
-  } else {
-    insertionPoint.parentNode.insertBefore(
-      containerToInsert,
-      insertionPoint.nextSibling
-    );
-  }
+  insertionPoint.parentNode.insertBefore(
+    section,
+    insertBeforeElement || insertionPoint.nextSibling,
+  );
 
   return section;
 };
