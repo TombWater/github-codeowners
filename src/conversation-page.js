@@ -50,28 +50,123 @@ const findExpandedClassName = () => {
   return null;
 };
 
+// Store the last known state to detect changes
+let lastMergeBoxState = null;
+
+const getMergeBoxState = (ownershipData) => {
+  const pr = github.getPrInfo();
+  const approvers = ownershipData
+    ? Array.from(ownershipData.ownerApprovals).sort()
+    : [];
+  return {
+    isMerged: pr.isMerged,
+    approvers: approvers.join(','),
+  };
+};
+
+const hasStateChanged = (newState) => {
+  if (!lastMergeBoxState) return true;
+  return (
+    lastMergeBoxState.isMerged !== newState.isMerged ||
+    lastMergeBoxState.approvers !== newState.approvers
+  );
+};
+
 // Update the merge box section with owner groups
 export const updateMergeBox = async () => {
   const pr = github.getPrInfo();
+  const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
+  if (!mergeBox) return;
 
-  const priorSection = document.querySelector('section[aria-label="Reviews"]');
-  if (
-    !priorSection ||
-    priorSection.parentNode.querySelector('section[aria-label="Code owners"]')
-  ) {
+  const existingSection = mergeBox.querySelector(
+    'section[aria-label="Code owners"]'
+  );
+
+  // If section exists, check if we need to update it
+  if (existingSection) {
+    const ownershipData = await getPrOwnershipData();
+    const newState = getMergeBoxState(ownershipData);
+
+    if (!hasStateChanged(newState)) {
+      return; // No changes, skip update to avoid infinite loop
+    }
+
+    console.log('[GHCO] State changed, updating merge box', {
+      old: lastMergeBoxState,
+      new: newState,
+    });
+
+    // Remove existing section and recreate it
+    existingSection.remove();
+  }
+
+  // Find insertion point: after Reviews, before Checks, or at end
+  let insertionPoint = null;
+  let insertBeforeElement = null;
+
+  const reviewsSection = mergeBox.querySelector(
+    'section[aria-label="Reviews"]'
+  );
+  if (reviewsSection) {
+    // Insert after Reviews section
+    insertionPoint = reviewsSection;
+  } else {
+    // No Reviews section, try to insert before Checks
+    const checksSection = mergeBox.querySelector(
+      'section[aria-label="Checks"]'
+    );
+    if (checksSection) {
+      insertionPoint = checksSection.previousElementSibling;
+      insertBeforeElement = checksSection;
+    } else {
+      // No Reviews or Checks, insert at end of sections (before the merge button area)
+      const sections = Array.from(mergeBox.querySelectorAll('section'));
+      if (sections.length > 0) {
+        insertionPoint = sections[sections.length - 1];
+      } else {
+        // No sections at all (e.g., merged PR) - insert before the bottom controls
+        const bottomControls = mergeBox.querySelector(
+          'div.p-3.bgColor-muted, div[class*="rounded-bottom"]'
+        );
+        if (bottomControls) {
+          insertionPoint = bottomControls.previousElementSibling;
+          insertBeforeElement = bottomControls;
+        } else {
+          // Fallback: insert at end of first child of merge box
+          const container = mergeBox.querySelector(
+            'div[class*="MergeBox-module__mergeBoxAdjustBorders"], div.border.rounded-2'
+          );
+          if (container) {
+            insertionPoint = container.lastElementChild;
+          }
+        }
+      }
+    }
+  }
+
+  if (!insertionPoint) {
+    console.warn('[GHCO] Could not find insertion point for merge box');
     return;
   }
 
   console.log('[GHCO] Decorate merge box', pr);
 
   // Show loading state immediately
-  const section = createLoadingMergeBoxSection(priorSection);
+  const section = createLoadingMergeBoxSection(
+    insertionPoint,
+    insertBeforeElement,
+    pr.isMerged
+  );
 
   // Async load ownership then update the section
   const [ownershipData, diffFilesMap] = await Promise.all([
     getPrOwnershipData(),
     github.getDiffFilesMap(),
   ]);
+
+  const newState = getMergeBoxState(ownershipData);
+  lastMergeBoxState = newState;
+
   if (!ownershipData || !diffFilesMap || diffFilesMap.size === 0) {
     const description = section.querySelector('p');
     if (description) {
@@ -94,7 +189,7 @@ export const updateMergeBox = async () => {
   });
 };
 
-const createHeaderIcon = (approvalStatus) => {
+const createHeaderIcon = (approvalStatus, isMerged) => {
   const iconWrapper = document.createElement('div');
   iconWrapper.classList.add('mr-2', 'flex-shrink-0');
 
@@ -103,14 +198,31 @@ const createHeaderIcon = (approvalStatus) => {
     'overflow: hidden; border-width: 0px; border-radius: 50%; border-style: solid; border-color: var(--borderColor-default); width: 32px; height: 32px;';
 
   const iconInner = document.createElement('div');
-  iconInner.classList.add('bgColor-neutral-muted');
-  if (approvalStatus) {
-    const allApproved =
-      approvalStatus.approvalsReceived === approvalStatus.totalApprovalsNeeded;
-    iconInner.classList.add(allApproved ? 'fgColor-success' : 'fgColor-danger');
+
+  // Determine the color based on merge status and approval status
+  if (isMerged) {
+    iconInner.style.backgroundColor = 'var(--bgColor-default)';
+    iconInner.style.color = 'var(--bgColor-done-emphasis)';
+  } else {
+    iconInner.classList.add('bgColor-neutral-muted');
+    if (approvalStatus) {
+      const allApproved =
+        approvalStatus.approvalsReceived ===
+        approvalStatus.totalApprovalsNeeded;
+      iconInner.classList.add(
+        allApproved ? 'fgColor-success' : 'fgColor-danger'
+      );
+    }
   }
-  iconInner.style.cssText =
-    'display: flex; width: 32px; height: 32px; align-items: center; justify-content: center;';
+
+  iconInner.style.cssText = `
+    ${iconInner.style.cssText || ''}
+    display: flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+  `.trim();
 
   // Extension icon SVG (GitHub octocat with checkmarks)
   const svgString = iconSvg.replace(/<\?xml[^?]*\?>\s*/g, '');
@@ -123,7 +235,7 @@ const createHeaderIcon = (approvalStatus) => {
   svg.setAttribute('height', '32');
   svg.style.verticalAlign = 'text-bottom';
 
-  if (approvalStatus) {
+  if (approvalStatus || isMerged) {
     svg.setAttribute('fill', 'currentColor');
     // Remove inline fill attributes so currentColor works
     svg.querySelectorAll('[fill]').forEach((el) => el.removeAttribute('fill'));
@@ -224,7 +336,11 @@ const onClickHeader = (event) => {
   }
 };
 
-const createMergeBoxSectionHeader = (expandedClassName, approvalStatus) => {
+const createMergeBoxSectionHeader = (
+  expandedClassName,
+  approvalStatus,
+  isMerged
+) => {
   const existingHeader = document.querySelector(
     'div[class*="MergeBox-module"] section > div[class*="MergeBoxSectionHeader-module__wrapper"]'
   );
@@ -242,7 +358,7 @@ const createMergeBoxSectionHeader = (expandedClassName, approvalStatus) => {
   const headerContent = document.createElement('div');
   headerContent.classList.add('d-flex', 'width-full');
 
-  headerContent.appendChild(createHeaderIcon(approvalStatus));
+  headerContent.appendChild(createHeaderIcon(approvalStatus, isMerged));
   headerContent.appendChild(createHeaderText(approvalStatus));
   wrapper.appendChild(headerContent);
 
@@ -261,7 +377,9 @@ const createMergeBoxSectionHeader = (expandedClassName, approvalStatus) => {
     if (existingButton) {
       expandButton.className = existingButton.className;
     } else {
-      console.warn('[GHCO] Could not find existing button to copy classes from');
+      console.warn(
+        '[GHCO] Could not find existing button to copy classes from'
+      );
     }
     expandButton.dataset.expandedClassName = expandedClassName;
     expandButton.addEventListener('click', onClickHeader);
@@ -376,16 +494,26 @@ const createMergeBoxSectionContent = (
 };
 
 // Create the merge box section in loading state
-const createLoadingMergeBoxSection = (priorSection) => {
+const createLoadingMergeBoxSection = (
+  insertionPoint,
+  insertBeforeElement,
+  isMerged
+) => {
   const section = document.createElement('section');
   section.classList.add('border-bottom', 'color-border-subtle');
   section.setAttribute('aria-label', 'Code owners');
 
   // Create header WITHOUT expand functionality (no expandedClassName passed)
-  const sectionHeader = createMergeBoxSectionHeader(null, null);
+  const sectionHeader = createMergeBoxSectionHeader(null, null, isMerged);
   section.appendChild(sectionHeader);
 
-  priorSection.parentNode.insertBefore(section, priorSection.nextSibling);
+  // Insert the section at the appropriate location
+  if (insertBeforeElement) {
+    insertionPoint.parentNode.insertBefore(section, insertBeforeElement);
+  } else {
+    insertionPoint.parentNode.insertBefore(section, insertionPoint.nextSibling);
+  }
+
   return section;
 };
 
@@ -431,7 +559,8 @@ const updateMergeBoxSectionWithContent = (
     );
     const newHeader = createMergeBoxSectionHeader(
       expandedClassName,
-      approvalStatus
+      approvalStatus,
+      pr.isMerged
     );
     section.replaceChild(newHeader, existingHeader);
   }
