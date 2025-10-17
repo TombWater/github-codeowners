@@ -106,34 +106,13 @@ export const updateMergeBox = async () => {
   const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
   if (!mergeBox) return;
 
-  const existingSection = mergeBox.querySelector(
-    'section[aria-label="Code owners"]'
-  );
+  let section = mergeBox.querySelector('section[aria-label="Code owners"]');
 
-  // If section exists, check if we need to update it
-  if (existingSection) {
-    const ownershipData = await getPrOwnershipData();
-    const newState = getMergeBoxState(ownershipData);
-
-    if (!hasStateChanged(newState)) {
-      return; // No changes, skip update to avoid infinite loop
-    }
-
-    console.log('[GHCO] State changed, updating merge box', {
-      old: lastMergeBoxState,
-      new: newState,
-    });
-
-    // Remove existing section and recreate it
-    existingSection.remove();
-  }
-
-  console.log('[GHCO] Decorate merge box', pr);
-
-  // Show loading state immediately
-  const section = createLoadingMergeBoxSection(mergeBox, pr.isMerged);
   if (!section) {
-    return;
+    // No existing section, create new one with loading state immediately
+    console.log('[GHCO] Decorate merge box', pr);
+    section = createLoadingMergeBoxSection(mergeBox, pr.isMerged);
+    if (!section) return;
   }
 
   // Async load ownership then update the section
@@ -142,7 +121,12 @@ export const updateMergeBox = async () => {
     github.getDiffFilesMap(),
   ]);
 
+  // For existing sections, check if state changed
   const newState = getMergeBoxState(ownershipData);
+  if (lastMergeBoxState && !hasStateChanged(newState)) {
+    return; // No changes, skip update to avoid infinite loop
+  }
+
   lastMergeBoxState = newState;
 
   if (!ownershipData || !diffFilesMap || diffFilesMap.size === 0) {
@@ -540,7 +524,7 @@ const updateMergeBoxSectionWithContent = (
   // Set aria-describedby only after loading to avoid screen readers announcing the brief loading state
   section.setAttribute('aria-describedby', APPROVALS_DESCRIPTION_ID);
 
-  // Replace the loading header with an expandable one
+  // Replace the header with an updated one
   const existingHeader = section.querySelector(
     'div[class*="MergeBoxSectionHeader"]'
   );
@@ -557,7 +541,10 @@ const updateMergeBoxSectionWithContent = (
     section.replaceChild(newHeader, existingHeader);
   }
 
-  // Add the expandable content to the section
+  // Remove existing expandable content if present
+  section.querySelector('div[class*="__expandableWrapper"]')?.remove();
+
+  // Add the new expandable content to the section
   const ownerGroupsContent = createMergeBoxOwnerGroupsContent(
     ownerGroupsMap,
     pr,
