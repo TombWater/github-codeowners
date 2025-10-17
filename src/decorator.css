@@ -165,8 +165,12 @@ react-app
   overflow-y: auto;
   padding-top: 12px;
   background-color: var(--bgColor-muted, var(--color-canvas-subtle));
-  border-top: var(--borderWidth-thin, 1px) solid
+}
+
+.ghco-merge-box-header {
+  border: var(--borderWidth-thin) solid
     var(--borderColor-default, var(--color-border-default));
+  padding: 20px;
 }
 
 .ghco-merge-box-owner-group {

@@ -346,11 +346,7 @@ const createMergeBoxSectionHeader = (
   );
 
   const header = document.createElement('div');
-  if (existingHeader) {
-    header.className = existingHeader.className;
-  } else {
-    console.info('[GHCO] Could not find existing header to copy classes from');
-  }
+  header.className = existingHeader?.className || 'ghco-merge-box-header';
 
   const wrapper = document.createElement('div');
   wrapper.classList.add('d-flex', 'width-full');
