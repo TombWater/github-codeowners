@@ -152,21 +152,18 @@ export const updateMergeBox = async () => {
       if (sections.length > 0) {
         insertionPoint = sections[sections.length - 1];
       } else {
-        // No sections at all (e.g., merged PR) - insert before the bottom controls
-        const bottomControls = mergeBox.querySelector(
-          'div.p-3.bgColor-muted, div[class*="rounded-bottom"]'
+        // No sections at all (e.g., merged PR) - find container and append to it
+        const container = mergeBox.querySelector(
+          'div[class*="MergeBox-module__mergeBoxAdjustBorders"], div.border.rounded-2'
         );
-        if (bottomControls) {
-          insertionPoint = bottomControls.previousElementSibling;
-          insertBeforeElement = bottomControls;
+        if (container && container.lastElementChild) {
+          insertionPoint = container.lastElementChild;
+          console.log('[GHCO] Found container for merged PR insertion');
         } else {
-          // Fallback: insert at end of first child of merge box
-          const container = mergeBox.querySelector(
-            'div[class*="MergeBox-module__mergeBoxAdjustBorders"], div.border.rounded-2'
-          );
-          if (container) {
-            insertionPoint = container.lastElementChild;
-          }
+          console.warn('[GHCO] Container or lastElementChild not found', {
+            container: Boolean(container),
+            lastElementChild: container?.lastElementChild,
+          });
         }
       }
     }
@@ -524,12 +521,14 @@ const createLoadingMergeBoxSection = (
   const section = document.createElement('section');
   section.setAttribute('aria-label', 'Code owners');
 
-  // Check if we're in a context with existing sections
+  // Check if we're in a context with existing sections (excluding our own)
   const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
   const existingSectionsContainer = mergeBox?.querySelector(
     'div.border.rounded-2'
   );
-  const existingSections = mergeBox?.querySelectorAll('section');
+  const existingSections = Array.from(
+    mergeBox?.querySelectorAll('section') || []
+  ).filter((s) => s.getAttribute('aria-label') !== 'Code owners');
 
   let containerToInsert = section;
 
@@ -537,15 +536,20 @@ const createLoadingMergeBoxSection = (
   if (existingSections && existingSections.length > 0) {
     section.classList.add('border-bottom', 'color-border-subtle');
   } else if (!existingSectionsContainer) {
-    // No sections container (merged PR) - wrap section in a border container
+    // No sections container at all - wrap section in a border container
+    console.log('[GHCO] Creating standalone section wrapper (no container)');
     const wrapper = document.createElement('div');
     wrapper.classList.add('border', 'rounded-2', 'borderColor-default');
     wrapper.style.marginTop = '12px';
+    section.classList.add('ghco-standalone-section');
     wrapper.appendChild(section);
     containerToInsert = wrapper;
+    console.log('[GHCO] Section classes:', section.className);
+    console.log('[GHCO] Wrapper classes:', wrapper.className);
   } else {
-    // We're the first section in an existing container
-    section.classList.add('border-bottom', 'color-border-subtle');
+    // We're the first section in an existing container (merged PR with existing container)
+    console.log('[GHCO] First section in existing container');
+    section.classList.add('border-top', 'color-border-subtle');
   }
 
   // Create header WITHOUT expand functionality (no expandedClassName passed)

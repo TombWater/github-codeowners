@@ -156,6 +156,15 @@ react-app
   opacity: 0.5;
 }
 
+/* Add border to element before standalone section wrapper (merged PR) */
+div[class*='MergeBoxSectionHeader-module__wrapper']:has(
+    + div > section.ghco-standalone-section
+  ) {
+  border-bottom: var(--borderWidth-thin, 1px) solid
+    var(--borderColor-default, var(--color-border-default));
+  padding-bottom: 16px;
+}
+
 /* Merge box owner groups container */
 .ghco-merge-box-container {
   display: flex;
