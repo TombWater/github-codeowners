@@ -274,17 +274,15 @@ const onClickHeader = (event) => {
   }
 };
 
-const createMergeBoxSectionHeader = (
-  expandedClassName,
-  approvalStatus,
-  isMerged
-) => {
+const createMergeBoxSectionHeader = (approvalStatus, isMerged) => {
   const header = document.createElement('div');
 
   // Use CSSOM to find GitHub's wrapper class
   const classNames = getGithubClassNames();
+  const isExpandable = Boolean(approvalStatus);
+
   header.classList.add(classNames.wrapper);
-  if (expandedClassName) {
+  if (isExpandable) {
     header.classList.add(classNames.wrapperCanExpand);
   }
 
@@ -298,8 +296,8 @@ const createMergeBoxSectionHeader = (
   headerContent.appendChild(createHeaderText(approvalStatus));
   wrapper.appendChild(headerContent);
 
-  // If we can't find the expanded class name, gracefully degrade to a non-expandable header
-  if (expandedClassName) {
+  // Only make expandable if we have approval status (data loaded)
+  if (isExpandable) {
     const isExpanded = getSavedExpandState();
 
     const expandButton = document.createElement('button');
@@ -308,7 +306,7 @@ const createMergeBoxSectionHeader = (
     expandButton.setAttribute('aria-expanded', isExpanded.toString());
     expandButton.classList.add(classNames.headingButton);
 
-    expandButton.dataset.expandedClassName = expandedClassName;
+    expandButton.dataset.expandedClassName = classNames.expanded;
     expandButton.addEventListener('click', onClickHeader);
     wrapper.appendChild(expandButton);
 
@@ -374,10 +372,7 @@ const createMergeBoxOwnerGroupsContent = (
   return content;
 };
 
-const createMergeBoxSectionContent = (
-  ownerGroupsContent,
-  expandedClassName
-) => {
+const createMergeBoxSectionContent = (ownerGroupsContent) => {
   const classNames = getGithubClassNames();
   const expandableWrapper = document.createElement('div');
   expandableWrapper.classList.add(classNames.expandableWrapper);
@@ -386,11 +381,9 @@ const createMergeBoxSectionContent = (
   const expandableContent = document.createElement('div');
   expandableContent.classList.add(classNames.expandableContent);
 
-  if (expandedClassName) {
-    const isExpanded = getSavedExpandState();
-    expandableContent.classList.toggle(expandedClassName, isExpanded);
-    expandableWrapper.classList.toggle(expandedClassName, isExpanded);
-  }
+  const isExpanded = getSavedExpandState();
+  expandableContent.classList.toggle(classNames.expanded, isExpanded);
+  expandableWrapper.classList.toggle(classNames.expanded, isExpanded);
 
   expandableContent.appendChild(ownerGroupsContent);
 
@@ -422,8 +415,8 @@ const createLoadingMergeBoxSection = (mergeBox, isMerged) => {
     'color-border-subtle'
   );
 
-  // Create header WITHOUT expand functionality (no expandedClassName passed)
-  const sectionHeader = createMergeBoxSectionHeader(null, null, isMerged);
+  // Create header WITHOUT expand functionality (no approval status = not expandable)
+  const sectionHeader = createMergeBoxSectionHeader(null, isMerged);
   section.appendChild(sectionHeader);
 
   // Find the element to insert before, or undefined to append at the end
@@ -469,9 +462,6 @@ const updateMergeBoxSectionWithContent = (
   section,
   {pr, ownerGroupsMap, ownershipData}
 ) => {
-  const classNames = getGithubClassNames();
-  const expandedClassName = classNames.expanded;
-
   // Set aria-describedby only after loading to avoid screen readers announcing the brief loading state
   section.setAttribute('aria-describedby', APPROVALS_DESCRIPTION_ID);
 
@@ -484,11 +474,7 @@ const updateMergeBoxSectionWithContent = (
       ownerGroupsMap,
       ownershipData.ownerApprovals
     );
-    const newHeader = createMergeBoxSectionHeader(
-      expandedClassName,
-      approvalStatus,
-      pr.isMerged
-    );
+    const newHeader = createMergeBoxSectionHeader(approvalStatus, pr.isMerged);
     section.replaceChild(newHeader, existingHeader);
   }
 
@@ -502,10 +488,7 @@ const updateMergeBoxSectionWithContent = (
     ownershipData
   );
 
-  const sectionContent = createMergeBoxSectionContent(
-    ownerGroupsContent,
-    expandedClassName
-  );
+  const sectionContent = createMergeBoxSectionContent(ownerGroupsContent);
   section.appendChild(sectionContent);
 
   console.log(
