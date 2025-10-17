@@ -128,60 +128,13 @@ export const updateMergeBox = async () => {
     existingSection.remove();
   }
 
-  // Find insertion point: after Reviews, before Checks, or at end
-  let insertionPoint = null;
-  let insertBeforeElement = null;
-
-  const reviewsSection = mergeBox.querySelector(
-    'section[aria-label="Reviews"]'
-  );
-  if (reviewsSection) {
-    // Insert after Reviews section
-    insertionPoint = reviewsSection;
-  } else {
-    // No Reviews section, try to insert before Checks
-    const checksSection = mergeBox.querySelector(
-      'section[aria-label="Checks"]'
-    );
-    if (checksSection) {
-      insertionPoint = checksSection.previousElementSibling;
-      insertBeforeElement = checksSection;
-    } else {
-      // No Reviews or Checks, insert at end of sections (before the merge button area)
-      const sections = Array.from(mergeBox.querySelectorAll('section'));
-      if (sections.length > 0) {
-        insertionPoint = sections[sections.length - 1];
-      } else {
-        // No sections at all (e.g., merged PR) - find container and append to it
-        const container = mergeBox.querySelector(
-          'div[class*="MergeBox-module__mergeBoxAdjustBorders"], div.border.rounded-2'
-        );
-        if (container && container.lastElementChild) {
-          insertionPoint = container.lastElementChild;
-          console.log('[GHCO] Found container for merged PR insertion');
-        } else {
-          console.warn('[GHCO] Container or lastElementChild not found', {
-            container: Boolean(container),
-            lastElementChild: container?.lastElementChild,
-          });
-        }
-      }
-    }
-  }
-
-  if (!insertionPoint) {
-    console.info('[GHCO] Could not find insertion point for merge box');
-    return;
-  }
-
   console.log('[GHCO] Decorate merge box', pr);
 
   // Show loading state immediately
-  const section = createLoadingMergeBoxSection(
-    insertionPoint,
-    insertBeforeElement,
-    pr.isMerged
-  );
+  const section = createLoadingMergeBoxSection(mergeBox, pr.isMerged);
+  if (!section) {
+    return;
+  }
 
   // Async load ownership then update the section
   const [ownershipData, diffFilesMap] = await Promise.all([
@@ -513,22 +466,25 @@ const createMergeBoxSectionContent = (
 };
 
 // Create the merge box section in loading state
-const createLoadingMergeBoxSection = (
-  insertionPoint,
-  insertBeforeElement,
-  isMerged
-) => {
+const createLoadingMergeBoxSection = (mergeBox, isMerged) => {
+  // Find the container to insert into
+  const container = mergeBox.querySelector(
+    'div[class*="MergeBox-module__mergeBoxAdjustBorders"], div.border.rounded-2'
+  );
+  if (!container) {
+    console.info('[GHCO] Could not find merge box container');
+    return null;
+  }
+
+  // Create the section
   const section = document.createElement('section');
   section.setAttribute('aria-label', 'Code owners');
 
-  // Check if we're in a context with existing sections (excluding our own)
-  const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
-  const existingSections = Array.from(
-    mergeBox?.querySelectorAll('section') || []
-  ).filter((s) => s.getAttribute('aria-label') !== 'Code owners');
+  // Check if there are existing sections to determine border styling
+  const existingSections = Array.from(container.querySelectorAll('section'));
 
   section.classList.add(
-    existingSections?.length > 0 ? 'border-bottom' : 'border-top',
+    existingSections.length > 0 ? 'border-bottom' : 'border-top',
     'color-border-subtle'
   );
 
@@ -536,11 +492,19 @@ const createLoadingMergeBoxSection = (
   const sectionHeader = createMergeBoxSectionHeader(null, null, isMerged);
   section.appendChild(sectionHeader);
 
-  // Insert the section (or wrapper) at the appropriate location
-  insertionPoint.parentNode.insertBefore(
-    section,
-    insertBeforeElement || insertionPoint.nextSibling,
+  // Find the element to insert before, or undefined to append at the end
+  const reviewsSection = mergeBox.querySelector(
+    'section[aria-label="Reviews"]'
   );
+  const firstSection = existingSections[0];
+  const insertBefore = reviewsSection?.nextSibling || firstSection;
+
+  // Insert the section at the appropriate location
+  if (insertBefore) {
+    container.insertBefore(section, insertBefore);
+  } else {
+    container.appendChild(section);
+  }
 
   return section;
 };
