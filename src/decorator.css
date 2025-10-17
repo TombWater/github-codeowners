@@ -164,6 +164,9 @@ react-app
   max-height: 500px;
   overflow-y: auto;
   padding-top: 12px;
+  background-color: var(--bgColor-muted, var(--color-canvas-subtle));
+  border-top: var(--borderWidth-thin, 1px) solid
+    var(--borderColor-default, var(--color-border-default));
 }
 
 .ghco-merge-box-owner-group {

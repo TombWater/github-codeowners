@@ -500,8 +500,26 @@ const createLoadingMergeBoxSection = (
   isMerged
 ) => {
   const section = document.createElement('section');
-  section.classList.add('border-bottom', 'color-border-subtle');
   section.setAttribute('aria-label', 'Code owners');
+
+  // Check if we're in a context with existing sections (which have their own container with borders)
+  const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
+  const hasSectionsContainer = mergeBox?.querySelector(
+    'div.border.rounded-2, div[class*="mergeBoxAdjustBorders"]'
+  );
+  const existingSections = mergeBox?.querySelectorAll('section');
+
+  // If there are existing sections, use the same border pattern
+  if (existingSections && existingSections.length > 0) {
+    section.classList.add('border-bottom', 'color-border-subtle');
+  } else if (!hasSectionsContainer) {
+    // No sections container at all (merged PR) - create border and background
+    section.classList.add('border', 'rounded-2', 'borderColor-default');
+    section.style.marginTop = '12px';
+  } else {
+    // We're the first section in an existing container
+    section.classList.add('border-bottom', 'color-border-subtle');
+  }
 
   // Create header WITHOUT expand functionality (no expandedClassName passed)
   const sectionHeader = createMergeBoxSectionHeader(null, null, isMerged);
