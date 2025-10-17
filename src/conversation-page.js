@@ -73,6 +73,11 @@ const findExpandableContentClassName = () =>
     /\.(MergeBoxExpandable-module__expandableContent--[a-zA-Z0-9_-]+)/
   );
 
+const findButtonClassName = () =>
+  findCssomClassName(
+    /\.(MergeBoxSectionHeader-module__button--[a-zA-Z0-9_-]+)/
+  );
+
 // Store the last known state to detect changes
 let lastMergeBoxState = null;
 
@@ -395,21 +400,19 @@ const createMergeBoxSectionHeader = (
   if (expandedClassName) {
     const isExpanded = getSavedExpandState();
 
-    const existingButton = document.querySelector(
-      'div[class*="MergeBox-module"] section button[class*="MergeBoxSectionHeader-module__button"]'
-    );
-
     const expandButton = document.createElement('button');
     expandButton.setAttribute('aria-label', 'Code owners');
     expandButton.setAttribute('type', 'button');
     expandButton.setAttribute('aria-expanded', isExpanded.toString());
-    if (existingButton) {
-      expandButton.className = existingButton.className;
+
+    // Use CSSOM to find GitHub's button class
+    const buttonClassName = findButtonClassName();
+    if (buttonClassName) {
+      expandButton.classList.add(buttonClassName);
     } else {
-      console.info(
-        '[GHCO] Could not find existing button to copy classes from'
-      );
+      console.info('[GHCO] Could not find button class via CSSOM');
     }
+
     expandButton.dataset.expandedClassName = expandedClassName;
     expandButton.addEventListener('click', onClickHeader);
     wrapper.appendChild(expandButton);
