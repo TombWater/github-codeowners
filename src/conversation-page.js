@@ -138,10 +138,20 @@ const createHeaderIcon = (approvalStatus, isMerged) => {
   iconWrapper.classList.add('mr-2', 'flex-shrink-0');
 
   const iconCircle = document.createElement('div');
-  iconCircle.style.cssText =
-    'overflow: hidden; border-width: 0px; border-radius: 50%; border-style: solid; border-color: var(--borderColor-default); width: 32px; height: 32px;';
+  iconCircle.style.overflow = 'hidden';
+  iconCircle.style.borderWidth = '0px';
+  iconCircle.style.borderRadius = '50%';
+  iconCircle.style.borderStyle = 'solid';
+  iconCircle.style.borderColor = 'var(--borderColor-default)';
+  iconCircle.style.width = '32px';
+  iconCircle.style.height = '32px';
 
   const iconInner = document.createElement('div');
+  iconInner.style.display = 'flex';
+  iconInner.style.width = '32px';
+  iconInner.style.height = '32px';
+  iconInner.style.alignItems = 'center';
+  iconInner.style.justifyContent = 'center';
 
   // Determine the color based on merge status and approval status
   if (isMerged) {
@@ -158,15 +168,6 @@ const createHeaderIcon = (approvalStatus, isMerged) => {
       );
     }
   }
-
-  iconInner.style.cssText = `
-    ${iconInner.style.cssText || ''}
-    display: flex;
-    width: 32px;
-    height: 32px;
-    align-items: center;
-    justify-content: center;
-  `.trim();
 
   // Extension icon SVG (GitHub octocat with checkmarks)
   const svgString = iconSvg.replace(/<\?xml[^?]*\?>\s*/g, '');
