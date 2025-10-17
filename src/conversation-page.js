@@ -29,54 +29,48 @@ const createOwnerGroupsMap = (diffFilesMap, folderOwners) => {
   return ownerGroupsMap;
 };
 
-const findCssomClassName = (pattern) => {
-  for (const styleSheet of document.styleSheets) {
-    try {
-      for (const rule of styleSheet.cssRules || styleSheet.rules) {
-        if (rule.selectorText) {
-          const match = rule.selectorText.match(pattern);
-          if (match) {
-            return match[1]; // Return the class name without the dot
-          }
-        }
+// Find GitHub's CSS module class names via CSSOM (cached)
+const getGithubClassNames = (() => {
+  let cache = null;
+
+  return () => {
+    if (cache) return cache;
+
+    const patterns = {
+      wrapper: /\.(MergeBoxSectionHeader-module__wrapper--[a-zA-Z0-9_-]+)/,
+      wrapperCanExpand:
+        /\.(MergeBoxSectionHeader-module__wrapperCanExpand--[a-zA-Z0-9_-]+)/,
+      expanded: /\.(MergeBoxExpandable-module__isExpanded--[a-zA-Z0-9_-]+)/,
+      expandableWrapper:
+        /\.(MergeBoxExpandable-module__expandableWrapper--[a-zA-Z0-9_-]+)/,
+      expandableContent:
+        /\.(MergeBoxExpandable-module__expandableContent--[a-zA-Z0-9_-]+)/,
+      button: /\.(MergeBoxSectionHeader-module__button--[a-zA-Z0-9_-]+)/,
+    };
+
+    // Get all selectors from all stylesheets
+    const selectors = Array.from(document.styleSheets).flatMap((sheet) => {
+      try {
+        return Array.from(sheet.cssRules || sheet.rules)
+          .map((rule) => rule.selectorText)
+          .filter(Boolean);
+      } catch (e) {
+        return []; // Skip stylesheets that can't be accessed (cross-origin)
       }
-    } catch (e) {
-      // Skip stylesheets that can't be accessed (e.g., cross-origin)
-      continue;
-    }
-  }
-  return null;
-};
+    });
 
-const findExpandedClassName = () =>
-  findCssomClassName(
-    /\.(MergeBoxExpandable-module__isExpanded--[a-zA-Z0-9_-]+)/
-  );
+    // Find matching class name for each pattern
+    cache = Object.fromEntries(
+      Object.entries(patterns).map(([key, pattern]) => {
+        const selector = selectors.find((s) => pattern.test(s));
+        const match = selector?.match(pattern);
+        return [key, match?.[1]];
+      })
+    );
 
-const findWrapperClassName = () =>
-  findCssomClassName(
-    /\.(MergeBoxSectionHeader-module__wrapper--[a-zA-Z0-9_-]+)/
-  );
-
-const findWrapperCanExpandClassName = () =>
-  findCssomClassName(
-    /\.(MergeBoxSectionHeader-module__wrapperCanExpand--[a-zA-Z0-9_-]+)/
-  );
-
-const findExpandableWrapperClassName = () =>
-  findCssomClassName(
-    /\.(MergeBoxExpandable-module__expandableWrapper--[a-zA-Z0-9_-]+)/
-  );
-
-const findExpandableContentClassName = () =>
-  findCssomClassName(
-    /\.(MergeBoxExpandable-module__expandableContent--[a-zA-Z0-9_-]+)/
-  );
-
-const findButtonClassName = () =>
-  findCssomClassName(
-    /\.(MergeBoxSectionHeader-module__button--[a-zA-Z0-9_-]+)/
-  );
+    return cache;
+  };
+})();
 
 // Update the merge box section with owner groups
 export const updateMergeBox = async () => {
@@ -117,7 +111,9 @@ export const updateMergeBox = async () => {
   if (!ownershipData || !diffFilesMap || diffFilesMap.size === 0) {
     const description = section.querySelector('p');
     if (description) {
-      description.textContent = ownershipData ? 'No files to review' : 'No CODEOWNERS file found';
+      description.textContent = ownershipData
+        ? 'No files to review'
+        : 'No CODEOWNERS file found';
     }
     return;
   }
@@ -287,15 +283,11 @@ const createMergeBoxSectionHeader = (
   const header = document.createElement('div');
 
   // Use CSSOM to find GitHub's wrapper class
-  const wrapperClassName = findWrapperClassName();
-  const wrapperCanExpandClassName = expandedClassName
-    ? findWrapperCanExpandClassName()
-    : null;
-
-  if (wrapperClassName) {
-    header.classList.add(wrapperClassName);
-    if (wrapperCanExpandClassName) {
-      header.classList.add(wrapperCanExpandClassName);
+  const classNames = getGithubClassNames();
+  if (classNames.wrapper) {
+    header.classList.add(classNames.wrapper);
+    if (expandedClassName && classNames.wrapperCanExpand) {
+      header.classList.add(classNames.wrapperCanExpand);
     }
   } else {
     console.info('[GHCO] Could not find wrapper class via CSSOM');
@@ -321,9 +313,8 @@ const createMergeBoxSectionHeader = (
     expandButton.setAttribute('aria-expanded', isExpanded.toString());
 
     // Use CSSOM to find GitHub's button class
-    const buttonClassName = findButtonClassName();
-    if (buttonClassName) {
-      expandButton.classList.add(buttonClassName);
+    if (classNames.button) {
+      expandButton.classList.add(classNames.button);
     } else {
       console.info('[GHCO] Could not find button class via CSSOM');
     }
@@ -398,21 +389,20 @@ const createMergeBoxSectionContent = (
   ownerGroupsContent,
   expandedClassName
 ) => {
+  const classNames = getGithubClassNames();
   const expandableWrapper = document.createElement('div');
-  const wrapperClassName = findExpandableWrapperClassName();
 
-  if (wrapperClassName) {
-    expandableWrapper.classList.add(wrapperClassName);
+  if (classNames.expandableWrapper) {
+    expandableWrapper.classList.add(classNames.expandableWrapper);
   } else {
     console.info('[GHCO] Could not find expandable wrapper class via CSSOM');
   }
   expandableWrapper.style.visibility = 'visible';
 
   const expandableContent = document.createElement('div');
-  const contentClassName = findExpandableContentClassName();
 
-  if (contentClassName) {
-    expandableContent.classList.add(contentClassName);
+  if (classNames.expandableContent) {
+    expandableContent.classList.add(classNames.expandableContent);
   } else {
     console.info('[GHCO] Could not find expandable content class via CSSOM');
   }
@@ -500,7 +490,8 @@ const updateMergeBoxSectionWithContent = (
   section,
   {pr, ownerGroupsMap, ownershipData}
 ) => {
-  const expandedClassName = findExpandedClassName();
+  const classNames = getGithubClassNames();
+  const expandedClassName = classNames.expanded;
 
   // Set aria-describedby only after loading to avoid screen readers announcing the brief loading state
   section.setAttribute('aria-describedby', APPROVALS_DESCRIPTION_ID);
