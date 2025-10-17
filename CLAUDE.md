@@ -76,11 +76,14 @@ npm run zip
 
 **`src/conversation-page.js`** - Merge box decoration
 - **`updateMergeBox()`**: Creates expandable "Code owners" section in PR conversation merge box
+- **`getGithubClassNames()`**: Cached CSSOM parser that finds all GitHub CSS module class names in one pass
+- **State tracking**: Uses data attributes to track approval state and avoid unnecessary updates
 - **Groups files by owner**: Shows owner groups with file lists and approval status
 - **Progressive loading**: Shows loading state immediately, then populates with data
 - **Expandable UI**: Uses GitHub's native expandable section styling with CSSOM-based class detection
 - **Priority sorting**: Owner groups sorted by user relevance (user-only → user co-owners → approved → others)
-- **Ownership data flow**: Maintains ownership data as cohesive object throughout function call chain
+- **Merged PR support**: Detects and handles merged PRs with appropriate styling
+- **In-place updates**: Updates existing section instead of removing/recreating for better performance
 
 **`src/labels.js`** - Owner label creation and interaction
 - **`createOwnerLabels()`**: Creates owner labels with approval status indicators (✓ for approved, ★/☆ for user's teams)
@@ -99,7 +102,7 @@ npm run zip
   - `urlCacheKey()`: Cache reviewers per PR URL
   - `repoCacheKey()`: Cache team members per repository
   - `prBaseCacheKey()`: Cache CODEOWNERS per base branch
-- **`getPrInfo()`**: Extracts owner/repo/PR number/base branch from URL and DOM
+- **`getPrInfo()`**: Extracts owner/repo/PR number/base branch/merged state from URL and DOM
 - **`getDiffFilesMap()`**: Maps file path digests to paths (handles both old/new GitHub UI)
 - **`getFolderOwners()`**: Fetches CODEOWNERS from `.github/`, root, or `docs/` directory
 - **`getReviewers()`**: Scrapes PR conversation page for reviewer approval status
@@ -117,7 +120,8 @@ npm run zip
 - **Ownership data flow**: Complete ownership objects passed through call chain to avoid repetitive destructuring and reconstruction
 - **No API token required**: All data fetched by scraping GitHub HTML pages using `fetch()` with credentials
 - **Modular architecture**: Code split into focused modules (decorator.js, files-page.js, conversation-page.js, labels.js, ownership.js, github.js)
-- **CSSOM-based expandable detection**: Uses `document.styleSheets` parsing to find GitHub's CSS module class names (e.g., `MergeBoxExpandable-module__isExpanded--[hash]`) for native expandable section styling
+- **CSSOM consolidation**: `getGithubClassNames()` closure-based caching parses all stylesheets once to find 8 GitHub CSS module patterns, eliminating repetitive CSSOM searches
+- **classList.add() safety**: Direct calls without conditionals since it silently ignores undefined/null values
 
 ### CSS Architecture
 - All styles in `src/content.css` use `ghco-` prefix to avoid conflicts (e.g., `ghco-label`, `ghco-merge-box-container`)
@@ -135,3 +139,4 @@ npm run zip
 - **Cross-browser**: ES6 modules with webpack bundling for Chrome/Firefox compatibility
 - **GitHub DOM changes**: Code handles both old and new GitHub UI patterns using fallback selectors
 - **Function signatures**: Clean parameter patterns - minimal destructuring, pass complete objects when appropriate
+- **Style properties**: Use individual `element.style.property = value` assignments instead of `cssText` strings for clarity and maintainability
