@@ -74,36 +74,44 @@ const getGithubClassNames = (() => {
   };
 })();
 
-// Update the merge box section with owner groups
 export const updateMergeBox = async () => {
   const pr = github.getPrInfo();
-
-  const priorSection = document.querySelector('section[aria-label="Reviews"]');
-  if (
-    !priorSection ||
-    priorSection.parentNode.querySelector('section[aria-label="Code owners"]')
-  ) {
+  const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
+  if (!mergeBox) {
     return;
   }
 
-  console.log('[GHCO] Decorate merge box', pr);
+  let section = mergeBox.querySelector('section[aria-label="Code owners"]');
 
-  // Show loading state immediately
-  const section = createLoadingMergeBoxSection(priorSection, pr.isMerged);
+  if (!section) {
+    console.log('[GHCO] Decorate merge box', pr);
+    section = createLoadingMergeBoxSection(mergeBox, pr.isMerged);
+    if (!section) {
+      return;
+    }
+  }
 
-  // Async load ownership then update the section
   const [ownershipData, diffFilesMap] = await Promise.all([
     getPrOwnershipData(),
     github.getDiffFilesMap(),
   ]);
+
+  const state = Array.from(ownershipData?.ownerApprovals ?? []).sort();
+  state.unshift(pr.isMerged ? 'MERGED' : 'UNMERGED');
+  const newState = state.join(',');
+
+  if (section.dataset.state === newState) {
+    return;
+  }
+
+  section.dataset.state = newState;
+
   if (!ownershipData || !diffFilesMap || diffFilesMap.size === 0) {
     const description = section.querySelector('p');
     if (description) {
-      if (!ownershipData) {
-        description.textContent = 'No CODEOWNERS file found';
-      } else {
-        description.textContent = 'No files to review';
-      }
+      description.textContent = ownershipData
+        ? 'No files to review'
+        : 'No CODEOWNERS file found';
     }
     return;
   }
@@ -373,16 +381,40 @@ const createMergeBoxSectionContent = (ownerGroupsContent) => {
   return expandableWrapper;
 };
 
-// Create the merge box section in loading state
-const createLoadingMergeBoxSection = (priorSection, isMerged) => {
+const createLoadingMergeBoxSection = (mergeBox, isMerged) => {
+  const container = mergeBox.querySelector(
+    'div[class*="MergeBox-module__mergeBoxAdjustBorders"], div.border.rounded-2'
+  );
+  if (!container) {
+    console.info('[GHCO] Could not find merge box container');
+    return null;
+  }
+
   const section = document.createElement('section');
-  section.classList.add('border-bottom', 'color-border-subtle');
   section.setAttribute('aria-label', 'Code owners');
+
+  const existingSections = Array.from(container.querySelectorAll('section'));
+
+  section.classList.add(
+    existingSections.length > 0 ? 'border-bottom' : 'border-top',
+    'color-border-subtle'
+  );
 
   const sectionHeader = createMergeBoxSectionHeader(null, isMerged);
   section.appendChild(sectionHeader);
 
-  priorSection.parentNode.insertBefore(section, priorSection.nextSibling);
+  const reviewsSection = mergeBox.querySelector(
+    'section[aria-label="Reviews"]'
+  );
+  const firstSection = existingSections[0];
+  const insertBefore = reviewsSection?.nextSibling || firstSection;
+
+  if (insertBefore) {
+    container.insertBefore(section, insertBefore);
+  } else {
+    container.appendChild(section);
+  }
+
   return section;
 };
 
@@ -418,6 +450,9 @@ const updateMergeBoxSectionWithContent = (
     'div[class*="MergeBoxSectionHeader"]'
   );
   if (existingHeader) {
+    const existingButton = existingHeader.querySelector('button[aria-label="Code owners"]');
+    existingButton?.removeEventListener('click', onClickHeader);
+
     const approvalStatus = calculateApprovalStatus(
       ownerGroupsMap,
       ownershipData.ownerApprovals
@@ -426,7 +461,8 @@ const updateMergeBoxSectionWithContent = (
     section.replaceChild(newHeader, existingHeader);
   }
 
-  // Add the expandable content to the section
+  section.querySelector('div[class*="__expandableWrapper"]')?.remove();
+
   const ownerGroupsContent = createMergeBoxOwnerGroupsContent(
     ownerGroupsMap,
     pr,
