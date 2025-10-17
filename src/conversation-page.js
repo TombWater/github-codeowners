@@ -117,10 +117,7 @@ export const updateMergeBox = async () => {
   if (!ownershipData || !diffFilesMap || diffFilesMap.size === 0) {
     const description = section.querySelector('p');
     if (description) {
-      if (!ownershipData) {
-        description.textContent = 'No CODEOWNERS file found';
-      } else {
-        description.textContent = 'No files to review';
+      description.textContent = ownershipData ? 'No files to review' : 'No CODEOWNERS file found';
     }
     return;
   }
