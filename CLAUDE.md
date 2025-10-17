@@ -117,7 +117,7 @@ npm run zip
 - **Ownership data flow**: Complete ownership objects passed through call chain to avoid repetitive destructuring and reconstruction
 - **No API token required**: All data fetched by scraping GitHub HTML pages using `fetch()` with credentials
 - **Modular architecture**: Code split into focused modules (decorator.js, files-page.js, conversation-page.js, labels.js, ownership.js, github.js)
-- **CSSOM-based expandable detection**: Uses `document.styleSheets` parsing to find GitHub's CSS module class names (e.g., `MergeBoxExpandable-module__isExpanded--[hash]`) for native expandable section styling
+- **CSSOM-based expandable detection**: Uses `document.styleSheets` parsing to find GitHub's CSS module class names (e.g., `MergeBoxExpandable-module__isExpanded--[hash]`) for section styling
 
 ### CSS Architecture
 - All styles in `src/content.css` use `ghco-` prefix to avoid conflicts (e.g., `ghco-label`, `ghco-merge-box-container`)
