@@ -145,7 +145,7 @@ export const updateMergeBox = async () => {
   }
 
   if (!insertionPoint) {
-    console.warn('[GHCO] Could not find insertion point for merge box');
+    console.info('[GHCO] Could not find insertion point for merge box');
     return;
   }
 
@@ -268,7 +268,7 @@ const createHeaderText = (approvalStatus) => {
   if (existingHeading) {
     heading.className = existingHeading.className;
   } else {
-    console.warn('[GHCO] Could not find existing heading to copy classes from');
+    console.info('[GHCO] Could not find existing heading to copy classes from');
   }
   heading.textContent = 'Code owners';
 
@@ -349,7 +349,7 @@ const createMergeBoxSectionHeader = (
   if (existingHeader) {
     header.className = existingHeader.className;
   } else {
-    console.warn('[GHCO] Could not find existing header to copy classes from');
+    console.info('[GHCO] Could not find existing header to copy classes from');
   }
 
   const wrapper = document.createElement('div');
@@ -377,7 +377,7 @@ const createMergeBoxSectionHeader = (
     if (existingButton) {
       expandButton.className = existingButton.className;
     } else {
-      console.warn(
+      console.info(
         '[GHCO] Could not find existing button to copy classes from'
       );
     }
@@ -461,7 +461,7 @@ const createMergeBoxSectionContent = (
   if (existingExpandable) {
     expandableWrapper.classList.add(...existingExpandable.classList);
   } else {
-    console.warn(
+    console.info(
       '[GHCO] Could not find existing expandable wrapper to copy classes from'
     );
   }
@@ -475,7 +475,7 @@ const createMergeBoxSectionContent = (
   if (existingContent) {
     expandableContent.classList.add(...existingContent.classList);
   } else {
-    console.warn(
+    console.info(
       '[GHCO] Could not find existing expandable content to copy classes from'
     );
   }
