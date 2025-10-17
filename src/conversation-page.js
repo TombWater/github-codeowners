@@ -89,7 +89,7 @@ export const updateMergeBox = async () => {
   console.log('[GHCO] Decorate merge box', pr);
 
   // Show loading state immediately
-  const section = createLoadingMergeBoxSection(priorSection);
+  const section = createLoadingMergeBoxSection(priorSection, pr.isMerged);
 
   // Async load ownership then update the section
   const [ownershipData, diffFilesMap] = await Promise.all([
@@ -118,25 +118,41 @@ export const updateMergeBox = async () => {
   });
 };
 
-const createHeaderIcon = (approvalStatus) => {
+const createHeaderIcon = (approvalStatus, isMerged) => {
   const iconWrapper = document.createElement('div');
   iconWrapper.classList.add('mr-2', 'flex-shrink-0');
 
   const iconCircle = document.createElement('div');
-  iconCircle.style.cssText =
-    'overflow: hidden; border-width: 0px; border-radius: 50%; border-style: solid; border-color: var(--borderColor-default); width: 32px; height: 32px;';
+  iconCircle.style.overflow = 'hidden';
+  iconCircle.style.borderWidth = '0px';
+  iconCircle.style.borderRadius = '50%';
+  iconCircle.style.borderStyle = 'solid';
+  iconCircle.style.borderColor = 'var(--borderColor-default)';
+  iconCircle.style.width = '32px';
+  iconCircle.style.height = '32px';
 
   const iconInner = document.createElement('div');
-  iconInner.classList.add('bgColor-neutral-muted');
-  if (approvalStatus) {
-    const allApproved =
-      approvalStatus.approvalsReceived === approvalStatus.totalApprovalsNeeded;
-    iconInner.classList.add(allApproved ? 'fgColor-success' : 'fgColor-danger');
-  }
-  iconInner.style.cssText =
-    'display: flex; width: 32px; height: 32px; align-items: center; justify-content: center;';
+  iconInner.style.display = 'flex';
+  iconInner.style.width = '32px';
+  iconInner.style.height = '32px';
+  iconInner.style.alignItems = 'center';
+  iconInner.style.justifyContent = 'center';
 
-  // Extension icon SVG (GitHub octocat with checkmarks)
+  if (isMerged) {
+    iconInner.style.backgroundColor = 'var(--bgColor-default)';
+    iconInner.style.color = 'var(--bgColor-done-emphasis)';
+  } else {
+    iconInner.classList.add('bgColor-neutral-muted');
+    if (approvalStatus) {
+      const allApproved =
+        approvalStatus.approvalsReceived ===
+        approvalStatus.totalApprovalsNeeded;
+      iconInner.classList.add(
+        allApproved ? 'fgColor-success' : 'fgColor-danger'
+      );
+    }
+  }
+
   const svgString = iconSvg.replace(/<\?xml[^?]*\?>\s*/g, '');
   const parser = new DOMParser();
   const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
@@ -147,7 +163,7 @@ const createHeaderIcon = (approvalStatus) => {
   svg.setAttribute('height', '32');
   svg.style.verticalAlign = 'text-bottom';
 
-  if (approvalStatus) {
+  if (approvalStatus || isMerged) {
     svg.setAttribute('fill', 'currentColor');
     // Remove inline fill attributes so currentColor works
     svg.querySelectorAll('[fill]').forEach((el) => el.removeAttribute('fill'));
@@ -242,7 +258,7 @@ const onClickHeader = (event) => {
   }
 };
 
-const createMergeBoxSectionHeader = (approvalStatus) => {
+const createMergeBoxSectionHeader = (approvalStatus, isMerged) => {
   const header = document.createElement('div');
   const classNames = getGithubClassNames();
   const isExpandable = Boolean(approvalStatus);
@@ -258,11 +274,10 @@ const createMergeBoxSectionHeader = (approvalStatus) => {
   const headerContent = document.createElement('div');
   headerContent.classList.add('d-flex', 'width-full');
 
-  headerContent.appendChild(createHeaderIcon(approvalStatus));
+  headerContent.appendChild(createHeaderIcon(approvalStatus, isMerged));
   headerContent.appendChild(createHeaderText(approvalStatus));
   wrapper.appendChild(headerContent);
 
-  // If we can't find the expanded class name, gracefully degrade to a non-expandable header
   if (isExpandable) {
     const isExpanded = getSavedExpandState();
 
@@ -359,12 +374,12 @@ const createMergeBoxSectionContent = (ownerGroupsContent) => {
 };
 
 // Create the merge box section in loading state
-const createLoadingMergeBoxSection = (priorSection) => {
+const createLoadingMergeBoxSection = (priorSection, isMerged) => {
   const section = document.createElement('section');
   section.classList.add('border-bottom', 'color-border-subtle');
   section.setAttribute('aria-label', 'Code owners');
 
-  const sectionHeader = createMergeBoxSectionHeader(null);
+  const sectionHeader = createMergeBoxSectionHeader(null, isMerged);
   section.appendChild(sectionHeader);
 
   priorSection.parentNode.insertBefore(section, priorSection.nextSibling);
@@ -392,7 +407,6 @@ const calculateApprovalStatus = (ownerGroupsMap, ownerApprovals) => {
   return {approvalsReceived, totalApprovalsNeeded};
 };
 
-// Update the section with actual content after data is loaded
 const updateMergeBoxSectionWithContent = (
   section,
   {pr, ownerGroupsMap, ownershipData}
@@ -400,7 +414,6 @@ const updateMergeBoxSectionWithContent = (
   // Set aria-describedby only after loading to avoid screen readers announcing the brief loading state
   section.setAttribute('aria-describedby', APPROVALS_DESCRIPTION_ID);
 
-  // Replace the loading header with an expandable one
   const existingHeader = section.querySelector(
     'div[class*="MergeBoxSectionHeader"]'
   );
@@ -409,7 +422,7 @@ const updateMergeBoxSectionWithContent = (
       ownerGroupsMap,
       ownershipData.ownerApprovals
     );
-    const newHeader = createMergeBoxSectionHeader(approvalStatus);
+    const newHeader = createMergeBoxSectionHeader(approvalStatus, pr.isMerged);
     section.replaceChild(newHeader, existingHeader);
   }
 
@@ -468,11 +481,9 @@ const createMergeBoxOwnerGroup = ({
   const listDiv = document.createElement('div');
   listDiv.classList.add('ghco-merge-box-owner-group');
 
-  // Create owner labels section with file count
   const labelsDiv = document.createElement('div');
   labelsDiv.classList.add('ghco-merge-box-labels');
 
-  // Add file count before labels
   const fileCountContainer = document.createElement('span');
   fileCountContainer.classList.add('ghco-file-count-container');
 
@@ -497,7 +508,6 @@ const createMergeBoxOwnerGroup = ({
 
   listDiv.appendChild(labelsDiv);
 
-  // Create file links section
   const filesDiv = document.createElement('div');
   filesDiv.classList.add('ghco-merge-box-files-list');
 

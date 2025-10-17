@@ -46,16 +46,23 @@ export const getPrInfo = () => {
   let owner, repo, num, page;
   [, owner, repo, , num, , page] = match || {};
 
-  const selectors = [
+  const baseSelectors = [
     // Old Files Changed page
     '#partial-discussion-header .base-ref',
     '#partial-discussion-header .commit-ref',
     // New Files Changed page
     'div[class*="PageHeader-Description"] a[class*="BranchName-BranchName"]',
   ];
-  const base = document.querySelector(selectors.join(', '))?.textContent;
+  const base = document.querySelector(baseSelectors.join(', '))?.textContent;
 
-  return {page, owner, repo, num, base};
+  // Check if PR is merged by looking for the merged state badge in the header
+  const mergedSelectors = [
+    '#partial-discussion-header .State--merged', // Old UI (both conversation and files pages)
+    '[data-status="pullMerged"]', // New React UI (files page)
+  ];
+  const isMerged = Boolean(document.querySelector(mergedSelectors.join(', ')));
+
+  return {page, owner, repo, num, base, isMerged};
 };
 
 const parseDiffFilesFromDoc = (doc) => {
