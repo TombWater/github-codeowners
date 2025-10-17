@@ -29,26 +29,50 @@ const createOwnerGroupsMap = (diffFilesMap, folderOwners) => {
   return ownerGroupsMap;
 };
 
-const findExpandedClassName = () => {
-  for (const styleSheet of document.styleSheets) {
-    try {
-      for (const rule of styleSheet.cssRules || styleSheet.rules) {
-        if (rule.selectorText) {
-          const match = rule.selectorText.match(
-            /\.(MergeBoxExpandable-module__isExpanded--[a-zA-Z0-9_-]+)/
-          );
-          if (match) {
-            return match[1]; // Return the class name without the dot
-          }
-        }
+const getGithubClassNames = (() => {
+  let cache = null;
+
+  return () => {
+    if (cache) return cache;
+
+    const patterns = {
+      wrapper: /\.(MergeBoxSectionHeader-module__wrapper--[a-zA-Z0-9_-]+)/,
+      wrapperCanExpand:
+        /\.(MergeBoxSectionHeader-module__wrapperCanExpand--[a-zA-Z0-9_-]+)/,
+      expanded: /\.(MergeBoxExpandable-module__isExpanded--[a-zA-Z0-9_-]+)/,
+      expandableWrapper:
+        /\.(MergeBoxExpandable-module__expandableWrapper--[a-zA-Z0-9_-]+)/,
+      expandableContent:
+        /\.(MergeBoxExpandable-module__expandableContent--[a-zA-Z0-9_-]+)/,
+      headingButton: /\.(MergeBoxSectionHeader-module__button--[a-zA-Z0-9_-]+)/,
+      headingModule:
+        /\.(MergeBoxSectionHeader-module__MergeBoxSectionHeading--[a-zA-Z0-9_-]+)/,
+      headingPrimer: /\.(prc-Heading-Heading-[a-zA-Z0-9_-]+)/,
+    };
+
+    const selectors = Array.from(document.styleSheets).flatMap((sheet) => {
+      try {
+        return Array.from(sheet.cssRules || sheet.rules)
+          .map((rule) => rule.selectorText)
+          .filter(Boolean);
+      } catch (e) {
+        return []; // Skip stylesheets that can't be accessed (cross-origin)
       }
-    } catch (e) {
-      // Skip stylesheets that can't be accessed (e.g., cross-origin)
-      continue;
-    }
-  }
-  return null;
-};
+    });
+
+    cache = Object.fromEntries(
+      Object.entries(patterns).map(([key, pattern]) => {
+        const selector = selectors.find((s) => pattern.test(s));
+        const match = selector?.match(pattern);
+        return [key, match?.[1]];
+      })
+    );
+
+    console.log('[GHCO] GitHub class names:', cache);
+
+    return cache;
+  };
+})();
 
 // Update the merge box section with owner groups
 export const updateMergeBox = async () => {
@@ -150,14 +174,8 @@ const createHeaderText = (approvalStatus) => {
   textInner.classList.add('flex-1');
 
   const heading = document.createElement('h3');
-  const existingHeading = document.querySelector(
-    'div[class*="MergeBox-module"] section h3[class*="MergeBoxSectionHeading"]'
-  );
-  if (existingHeading) {
-    heading.className = existingHeading.className;
-  } else {
-    console.warn('[GHCO] Could not find existing heading to copy classes from');
-  }
+  const classNames = getGithubClassNames();
+  heading.classList.add(classNames.headingModule, classNames.headingPrimer);
   heading.textContent = 'Code owners';
 
   const description = document.createElement('p');
@@ -224,16 +242,14 @@ const onClickHeader = (event) => {
   }
 };
 
-const createMergeBoxSectionHeader = (expandedClassName, approvalStatus) => {
-  const existingHeader = document.querySelector(
-    'div[class*="MergeBox-module"] section > div[class*="MergeBoxSectionHeader-module__wrapper"]'
-  );
-
+const createMergeBoxSectionHeader = (approvalStatus) => {
   const header = document.createElement('div');
-  if (existingHeader) {
-    header.className = existingHeader.className;
-  } else {
-    console.warn('[GHCO] Could not find existing header to copy classes from');
+  const classNames = getGithubClassNames();
+  const isExpandable = Boolean(approvalStatus);
+
+  header.classList.add(classNames.wrapper);
+  if (isExpandable) {
+    header.classList.add(classNames.wrapperCanExpand);
   }
 
   const wrapper = document.createElement('div');
@@ -247,23 +263,16 @@ const createMergeBoxSectionHeader = (expandedClassName, approvalStatus) => {
   wrapper.appendChild(headerContent);
 
   // If we can't find the expanded class name, gracefully degrade to a non-expandable header
-  if (expandedClassName) {
+  if (isExpandable) {
     const isExpanded = getSavedExpandState();
-
-    const existingButton = document.querySelector(
-      'div[class*="MergeBox-module"] section button[class*="MergeBoxSectionHeader-module__button"]'
-    );
 
     const expandButton = document.createElement('button');
     expandButton.setAttribute('aria-label', 'Code owners');
     expandButton.setAttribute('type', 'button');
     expandButton.setAttribute('aria-expanded', isExpanded.toString());
-    if (existingButton) {
-      expandButton.className = existingButton.className;
-    } else {
-      console.warn('[GHCO] Could not find existing button to copy classes from');
-    }
-    expandButton.dataset.expandedClassName = expandedClassName;
+    expandButton.classList.add(classNames.headingButton);
+
+    expandButton.dataset.expandedClassName = classNames.expanded;
     expandButton.addEventListener('click', onClickHeader);
     wrapper.appendChild(expandButton);
 
@@ -329,44 +338,18 @@ const createMergeBoxOwnerGroupsContent = (
   return content;
 };
 
-const createMergeBoxSectionContent = (
-  ownerGroupsContent,
-  expandedClassName
-) => {
-  const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
-
+const createMergeBoxSectionContent = (ownerGroupsContent) => {
+  const classNames = getGithubClassNames();
   const expandableWrapper = document.createElement('div');
-  const existingExpandable = mergeBox?.querySelector(
-    'div[class*="MergeBoxExpandable-module__expandableWrapper"]'
-  );
-
-  if (existingExpandable) {
-    expandableWrapper.classList.add(...existingExpandable.classList);
-  } else {
-    console.warn(
-      '[GHCO] Could not find existing expandable wrapper to copy classes from'
-    );
-  }
+  expandableWrapper.classList.add(classNames.expandableWrapper);
   expandableWrapper.style.visibility = 'visible';
 
   const expandableContent = document.createElement('div');
-  const existingContent = mergeBox?.querySelector(
-    'div[class*="MergeBoxExpandable-module__expandableContent"]'
-  );
+  expandableContent.classList.add(classNames.expandableContent);
 
-  if (existingContent) {
-    expandableContent.classList.add(...existingContent.classList);
-  } else {
-    console.warn(
-      '[GHCO] Could not find existing expandable content to copy classes from'
-    );
-  }
-
-  if (expandedClassName) {
-    const isExpanded = getSavedExpandState();
-    expandableContent.classList.toggle(expandedClassName, isExpanded);
-    expandableWrapper.classList.toggle(expandedClassName, isExpanded);
-  }
+  const isExpanded = getSavedExpandState();
+  expandableContent.classList.toggle(classNames.expanded, isExpanded);
+  expandableWrapper.classList.toggle(classNames.expanded, isExpanded);
 
   expandableContent.appendChild(ownerGroupsContent);
 
@@ -381,8 +364,7 @@ const createLoadingMergeBoxSection = (priorSection) => {
   section.classList.add('border-bottom', 'color-border-subtle');
   section.setAttribute('aria-label', 'Code owners');
 
-  // Create header WITHOUT expand functionality (no expandedClassName passed)
-  const sectionHeader = createMergeBoxSectionHeader(null, null);
+  const sectionHeader = createMergeBoxSectionHeader(null);
   section.appendChild(sectionHeader);
 
   priorSection.parentNode.insertBefore(section, priorSection.nextSibling);
@@ -415,8 +397,6 @@ const updateMergeBoxSectionWithContent = (
   section,
   {pr, ownerGroupsMap, ownershipData}
 ) => {
-  const expandedClassName = findExpandedClassName();
-
   // Set aria-describedby only after loading to avoid screen readers announcing the brief loading state
   section.setAttribute('aria-describedby', APPROVALS_DESCRIPTION_ID);
 
@@ -429,10 +409,7 @@ const updateMergeBoxSectionWithContent = (
       ownerGroupsMap,
       ownershipData.ownerApprovals
     );
-    const newHeader = createMergeBoxSectionHeader(
-      expandedClassName,
-      approvalStatus
-    );
+    const newHeader = createMergeBoxSectionHeader(approvalStatus);
     section.replaceChild(newHeader, existingHeader);
   }
 
@@ -443,10 +420,7 @@ const updateMergeBoxSectionWithContent = (
     ownershipData
   );
 
-  const sectionContent = createMergeBoxSectionContent(
-    ownerGroupsContent,
-    expandedClassName
-  );
+  const sectionContent = createMergeBoxSectionContent(ownerGroupsContent);
   section.appendChild(sectionContent);
 
   console.log(
