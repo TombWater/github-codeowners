@@ -188,7 +188,8 @@ react-app
   gap: 4px;
   padding-right: 8px;
   margin-right: 4px;
-  border-right: 1px solid var(--borderColor-default, var(--color-border-default));
+  border-right: 1px solid
+    var(--borderColor-default, var(--color-border-default));
 }
 
 .ghco-file-text {

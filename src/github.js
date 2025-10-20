@@ -220,3 +220,48 @@ export const getTeamMembers = cacheResult(
     return owners;
   }
 );
+
+export const getGithubClassNames = (() => {
+  let cache = null;
+
+  return () => {
+    if (cache) return cache;
+
+    const patterns = {
+      wrapper: /\.(MergeBoxSectionHeader-module__wrapper--[a-zA-Z0-9_-]+)/,
+      wrapperCanExpand:
+        /\.(MergeBoxSectionHeader-module__wrapperCanExpand--[a-zA-Z0-9_-]+)/,
+      expanded: /\.(MergeBoxExpandable-module__isExpanded--[a-zA-Z0-9_-]+)/,
+      expandableWrapper:
+        /\.(MergeBoxExpandable-module__expandableWrapper--[a-zA-Z0-9_-]+)/,
+      expandableContent:
+        /\.(MergeBoxExpandable-module__expandableContent--[a-zA-Z0-9_-]+)/,
+      headingButton: /\.(MergeBoxSectionHeader-module__button--[a-zA-Z0-9_-]+)/,
+      headingModule:
+        /\.(MergeBoxSectionHeader-module__MergeBoxSectionHeading--[a-zA-Z0-9_-]+)/,
+      headingPrimer: /\.(prc-Heading-Heading-[a-zA-Z0-9_-]+)/,
+    };
+
+    const selectors = Array.from(document.styleSheets).flatMap((sheet) => {
+      try {
+        return Array.from(sheet.cssRules || sheet.rules)
+          .map((rule) => rule.selectorText)
+          .filter(Boolean);
+      } catch (e) {
+        return []; // Skip stylesheets that can't be accessed (cross-origin)
+      }
+    });
+
+    cache = Object.fromEntries(
+      Object.entries(patterns).map(([key, pattern]) => {
+        const selector = selectors.find((s) => pattern.test(s));
+        const match = selector?.match(pattern);
+        return [key, match?.[1]];
+      })
+    );
+
+    console.log('[GHCO] GitHub class names:', cache);
+
+    return cache;
+  };
+})();
