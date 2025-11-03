@@ -7,7 +7,7 @@ const PATHS = require('./paths');
 
 // Merge webpack configuration files
 const config = (env, argv) =>
-  merge(common, {
+  merge(common(argv.mode), {
     entry: {
       content: PATHS.src + '/decorator.js',
     },

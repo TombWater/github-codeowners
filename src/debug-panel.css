@@ -1,0 +1,198 @@
+#ghco-debug-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #ffffff;
+  border: 2px solid #d0d7de;
+  padding: 12px;
+  z-index: 10000;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  max-width: 300px;
+  color: #24292f;
+}
+
+#ghco-debug-panel .ghco-debug-header {
+  font-weight: 600;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #d0d7de;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#ghco-debug-panel .ghco-debug-close {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  color: #57606a;
+  width: inherit;
+}
+
+#ghco-debug-panel .ghco-debug-close:hover {
+  color: #24292f;
+}
+
+#ghco-debug-panel .ghco-debug-stats {
+  margin-bottom: 12px;
+  padding: 8px;
+  background: #f6f8fa;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+#ghco-debug-panel .ghco-debug-stats > div {
+  margin-bottom: 4px;
+}
+
+#ghco-debug-panel .ghco-debug-stats > div:last-child {
+  margin-bottom: 0;
+}
+
+#ghco-debug-panel .ghco-debug-stats code {
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  background: #ffffff;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+#ghco-debug-panel button {
+  display: block;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 6px 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #f6f8fa;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  transition: background 0.1s;
+  font-family: inherit;
+}
+
+#ghco-debug-panel button:last-child {
+  margin-bottom: 0;
+}
+
+#ghco-debug-panel button:hover {
+  background: #e1e4e8;
+}
+
+#ghco-debug-panel button:active {
+  background: #d0d7de;
+}
+
+#ghco-debug-panel button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Approval simulation popup */
+#ghco-approval-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #ffffff;
+  border: 2px solid #d0d7de;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(140, 149, 159, 0.4);
+  z-index: 10001;
+  max-width: 400px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  color: #24292f;
+}
+
+#ghco-approval-popup .ghco-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #d0d7de;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-radius: 6px 6px 0 0;
+}
+
+#ghco-approval-popup .ghco-popup-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+#ghco-approval-popup .ghco-popup-close {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  color: #57606a;
+  line-height: 1;
+}
+
+#ghco-approval-popup .ghco-popup-close:hover {
+  color: #24292f;
+}
+
+#ghco-approval-popup .ghco-owner-list {
+  padding: 16px;
+  margin: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+#ghco-approval-popup .ghco-owner-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-bottom: 2px;
+  background: #f6f8fa;
+  gap: 8px;
+}
+
+#ghco-approval-popup .ghco-owner-item:hover {
+  background: #e1e4e8;
+}
+
+#ghco-approval-popup .ghco-owner-name {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  flex: 1;
+}
+
+#ghco-approval-popup .ghco-team-header {
+  font-weight: 600;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #24292f;
+}
+
+#ghco-approval-popup .ghco-approval-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #2da44e;
+}
+
+#ghco-approval-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 10000;
+}

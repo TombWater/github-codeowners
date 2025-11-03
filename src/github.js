@@ -55,7 +55,30 @@ export const getPrInfo = () => {
   ];
   const base = document.querySelector(selectors.join(', '))?.textContent;
 
-  return {page, owner, repo, num, base};
+  // Check if PR is merged by looking for the merged state badge in the header
+  const mergedSelectors = [
+    '#partial-discussion-header .State--merged', // Old UI (both conversation and files pages)
+    '[data-status="pullMerged"]', // New React UI (files page)
+  ];
+  let isMerged = Boolean(document.querySelector(mergedSelectors.join(', ')));
+
+  // Apply simulated merge state if in debug mode
+  if (__DEBUG__) {
+    try {
+      // Use dynamic import to avoid circular dependency
+      const debugPanel = window.__ghcoDebugPanel;
+      if (debugPanel?.getSimulatedMergeState) {
+        const simulatedState = debugPanel.getSimulatedMergeState();
+        if (simulatedState !== null) {
+          isMerged = simulatedState;
+        }
+      }
+    } catch (err) {
+      // Ignore errors from debug panel
+    }
+  }
+
+  return {page, owner, repo, num, base, isMerged};
 };
 
 const parseDiffFilesFromDoc = (doc) => {
