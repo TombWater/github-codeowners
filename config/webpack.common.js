@@ -1,5 +1,6 @@
 'use strict';
 
+const webpack = require('webpack');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
@@ -12,7 +13,7 @@ const IMAGE_TYPES = /\.(png|jpe?g|gif|svg)$/i;
 // CLI maintains a common webpack configuration file - `webpack.common.js`.
 // Whenever user creates an extension, CLI adds `webpack.common.js` file
 // in template's `config` folder
-const common = {
+const common = (mode = 'production') => ({
   output: {
     // the build folder to output bundles and assets in.
     path: PATHS.build,
@@ -55,6 +56,10 @@ const common = {
     ],
   },
   plugins: [
+    // Define global constants for conditional compilation
+    new webpack.DefinePlugin({
+      __DEBUG__: JSON.stringify(mode === 'development'),
+    }),
     // Copy static assets from `public` folder to `build` folder
     new CopyWebpackPlugin({
       patterns: [
@@ -72,6 +77,6 @@ const common = {
       filename: '[name].css',
     }),
   ],
-};
+});
 
 module.exports = common;

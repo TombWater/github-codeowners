@@ -21,6 +21,25 @@ export const getPrOwnershipData = async () => {
     github.getTeamMembers(folderOwners),
   ]);
 
+  // Apply simulated approvals if in debug mode
+  if (__DEBUG__) {
+    const {getSimulatedApprovals} = await import('./debug-panel');
+    const simulatedApprovals = getSimulatedApprovals();
+
+    if (simulatedApprovals.size > 0) {
+      console.log('[GHCO] Applying simulated approvals:', Array.from(simulatedApprovals.entries()));
+
+      // Create a new reviewers map with simulated approvals applied
+      const modifiedReviewers = new Map(reviewers);
+
+      for (const [owner, approved] of simulatedApprovals.entries()) {
+        modifiedReviewers.set(owner, approved);
+      }
+
+      reviewers = modifiedReviewers;
+    }
+  }
+
   // Map of users to a set of teams they are a member of
   const userTeamsMap = new Map();
   for (const [team, members] of teamMembers.entries()) {
@@ -35,7 +54,11 @@ export const getPrOwnershipData = async () => {
   const ownerApprovals = new Set(
     Array.from(reviewers.entries())
       .filter(([, approved]) => approved)
-      .flatMap(([approver]) => Array.from(userTeamsMap.get(approver)))
+      .flatMap(([approver]) => {
+        // Get teams for this approver, or create a pseudo-team with just the approver
+        const teams = userTeamsMap.get(approver) ?? new Set([approver]);
+        return Array.from(teams);
+      })
   );
 
   const user = getUserLogin();

@@ -93,6 +93,7 @@ npm run zip
 - **`getPrOwnershipData()`**: Aggregates data from multiple github.js functions and processes it for UI needs
 - **`getUserLogin()`**: Extracts current user information from GitHub DOM
 - **Team processing**: Handles team membership, approvals, and user team associations
+- **Debug mode support**: Applies simulated approvals when `window.ghcoDebug` is enabled
 
 **`src/github.js`** - GitHub data fetching and caching
 - **Caching strategy**: Uses lodash `memoize` with custom single-entry cache implementation
@@ -104,6 +105,16 @@ npm run zip
 - **`getFolderOwners()`**: Fetches CODEOWNERS from `.github/`, root, or `docs/` directory
 - **`getReviewers()`**: Scrapes PR conversation page for reviewer approval status
 - **`getTeamMembers()`**: Fetches team member lists by scraping org team pages (handles pagination)
+- **Debug mode support**: Checks `window.__ghcoDebugPanel` for simulated merge state when available
+
+**`src/debug-panel.js`** - Debug and testing tools (only included in development builds via `npm run watch`)
+- **Debug panel UI**: Fixed bottom-right panel showing update count, last update time, and current state
+- **Approval simulation**: Interactive popup to toggle approval states for any team member, triggers DOM mutations to test live updates
+- **Merge simulation**: One-way operation that removes other merge box sections and adds "Pull request successfully merged" message
+- **State tracking**: Real-time stats display with 500ms polling, filtered mutation observer to avoid infinite loops
+- **URL change detection**: Automatically resets simulations when navigating between PRs
+- **Cross-module communication**: Exposes functions via `window.__ghcoDebugPanel` for use in github.js and ownership.js
+- **Styling**: Separated into `src/debug-panel.css` with `ghco-` prefixed classes
 
 ### Key Technical Details
 
@@ -117,10 +128,13 @@ npm run zip
 - **Ownership data flow**: Complete ownership objects passed through call chain to avoid repetitive destructuring and reconstruction
 - **No API token required**: All data fetched by scraping GitHub HTML pages using `fetch()` with credentials
 - **Modular architecture**: Code split into focused modules (decorator.js, files-page.js, conversation-page.js, labels.js, ownership.js, github.js)
-- **CSSOM-based expandable detection**: Uses `document.styleSheets` parsing to find GitHub's CSS module class names (e.g., `MergeBoxExpandable-module__isExpanded--[hash]`) for native expandable section styling
+- **CSSOM consolidation**: `getGithubClassNames()` closure-based caching parses all stylesheets once to find 8 GitHub CSS module patterns, eliminating repetitive CSSOM searches
+- **classList.add() safety**: Direct calls without conditionals since it silently ignores undefined/null values
+- **Debug mode**: Debug panel automatically enabled in development builds (`npm run watch`), completely excluded from production builds (`npm run build`, `npm run zip`)
 
 ### CSS Architecture
-- All styles in `src/content.css` use `ghco-` prefix to avoid conflicts (e.g., `ghco-label`, `ghco-merge-box-container`)
+- All styles in `src/decorator.css` use `ghco-` prefix to avoid conflicts (e.g., `ghco-label`, `ghco-merge-box-container`)
+- Debug panel styles in `src/debug-panel.css` with same `ghco-` prefix convention
 - Uses CSS anchor positioning for drawer placement below labels
 - Animated hover effects with transform/opacity transitions
 - Click feedback animation on labels
@@ -135,3 +149,22 @@ npm run zip
 - **Cross-browser**: ES6 modules with webpack bundling for Chrome/Firefox compatibility
 - **GitHub DOM changes**: Code handles both old and new GitHub UI patterns using fallback selectors
 - **Function signatures**: Clean parameter patterns - minimal destructuring, pass complete objects when appropriate
+- **Style properties**: Use individual `element.style.property = value` assignments instead of `cssText` strings for clarity and maintainability
+- **Inline styles**: Avoid inline styles in JavaScript; use CSS classes and stylesheets instead for maintainability
+
+## Testing Tools
+
+**Debug Panel** (automatically enabled in development builds)
+- Only included when using `npm run watch` (development mode), completely excluded from production builds
+- Real-time statistics panel (update count, last update time, section state)
+- Six debug functions:
+  - Force Update: Manually trigger updateAll()
+  - Log Current State: Console logs PR info, section existence, merge box state
+  - Log Ownership Data: Console logs complete ownership data structure
+  - Clear Session State: Removes expand state from sessionStorage
+  - Simulate Approval Change: Interactive popup to toggle approvals for any team member
+  - Simulate Merge: One-way simulation of PR merge (removes sections, adds merged message)
+- Approval simulation shows team-grouped checkboxes for all owners with files in current PR
+- Merge simulation removes all merge box sections except Code owners and adds "Pull request successfully merged" message
+- Simulations automatically reset when navigating to different PRs
+- Debug panel mutations filtered from MutationObserver to prevent infinite loops
