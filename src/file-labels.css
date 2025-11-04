@@ -9,6 +9,10 @@
   color: var(--fgColor-muted, var(--color-fg-muted));
 }
 
+.file .ghco-decoration.ghco-decoration-hidden .ghco-label-container {
+  opacity: 0;
+}
+
 .file:not(.open) .ghco-decoration {
   border-top: var(--borderWidth-thin) solid
     var(--borderColor-default, var(--color-border-default));
@@ -27,6 +31,10 @@ react-app .ghco-decoration {
   border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
 }
 
+react-app .ghco-decoration.ghco-decoration-hidden .ghco-label-container {
+  opacity: 0;
+}
+
 react-app .ghco-decoration:has(+ div) {
   padding: 3px 5px;
   border-bottom: 0;
@@ -42,6 +50,8 @@ react-app
 .ghco-label-container {
   display: inline-block;
   position: relative;
+  opacity: 1;
+  transition: opacity var(--ghco-reveal-transition, 0.15s ease-out);
 
   /* --- Theming using Custom Properties --- */
   /* Default theme (yellow) */

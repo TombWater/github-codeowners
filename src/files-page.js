@@ -62,13 +62,33 @@ export const updatePrFilesPage = async () => {
   clearHighlightedOwner();
 
   console.log(`[GHCO] Decorating ${fileHeaders.length} file headers`);
-  fileHeaders.forEach((node) =>
-    decorateFileHeader(node, {
+
+  // Batch collect decorations to trigger animations together
+  const decorationsToAnimate = [];
+
+  fileHeaders.forEach((node) => {
+    const decoration = decorateFileHeader(node, {
       folderOwners,
       ownershipData,
       diffFilesMap,
-    })
-  );
+    });
+    if (decoration) {
+      decorationsToAnimate.push(decoration);
+    }
+  });
+
+  // Trigger all animations together after DOM insertion
+  // Double RAF: First RAF waits for DOM insertion, second RAF ensures layout
+  // stabilizes before animation starts (required for CSS transitions to trigger)
+  if (decorationsToAnimate.length > 0) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        decorationsToAnimate.forEach((decoration) => {
+          decoration.classList.remove('ghco-decoration-hidden');
+        });
+      });
+    });
+  }
 };
 
 const decorateFileHeader = (
@@ -102,7 +122,11 @@ const decorateFileHeader = (
 
   // Create the new owners decoration containing labels for each owner
   const decoration = document.createElement('div');
-  decoration.classList.add('ghco-decoration', 'js-skip-tagsearch');
+  decoration.classList.add(
+    'ghco-decoration',
+    'ghco-decoration-hidden',
+    'js-skip-tagsearch'
+  );
 
   const labels = createOwnerLabels({
     owners,
@@ -111,4 +135,6 @@ const decorateFileHeader = (
 
   labels.forEach((label) => decoration.appendChild(label));
   node.parentNode.insertBefore(decoration, node.nextSibling);
+
+  return decoration;
 };
