@@ -54,6 +54,67 @@ export const getPrOwnershipData = async () => {
     ownerApprovals,
     user,
     userTeams,
+    userTeamsMap,
     diffFilesMap,
   };
+};
+
+// Check if commenter owns a specific file
+export const isOwnerOfFile = (commenterLogin, filePath, ownershipData) => {
+  if (!ownershipData || !filePath) return false;
+
+  const {userTeamsMap, folderOwners} = ownershipData;
+  const commenterTeams = userTeamsMap?.get(commenterLogin);
+
+  if (!commenterTeams) return false;
+
+  // Find the folder owner entry that matches this file
+  const fileOwnerEntry = folderOwners.find(({folderMatch}) =>
+    folderMatch.ignores(filePath)
+  );
+
+  if (!fileOwnerEntry) {
+    return false;
+  }
+
+  // Check if commenter's teams overlap with this file's owners
+  for (const team of commenterTeams) {
+    if (fileOwnerEntry.owners.has(team)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+// Check if commenter owns any file in the PR
+export const isOwnerOfAnyFile = (commenterLogin, ownershipData) => {
+  if (!ownershipData) return false;
+
+  const {userTeamsMap, folderOwners, diffFilesMap} = ownershipData;
+  const commenterTeams = userTeamsMap?.get(commenterLogin);
+
+  if (!commenterTeams) return false;
+
+  // If we don't have the diff files, fall back to checking all folders
+  if (!diffFilesMap || diffFilesMap.size === 0) {
+    for (const {owners} of folderOwners) {
+      for (const team of commenterTeams) {
+        if (owners.has(team)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // Check if commenter owns any file that's actually in the PR
+  // diffFilesMap is a Map where keys are hashes and values are file paths
+  for (const filePath of diffFilesMap.values()) {
+    if (isOwnerOfFile(commenterLogin, filePath, ownershipData)) {
+      return true;
+    }
+  }
+
+  return false;
 };

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shield outline with scalloped top -->
+  <path d="M128 32
+           C158 50 194 50 208 40
+           L208 124
+           C208 176 180 212 128 234
+           C76 212 48 176 48 124
+           L48 40
+           C62 50 98 50 128 32 Z"
+        fill="#F0F9F4" stroke="#1E8E3E" stroke-width="10" stroke-linejoin="round"/>
+
+  <!-- Checkmark -->
+  <path d="M96 126 L118 152 L164 92"
+        stroke="#1E8E3E"
+        stroke-width="18"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        fill="none"/>
+
+</svg>

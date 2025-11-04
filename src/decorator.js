@@ -2,9 +2,8 @@ import {debounce} from 'lodash-es';
 
 import {updatePrFilesPage} from './files-page';
 import {updateMergeBox} from './conversation-page';
+import {updateCommentDecorations} from './comment-decorator';
 import * as debugPanel from './debug-panel';
-
-import './decorator.css';
 
 let incrementUpdateCount = () => {};
 let initDebugPanel = () => {};
@@ -17,7 +16,11 @@ if (__DEBUG__) {
 
 const updateAll = async () => {
   incrementUpdateCount();
-  await Promise.all([updatePrFilesPage(), updateMergeBox()]);
+  await Promise.all([
+    updatePrFilesPage(),
+    updateMergeBox(),
+    updateCommentDecorations(),
+  ]);
 };
 
 // Filter out mutations from debug panel to prevent infinite loop
