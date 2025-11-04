@@ -4,6 +4,8 @@ import chevronUpSvg from './chevron-up.svg';
 import {getPrOwnershipData} from './ownership';
 import {createOwnerLabels} from './labels';
 
+import './merge-box.css';
+
 const createOwnerGroupsMap = (diffFilesMap, folderOwners) => {
   const ownerGroupsMap = new Map();
 
@@ -29,24 +31,68 @@ const createOwnerGroupsMap = (diffFilesMap, folderOwners) => {
   return ownerGroupsMap;
 };
 
-// Update the merge box section with owner groups
 export const updateMergeBox = async () => {
-  const pr = github.getPrInfo();
-
-  const priorSection = document.querySelector('section[aria-label="Reviews"]');
-  if (
-    !priorSection ||
-    priorSection.parentNode.querySelector('section[aria-label="Code owners"]')
-  ) {
+  const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
+  if (!mergeBox) {
+    console.log('[GHCO] No merge box found, skipping update');
     return;
   }
 
-  console.log('[GHCO] Decorate merge box', pr);
+  const container = mergeBox.querySelector(
+    'div[class*="MergeBox-module__mergeBoxAdjustBorders"], div.border.rounded-2'
+  );
+  if (!container) {
+    console.info('[GHCO] Could not find merge box container');
+    return;
+  }
 
-  // Show loading state immediately
-  const section = createLoadingMergeBoxSection(priorSection);
+  // Calculate current state
+  const isMerged = github.getIsMerged();
+  const reviewers = Array.from(github.getReviewersFromDoc(document).entries());
+  const approvers = reviewers
+    .filter(([, approved]) => approved)
+    .map(([approver]) => approver)
+    .sort();
+  const newState = [isMerged, ...approvers].join(',');
 
-  // Async load ownership then update the section
+  let section = mergeBox.querySelector('section[aria-label="Code owners"]');
+  const oldState = section?.dataset.state || '';
+
+  // Check if merge status changed (requires recreating for correct positioning)
+  const oldMergeStatus = oldState.split(',')[0];
+  const newMergeStatus = newState.split(',')[0];
+
+  if (section && oldMergeStatus !== newMergeStatus) {
+    console.log('[GHCO] Merge status changed, recreating section');
+    section.remove();
+    section = null;
+  }
+
+  // Create section if it doesn't exist
+  if (!section) {
+    console.log('[GHCO] Creating merge box section', github.getPrInfo());
+    section = createLoadingMergeBoxSection(container, isMerged);
+    if (!section) {
+      console.log('[GHCO] Failed to create merge box section');
+      return;
+    }
+  } else {
+    // Check if section is in the correct position (merge box structure may have changed)
+    ensureCorrectPosition(section, container);
+  }
+
+  // Update state (even for loading sections without full state yet)
+  section.dataset.state = newState;
+
+  // If state hasn't changed and section has content, we're done
+  const hasContent = section.querySelector('div[class*="__expandableWrapper"]');
+  if (oldState === newState && hasContent) {
+    console.log('[GHCO] Section already up to date');
+    return;
+  }
+
+  // Fetch ownership data and update section content
+  console.log('[GHCO] Populating section with approval data');
   const [ownershipData, diffFilesMap] = await Promise.all([
     getPrOwnershipData(),
     github.getDiffFilesMap(),
@@ -54,44 +100,83 @@ export const updateMergeBox = async () => {
   if (!ownershipData || !diffFilesMap || diffFilesMap.size === 0) {
     const description = section.querySelector('p');
     if (description) {
-      if (!ownershipData) {
-        description.textContent = 'No CODEOWNERS file found';
-      } else {
-        description.textContent = 'No files to review';
-      }
+      description.textContent = ownershipData
+        ? 'No files to review'
+        : 'No CODEOWNERS file found';
     }
     return;
   }
 
   const {folderOwners} = ownershipData;
-
   const ownerGroupsMap = createOwnerGroupsMap(diffFilesMap, folderOwners);
   updateMergeBoxSectionWithContent(section, {
-    pr,
+    isMerged,
     ownerGroupsMap,
     ownershipData,
   });
 };
 
-const createHeaderIcon = (approvalStatus) => {
+const findSectionPosition = (container) => {
+  // Our section is after either the reviews section or the merged PR message,
+  // or at the end if neither exists (so the querySelector returns null)
+  return container.querySelector(
+    [
+      'section[aria-label="Reviews"]',
+      ':scope > div[class*="MergeBoxSectionHeader-module__wrapper"].flex-column',
+    ].join(', ')
+  );
+};
+
+// Check if section is in the correct position, reposition if needed
+const ensureCorrectPosition = (section, container) => {
+  const previousSection = findSectionPosition(container);
+
+  if (previousSection) {
+    if (section.previousElementSibling !== previousSection) {
+      previousSection.after(section);
+    }
+  } else {
+    if (section !== container.lastElementChild) {
+      container.appendChild(section);
+    }
+  }
+};
+
+const createHeaderIcon = (approvalStatus, isMerged) => {
   const iconWrapper = document.createElement('div');
   iconWrapper.classList.add('mr-2', 'flex-shrink-0');
 
   const iconCircle = document.createElement('div');
-  iconCircle.style.cssText =
-    'overflow: hidden; border-width: 0px; border-radius: 50%; border-style: solid; border-color: var(--borderColor-default); width: 32px; height: 32px;';
+  iconCircle.style.overflow = 'hidden';
+  iconCircle.style.borderWidth = '0px';
+  iconCircle.style.borderRadius = '50%';
+  iconCircle.style.borderStyle = 'solid';
+  iconCircle.style.borderColor = 'var(--borderColor-default)';
+  iconCircle.style.width = '32px';
+  iconCircle.style.height = '32px';
 
   const iconInner = document.createElement('div');
-  iconInner.classList.add('bgColor-neutral-muted');
-  if (approvalStatus) {
-    const allApproved =
-      approvalStatus.approvalsReceived === approvalStatus.totalApprovalsNeeded;
-    iconInner.classList.add(allApproved ? 'fgColor-success' : 'fgColor-danger');
-  }
-  iconInner.style.cssText =
-    'display: flex; width: 32px; height: 32px; align-items: center; justify-content: center;';
+  iconInner.style.display = 'flex';
+  iconInner.style.width = '32px';
+  iconInner.style.height = '32px';
+  iconInner.style.alignItems = 'center';
+  iconInner.style.justifyContent = 'center';
 
-  // Extension icon SVG (GitHub octocat with checkmarks)
+  if (isMerged) {
+    iconInner.style.backgroundColor = 'var(--bgColor-default)';
+    iconInner.style.color = 'var(--bgColor-done-emphasis)';
+  } else {
+    iconInner.classList.add('bgColor-neutral-muted');
+    if (approvalStatus) {
+      const allApproved =
+        approvalStatus.approvalsReceived ===
+        approvalStatus.totalApprovalsNeeded;
+      iconInner.classList.add(
+        allApproved ? 'fgColor-success' : 'fgColor-danger'
+      );
+    }
+  }
+
   const svgString = iconSvg.replace(/<\?xml[^?]*\?>\s*/g, '');
   const parser = new DOMParser();
   const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
@@ -102,7 +187,7 @@ const createHeaderIcon = (approvalStatus) => {
   svg.setAttribute('height', '32');
   svg.style.verticalAlign = 'text-bottom';
 
-  if (approvalStatus) {
+  if (approvalStatus || isMerged) {
     svg.setAttribute('fill', 'currentColor');
     // Remove inline fill attributes so currentColor works
     svg.querySelectorAll('[fill]').forEach((el) => el.removeAttribute('fill'));
@@ -197,7 +282,7 @@ const onClickHeader = (event) => {
   }
 };
 
-const createMergeBoxSectionHeader = (approvalStatus) => {
+const createMergeBoxSectionHeader = (approvalStatus, isMerged) => {
   const header = document.createElement('div');
   const classNames = github.getGithubClassNames();
   const isExpandable = Boolean(approvalStatus);
@@ -213,11 +298,10 @@ const createMergeBoxSectionHeader = (approvalStatus) => {
   const headerContent = document.createElement('div');
   headerContent.classList.add('d-flex', 'width-full');
 
-  headerContent.appendChild(createHeaderIcon(approvalStatus));
+  headerContent.appendChild(createHeaderIcon(approvalStatus, isMerged));
   headerContent.appendChild(createHeaderText(approvalStatus));
   wrapper.appendChild(headerContent);
 
-  // If we can't find the expanded class name, gracefully degrade to a non-expandable header
   if (isExpandable) {
     const isExpanded = getSavedExpandState();
 
@@ -248,11 +332,7 @@ const createMergeBoxSectionHeader = (approvalStatus) => {
   return header;
 };
 
-const createMergeBoxOwnerGroupsContent = (
-  ownerGroupsMap,
-  pr,
-  ownershipData
-) => {
+const createMergeBoxOwnerGroupsContent = (ownerGroupsMap, ownershipData) => {
   const content = document.createElement('div');
   content.classList.add('ghco-merge-box-container', 'px-3', 'pb-3');
 
@@ -281,7 +361,6 @@ const createMergeBoxOwnerGroupsContent = (
   sortedGroups.forEach(([, {owners, paths, digests}]) => {
     content.appendChild(
       createMergeBoxOwnerGroup({
-        pr,
         owners,
         paths,
         digests,
@@ -313,16 +392,27 @@ const createMergeBoxSectionContent = (ownerGroupsContent) => {
   return expandableWrapper;
 };
 
-// Create the merge box section in loading state
-const createLoadingMergeBoxSection = (priorSection) => {
+const createLoadingMergeBoxSection = (container, isMerged) => {
   const section = document.createElement('section');
-  section.classList.add('border-bottom', 'color-border-subtle');
   section.setAttribute('aria-label', 'Code owners');
 
-  const sectionHeader = createMergeBoxSectionHeader(null);
+  const existingSections = Array.from(container.querySelectorAll('section'));
+
+  section.classList.add(
+    existingSections.length > 0 ? 'border-bottom' : 'border-top',
+    'color-border-subtle'
+  );
+
+  const sectionHeader = createMergeBoxSectionHeader(null, isMerged);
   section.appendChild(sectionHeader);
 
-  priorSection.parentNode.insertBefore(section, priorSection.nextSibling);
+  const previousSection = findSectionPosition(container);
+  if (previousSection) {
+    previousSection.after(section);
+  } else {
+    container.appendChild(section);
+  }
+
   return section;
 };
 
@@ -347,31 +437,34 @@ const calculateApprovalStatus = (ownerGroupsMap, ownerApprovals) => {
   return {approvalsReceived, totalApprovalsNeeded};
 };
 
-// Update the section with actual content after data is loaded
 const updateMergeBoxSectionWithContent = (
   section,
-  {pr, ownerGroupsMap, ownershipData}
+  {isMerged, ownerGroupsMap, ownershipData}
 ) => {
   // Set aria-describedby only after loading to avoid screen readers announcing the brief loading state
   section.setAttribute('aria-describedby', APPROVALS_DESCRIPTION_ID);
 
-  // Replace the loading header with an expandable one
   const existingHeader = section.querySelector(
     'div[class*="MergeBoxSectionHeader"]'
   );
   if (existingHeader) {
+    const existingButton = existingHeader.querySelector(
+      'button[aria-label="Code owners"]'
+    );
+    existingButton?.removeEventListener('click', onClickHeader);
+
     const approvalStatus = calculateApprovalStatus(
       ownerGroupsMap,
       ownershipData.ownerApprovals
     );
-    const newHeader = createMergeBoxSectionHeader(approvalStatus);
+    const newHeader = createMergeBoxSectionHeader(approvalStatus, isMerged);
     section.replaceChild(newHeader, existingHeader);
   }
 
-  // Add the expandable content to the section
+  section.querySelector('div[class*="__expandableWrapper"]')?.remove();
+
   const ownerGroupsContent = createMergeBoxOwnerGroupsContent(
     ownerGroupsMap,
-    pr,
     ownershipData
   );
 
@@ -413,21 +506,13 @@ const getMergeBoxOwnerGroupPriority = (group, userTeams, ownerApprovals) => {
   return 4;
 };
 
-const createMergeBoxOwnerGroup = ({
-  pr,
-  owners,
-  paths,
-  digests,
-  ownershipData,
-}) => {
+const createMergeBoxOwnerGroup = ({owners, paths, digests, ownershipData}) => {
   const listDiv = document.createElement('div');
   listDiv.classList.add('ghco-merge-box-owner-group');
 
-  // Create owner labels section with file count
   const labelsDiv = document.createElement('div');
   labelsDiv.classList.add('ghco-merge-box-labels');
 
-  // Add file count before labels
   const fileCountContainer = document.createElement('span');
   fileCountContainer.classList.add('ghco-file-count-container');
 
@@ -452,13 +537,15 @@ const createMergeBoxOwnerGroup = ({
 
   listDiv.appendChild(labelsDiv);
 
-  // Create file links section
   const filesDiv = document.createElement('div');
   filesDiv.classList.add('ghco-merge-box-files-list');
 
+  // Get PR info synchronously from the URL for file links
+  const {owner, repo, num} = github.getPrInfo();
+
   paths.forEach((path, index) => {
     const fileLink = document.createElement('a');
-    fileLink.href = `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.num}/files#diff-${digests[index]}`;
+    fileLink.href = `https://github.com/${owner}/${repo}/pull/${num}/files#diff-${digests[index]}`;
     fileLink.textContent = path;
     fileLink.classList.add('ghco-merge-box-file-link');
     filesDiv.appendChild(fileLink);

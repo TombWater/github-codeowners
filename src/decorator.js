@@ -23,7 +23,7 @@ const updateAll = async () => {
 // Filter out mutations from debug panel to prevent infinite loop
 const mutationCallback = (mutations) => {
   // Ignore mutations inside the debug panel
-  const hasRelevantMutation = mutations.some(mutation => {
+  const hasRelevantMutation = mutations.some((mutation) => {
     // Check if mutation is inside debug panel
     let node = mutation.target;
     while (node) {

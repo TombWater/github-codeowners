@@ -43,7 +43,9 @@ export const incrementUpdateCount = () => {
   // Check if URL changed (navigation to different PR)
   checkUrlChange();
 
-  console.log(`[GHCO Debug] Update #${updateCount} triggered at ${lastUpdateTime.toISOString()}`);
+  console.log(
+    `[GHCO Debug] Update #${updateCount} triggered at ${lastUpdateTime.toISOString()}`
+  );
 };
 
 export const initDebugPanel = (updateAllCallback) => {
@@ -140,7 +142,8 @@ const startStatsUpdater = () => {
 
     const section = document.querySelector('section[aria-label="Code owners"]');
     const state = section?.dataset?.state || '-';
-    const displayState = state.substring(0, 50) + (state.length > 50 ? '...' : '');
+    const displayState =
+      state.substring(0, 50) + (state.length > 50 ? '...' : '');
     if (displayState !== lastDisplayedState) {
       stateEl.textContent = displayState;
       lastDisplayedState = displayState;
@@ -167,8 +170,10 @@ const attachButtonListeners = (updateAllCallback) => {
     document.getElementById('ghco-log-state').onclick = handleLogState;
     document.getElementById('ghco-log-ownership').onclick = handleLogOwnership;
     document.getElementById('ghco-clear-session').onclick = handleClearSession;
-    document.getElementById('ghco-simulate-approval').onclick = handleSimulateApproval;
-    document.getElementById('ghco-simulate-merge').onclick = handleSimulateMerge;
+    document.getElementById('ghco-simulate-approval').onclick =
+      handleSimulateApproval;
+    document.getElementById('ghco-simulate-merge').onclick =
+      handleSimulateMerge;
   }, 0);
 };
 
@@ -195,7 +200,10 @@ const handleLogOwnership = async () => {
 
     console.log('Ownership data:', ownershipData);
     console.log('User teams:', Array.from(ownershipData?.userTeams || []));
-    console.log('Owner approvals:', Array.from(ownershipData?.ownerApprovals || []));
+    console.log(
+      'Owner approvals:',
+      Array.from(ownershipData?.ownerApprovals || [])
+    );
     console.log('Diff files:', diffFiles?.size, 'files');
     console.log('Files:', Array.from(diffFiles?.values() || []));
   } catch (err) {
@@ -205,7 +213,8 @@ const handleLogOwnership = async () => {
 };
 
 const handleClearSession = () => {
-  const prId = document.querySelector('#partial-discussion-header')?.dataset?.gid;
+  const prId = document.querySelector('#partial-discussion-header')?.dataset
+    ?.gid;
   const key = `${prId}:ghco-codeownersExpanded`;
   sessionStorage.removeItem(key);
   console.log('[GHCO Debug] Cleared expand state from session storage');
@@ -231,7 +240,7 @@ const handleSimulateApproval = async () => {
     );
 
     if (fileOwnership) {
-      fileOwnership.owners.forEach(owner => teamsOwningFiles.add(owner));
+      fileOwnership.owners.forEach((owner) => teamsOwningFiles.add(owner));
     }
   }
 
@@ -311,7 +320,7 @@ const showApprovalPopup = (teamToMembers, memberToTeams, currentApprovals) => {
   // Group by team
   const sortedTeams = Array.from(teamToMembers.keys()).sort();
 
-  sortedTeams.forEach(team => {
+  sortedTeams.forEach((team) => {
     const members = teamToMembers.get(team);
 
     // Team header
@@ -323,7 +332,7 @@ const showApprovalPopup = (teamToMembers, memberToTeams, currentApprovals) => {
     // Sort members
     const sortedMembers = Array.from(members).sort();
 
-    sortedMembers.forEach(member => {
+    sortedMembers.forEach((member) => {
       const isMemberApproved = currentApprovals.get(member) === true;
       const hasSimulation = simulatedApprovals.has(member);
 
@@ -359,15 +368,20 @@ const showApprovalPopup = (teamToMembers, memberToTeams, currentApprovals) => {
 
         // Update all checkboxes for this member
         const allCheckboxes = memberCheckboxes.get(member);
-        allCheckboxes.forEach(cb => {
+        allCheckboxes.forEach((cb) => {
           cb.checked = newState;
         });
 
         // Update all labels for this member
-        const allLabels = list.querySelectorAll(`label[data-member="${member}"]`);
-        allLabels.forEach(lbl => {
+        const allLabels = list.querySelectorAll(
+          `label[data-member="${member}"]`
+        );
+        allLabels.forEach((lbl) => {
           lbl.textContent = member;
-          if (simulatedApprovals.has(member) || newState !== (currentApprovals.get(member) === true)) {
+          if (
+            simulatedApprovals.has(member) ||
+            newState !== (currentApprovals.get(member) === true)
+          ) {
             lbl.textContent += ' 🔧';
             lbl.title = 'Simulated approval state';
           }
@@ -407,11 +421,18 @@ const closeApprovalPopup = () => {
 };
 
 const toggleApproval = (owner, approved) => {
-  console.log(`[GHCO Debug] Toggling approval: ${owner} → ${approved ? 'approved' : 'not approved'}`);
+  console.log(
+    `[GHCO Debug] Toggling approval: ${owner} → ${
+      approved ? 'approved' : 'not approved'
+    }`
+  );
 
   // Store the simulated approval state
   simulatedApprovals.set(owner, approved);
-  console.log('[GHCO Debug] Simulated approvals:', Array.from(simulatedApprovals.entries()));
+  console.log(
+    '[GHCO Debug] Simulated approvals:',
+    Array.from(simulatedApprovals.entries())
+  );
 
   // Trigger DOM mutation to cause extension update
   const targetElement =
@@ -430,7 +451,9 @@ const toggleApproval = (owner, approved) => {
     tempDiv.remove();
   }, 50);
 
-  console.log(`[GHCO Debug] Mutation triggered - update count should increment`);
+  console.log(
+    `[GHCO Debug] Mutation triggered - update count should increment`
+  );
 };
 
 const handleSimulateMerge = () => {
@@ -447,7 +470,9 @@ const handleSimulateMerge = () => {
   button.textContent = '🔀 Merged (reload to undo)';
   button.disabled = true;
 
-  console.log('[GHCO Debug] Simulating PR merge - removing sections and adding merged message');
+  console.log(
+    '[GHCO Debug] Simulating PR merge - removing sections and adding merged message'
+  );
 
   // Find the merge box container
   const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
@@ -457,15 +482,22 @@ const handleSimulateMerge = () => {
   }
 
   // Find the bordered container inside (more flexible selector)
-  const borderedContainer = mergeBox.querySelector('div[class*="MergeBox-module__mergeBoxAdjustBorders"], div.border.rounded-2');
+  const borderedContainer = mergeBox.querySelector(
+    'div[class*="MergeBox-module__mergeBoxAdjustBorders"], div.border.rounded-2'
+  );
   if (!borderedContainer) {
     console.error('[GHCO Debug] Could not find bordered container');
-    console.log('[GHCO Debug] Merge box HTML:', mergeBox.innerHTML.substring(0, 500));
+    console.log(
+      '[GHCO Debug] Merge box HTML:',
+      mergeBox.innerHTML.substring(0, 500)
+    );
     return;
   }
 
   // Find code owners section
-  const codeOwnersSection = borderedContainer.querySelector('section[aria-label="Code owners"]');
+  const codeOwnersSection = borderedContainer.querySelector(
+    'section[aria-label="Code owners"]'
+  );
   if (!codeOwnersSection) {
     console.error('[GHCO Debug] Could not find code owners section');
     return;
@@ -473,7 +505,7 @@ const handleSimulateMerge = () => {
 
   // Remove all sections except code owners
   const allChildren = Array.from(borderedContainer.children);
-  allChildren.forEach(child => {
+  allChildren.forEach((child) => {
     if (child !== codeOwnersSection) {
       child.remove();
     }
@@ -491,7 +523,9 @@ const handleSimulateMerge = () => {
     codeOwnersSection.classList.add('border-top', 'color-border-subtle');
   }
 
-  console.log('[GHCO Debug] Simulated merge complete - code owners section should be first');
+  console.log(
+    '[GHCO Debug] Simulated merge complete - code owners section should be first'
+  );
 
   // Trigger mutation
   const tempDiv = document.createElement('div');
@@ -504,7 +538,8 @@ const handleSimulateMerge = () => {
 const createMergedMessage = () => {
   const section = document.createElement('div');
   section.dataset.ghcoSimulatedMerge = 'true';
-  section.className = 'MergeBoxSectionHeader-module__wrapper--zMA1Y flex-column flex-sm-row flex-items-center flex-sm-items-start flex-justify-between';
+  section.className =
+    'MergeBoxSectionHeader-module__wrapper--zMA1Y flex-column flex-sm-row flex-items-center flex-sm-items-start flex-justify-between';
 
   section.innerHTML = `
     <div class="d-flex width-full">

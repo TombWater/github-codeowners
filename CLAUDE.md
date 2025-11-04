@@ -76,11 +76,17 @@ npm run zip
 
 **`src/conversation-page.js`** - Merge box decoration
 - **`updateMergeBox()`**: Creates expandable "Code owners" section in PR conversation merge box
+- **`findSectionPosition()`**: Determines correct insertion point for section based on merge box structure
+- **`ensureCorrectPosition()`**: Checks and repositions section when merge box structure changes (handles GitHub React app updates)
+- **Live updates**: Tracks approval state in `section.dataset.state` for automatic updates when approvals change
+- **State management**: Compares old vs new state (merge status + approvers) to determine if update needed
+- **Smart repositioning**: Only recreates section when merge status changes, updates in-place for approval changes
+- **Section positioning**: Places section after "Pull request successfully merged" message on merged PRs, or after Reviews section on open PRs
 - **Groups files by owner**: Shows owner groups with file lists and approval status
 - **Progressive loading**: Shows loading state immediately, then populates with data
 - **Expandable UI**: Uses GitHub's native expandable section styling with CSSOM-based class detection
 - **Priority sorting**: Owner groups sorted by user relevance (user-only → user co-owners → approved → others)
-- **Ownership data flow**: Maintains ownership data as cohesive object throughout function call chain
+- **Performance**: Early returns when section already up-to-date, avoiding unnecessary data fetches
 
 **`src/labels.js`** - Owner label creation and interaction
 - **`createOwnerLabels()`**: Creates owner labels with approval status indicators (✓ for approved, ★/☆ for user's teams)
@@ -92,20 +98,30 @@ npm run zip
 **`src/ownership.js`** - Data aggregation and processing
 - **`getPrOwnershipData()`**: Aggregates data from multiple github.js functions and processes it for UI needs
 - **`getUserLogin()`**: Extracts current user information from GitHub DOM
+- **`isOwnerOfFile()`**: Checks if commenter owns a specific file based on CODEOWNERS and team membership
+- **`isOwnerOfAnyFile()`**: Checks if commenter owns any file in the PR (iterates `diffFilesMap.values()` not `.keys()`)
 - **Team processing**: Handles team membership, approvals, and user team associations
-- **Debug mode support**: Applies simulated approvals when `window.ghcoDebug` is enabled
+- **Centralized ownership logic**: All ownership determination in one module for reuse across decorators
 
 **`src/github.js`** - GitHub data fetching and caching
 - **Caching strategy**: Uses lodash `memoize` with custom single-entry cache implementation
-  - `urlCacheKey()`: Cache reviewers per PR URL
+  - `urlCacheKey()`: Cache per PR URL
   - `repoCacheKey()`: Cache team members per repository
   - `prBaseCacheKey()`: Cache CODEOWNERS per base branch
-- **`getPrInfo()`**: Extracts owner/repo/PR number/base branch from URL and DOM
+- **`getIsMerged()`**: Checks merge status via DOM query (not cached - just a querySelector, exported for use in conversation-page.js)
+- **`getPrInfo()`**: Synchronously extracts owner/repo/PR number/base branch from URL and DOM (no author or merge status - lightweight)
+- **`getPrAuthor()`**: Async function that extracts PR author from various DOM sources with fallbacks (cached per URL, expensive - only use when needed for comment decorations)
 - **`getDiffFilesMap()`**: Maps file path digests to paths (handles both old/new GitHub UI)
 - **`getFolderOwners()`**: Fetches CODEOWNERS from `.github/`, root, or `docs/` directory
-- **`getReviewers()`**: Scrapes PR conversation page for reviewer approval status
+- **`getReviewers()`**: Async function that fetches reviewer data from conversation page if not already there
+- **`getReviewersFromDoc()`**: Synchronously extracts reviewer approval status from a document (for live updates on conversation page)
 - **`getTeamMembers()`**: Fetches team member lists by scraping org team pages (handles pagination)
-- **Debug mode support**: Checks `window.__ghcoDebugPanel` for simulated merge state when available
+  - **Defensive checks**: Validates `folderOwners` parameter is defined and is an array before processing
+  - **Consistent return type**: Always returns `Map` (not array) for type consistency
+- **`getGithubClassNames()`**: Cached CSSOM parser that finds all GitHub CSS module class names in one pass using closure-based caching
+- **Debug mode support**:
+  - `getIsMerged()` checks `window.__ghcoDebugPanel` for simulated merge state
+  - `getReviewersFromDoc()` applies simulated approvals from debug panel
 
 **`src/debug-panel.js`** - Debug and testing tools (only included in development builds via `npm run watch`)
 - **Debug panel UI**: Fixed bottom-right panel showing update count, last update time, and current state
@@ -113,7 +129,9 @@ npm run zip
 - **Merge simulation**: One-way operation that removes other merge box sections and adds "Pull request successfully merged" message
 - **State tracking**: Real-time stats display with 500ms polling, filtered mutation observer to avoid infinite loops
 - **URL change detection**: Automatically resets simulations when navigating between PRs
-- **Cross-module communication**: Exposes functions via `window.__ghcoDebugPanel` for use in github.js and ownership.js
+- **Cross-module communication**: Exposes functions via `window.__ghcoDebugPanel` for use in github.js
+  - `getSimulatedApprovals()`: Returns Map of owner → approval state for simulated approvals
+  - `getSimulatedMergeState()`: Returns simulated merge state (null = use real state, true/false = simulated)
 - **Styling**: Separated into `src/debug-panel.css` with `ghco-` prefixed classes
 
 ### Key Technical Details
@@ -123,6 +141,9 @@ npm run zip
 - **User ownership**: Files with no CODEOWNERS entry show "any reviewer" label (anyone with write access can approve)
 - **Highlighting**: Clicking a label toggles `ghco-highlight-active` body class and `ghco-label--highlighted` on matching labels
 - **Merge box priority**: Owner groups sorted by user relevance (user-only owners → user co-owners → user approved → others needing approval → others approved)
+- **Live updates**: Merge box section tracks state (merge status + approvers) in data attribute and updates automatically when approvals change
+- **Smart repositioning**: `ensureCorrectPosition()` checks section position on every update to handle GitHub React app dynamically changing merge box structure
+- **State-based updates**: Only fetches data when state changes or section lacks content, avoiding expensive operations on every mutation
 - **Shared label creation**: `createOwnerLabels()` is used by both file header and merge box decorations with consistent `{owners, ownershipData}` interface
 - **Data orchestration**: `getPrOwnershipData()` in ownership.js aggregates data from multiple github.js functions and processes it for UI needs
 - **Ownership data flow**: Complete ownership objects passed through call chain to avoid repetitive destructuring and reconstruction
@@ -151,6 +172,7 @@ npm run zip
 - **Function signatures**: Clean parameter patterns - minimal destructuring, pass complete objects when appropriate
 - **Style properties**: Use individual `element.style.property = value` assignments instead of `cssText` strings for clarity and maintainability
 - **Inline styles**: Avoid inline styles in JavaScript; use CSS classes and stylesheets instead for maintainability
+- **Merge state changes**: Section recreated when PR transitions between merged/unmerged states to ensure correct positioning below "Pull request successfully merged" message
 
 ## Testing Tools
 
@@ -168,3 +190,122 @@ npm run zip
 - Merge simulation removes all merge box sections except Code owners and adds "Pull request successfully merged" message
 - Simulations automatically reset when navigating to different PRs
 - Debug panel mutations filtered from MutationObserver to prevent infinite loops
+
+### Implementation Notes
+
+**GitHub UI Detection:**
+- Use React embedded data when available - most reliable for merged PR metadata
+- Timeline avatar (`.TimelineItem-avatar[href^="/"]`) reliable for PR author on conversation page (works for merged PRs)
+- Header selectors show merger for merged PRs, not original author - don't use for merged state
+- Skip sticky headers (`.sticky-file-header`) - they lack path data
+
+**Comment Decoration Selectors:**
+- Draft Write tabs: Old UI `.CommentBox-header .write-tab`, new UI `[class*="prc-TabNav"] button[role="tab"]:first-of-type` (Write always first)
+- Reply buttons: Old UI `.review-thread-reply-button`, new UI `button[class*="CompactCommentButton"]`
+- Placeholders: Old UI `.CommentBox-placeholder` element, new UI textarea `placeholder` attribute
+- **Animation timing** ⚠️ **CRITICAL - DO NOT CHANGE**:
+  - Single RAF for batch inserts when no DOM changes needed (comments, write tabs) - triggers after all DOM insertions complete
+  - Double RAF for reply buttons: First RAF waits for DOM updates (text node changes), second RAF ensures layout stabilizes before animation starts (required for CSS transitions to trigger properly)
+  - The double RAF is NOT optional - without it, animations won't trigger reliably
+
+**Data Flow:**
+- `diffFilesMap.values()` for file paths (not `.keys()` which are hashes)
+- Pass ownership data as complete object through call chain (avoid destructure/reconstruct)
+- Cache keys must be synchronous - `getPrInfo()` is safe to use (it's synchronous)
+- **Prefer `getPrInfo()` and `getPrAuthor()` separately** - only fetch author when needed (comment decorations), use `getPrInfo()` for file links/URLs
+- **Live updates**: Use `getReviewersFromDoc(document)` on conversation page for synchronous access to current approval state
+
+### CSS Organization
+
+- Styles split into feature-specific files imported by their respective modules:
+  - `src/file-labels.css` → `files-page.js` (labels, drawers, highlighting)
+  - `src/merge-box.css` → `conversation-page.js` (owner groups, file lists)
+  - `src/comments.css` → `comment-decorator.js` (icons, placeholder text)
+  - `src/debug-panel.css` → `debug-panel.js` (debug UI)
+- All styles use `ghco-` prefix to avoid conflicts
+- CSS anchor positioning for label drawers
+- Single `--ghco-reveal-transition` variable (0.15s ease-out) for consistent animations
+- Theming via CSS custom properties: yellow (default), red (user), green (approved)
+
+## Known Issues and Future Work
+
+- ⚠️ **Merge box UX**: File lists too long, need collapsible sections
+- ⚠️ **Accessibility gaps**: Missing `aria-label` on owner label buttons, non-standard `role="drawer"` on hover drawers
+- ⚠️ Test performance with 100+ comment PRs
+- ⚠️ Use GitHub design system variables instead of hardcoded px values
+
+---
+
+## Meta: Maintaining This Document
+
+**When to update:**
+- New module added → Add to Core Components with one-line descriptions of key functions
+- New GitHub UI pattern discovered → Add selector to Implementation Notes
+- Performance issue found/fixed → Update Performance section with pattern
+- Architecture decision changed → Update relevant section (e.g., data flow, caching strategy)
+- Critical bug pattern identified → Add to Key Technical Details or Implementation Notes with ⚠️ warning
+
+**What NOT to document:**
+- Implementation details already clear in code comments
+- Every single function (only document entry points and key architectural functions)
+- Step-by-step how features work (code is the source of truth)
+- Temporary debugging notes (clean these up after issue is resolved)
+
+**Structure to maintain:**
+- Keep Core Components section focused on "what and why", not "how"
+- Implementation Notes should be quick reference for debugging, not tutorials
+- Performance section should show patterns, not enumerate every optimization
+- Known Issues should be actionable, not wishlist items
+
+**⚠️ CRITICAL: When documenting defensive patterns (race condition fixes, animation timing, etc.):**
+1. **Mark them with ⚠️ CRITICAL - DO NOT REMOVE**
+2. **Explain WHY** - what breaks without it, not just what it does
+3. **Specify WHERE** - which functions/files use the pattern
+4. **Include consequences** - what happens if removed (e.g., "causes duplicate icons", "animations won't trigger")
+5. If you're tempted to "clean up" or "simplify" code marked CRITICAL, STOP and ask the user first
+
+**Before making "improvements" to existing code:**
+1. Search CLAUDE.md for mentions of the pattern you want to change
+2. Check for ⚠️ CRITICAL warnings
+3. If marked critical, understand WHY before changing
+4. If not documented as critical but seems defensive (flags, double-checks, timing), ASK before removing
+
+## Common Development Patterns
+
+- **Check → Fetch → Process**: Always check DOM state before fetching expensive data (see Performance section)
+- **File organization**: Each module has single responsibility (orchestration, UI, data)
+- **Keep it DRY**: Centralize shared logic (e.g., ownership checking in ownership.js, not duplicated)
+- **Working with DOM samples**: Ask user to capture HTML via DevTools (Copy outerHTML), store temporarily in `zz-samples/` with descriptive names, delete before merging to main
+- **Error handling**: Graceful degradation when GitHub changes DOM or CODEOWNERS is missing
+- **GitHub DOM changes**: Handle both old and new UI patterns using fallback selectors
+
+## Performance Optimization Patterns
+
+**Critical principle:** Check DOM state BEFORE fetching expensive data. MutationObserver fires on every DOM change, so decoration functions must bail out early when there's nothing to do.
+
+**Pattern: Check → Fetch → Process**
+```javascript
+// ❌ BAD: Fetch data first, check later
+const decorateComments = async () => {
+  const ownershipData = await getPrOwnershipData(); // Expensive!
+  const comments = document.querySelectorAll('.comment');
+  if (comments.length === 0) return; // Too late
+};
+
+// ✅ GOOD: Check first, fetch only if needed
+const decorateComments = async () => {
+  const undecorated = Array.from(document.querySelectorAll('.comment'))
+    .filter(c => !c.querySelector('.ghco-icon'));
+  if (undecorated.length === 0) return; // Fast exit
+
+  const ownershipData = await getPrOwnershipData(); // Only when needed
+  // ... process
+};
+```
+
+**Key optimizations:**
+- Check if decorations already exist before fetching ownership data
+- Query DOM elements first, return early if none found
+- Filter out already-decorated elements before processing
+- Use synchronous cache keys (don't call async functions in memoize key functions)
+- Skip sticky headers (`.sticky-file-header`) - they lack path data and cause false positives
