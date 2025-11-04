@@ -2,15 +2,15 @@ import {debounce} from 'lodash-es';
 
 import {updatePrFilesPage} from './files-page';
 import {updateMergeBox} from './conversation-page';
+import * as debugPanel from './debug-panel';
 
 import './decorator.css';
 
 let incrementUpdateCount = () => {};
 let initDebugPanel = () => {};
 
-// Only import debug panel in development builds
+// Only use debug panel in development builds
 if (__DEBUG__) {
-  const debugPanel = await import('./debug-panel');
   incrementUpdateCount = debugPanel.incrementUpdateCount;
   initDebugPanel = debugPanel.initDebugPanel;
 }
