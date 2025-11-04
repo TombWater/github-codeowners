@@ -1,13 +1,17 @@
-# CLAUDE.md
+ CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-This is a browser extension (Chrome/Firefox) that decorates GitHub PR pages with code ownership information. The extension provides two main decorations:
+This is a browser extension (Chrome/Firefox) that decorates GitHub PR pages with code ownership information. The extension provides three main decorations:
 
 1. **File header decoration**: Adds owner labels below each file header on PR files page showing who must approve each file
 2. **Merge box decoration**: Creates an expandable "Code owners" section in the PR conversation page that groups files by owner and shows approval status
+3. **Comment decoration**: Adds visual role indicators (SVG icons) next to comment author names to show their relationship to the PR:
+   - 📄 **Pencil-on-paper icon** (blue): PR author's comments
+   - 🛡️ **Shield icon** (green): Code owner's comments (for files they own)
+   - 💡 **Lightbulb icon** (yellow): Other contributors' comments
 
 The extension works by:
 1. Fetching and parsing the repository's CODEOWNERS file from the PR's base branch
@@ -45,9 +49,10 @@ npm run zip
 ## Development Workflow
 
 - **Live Development**: Use `npm run watch` for automatic rebuilds during development
+  - ⚠️ **IMPORTANT**: User typically has `watch` running. Do NOT run build commands just to update the extension - changes are already being built automatically. Only run `npm run build` if you need to see compilation errors.
 - **Testing**: Load `build/` directory as unpacked extension in Chrome/Firefox developer mode
 - **No API Keys**: Extension works entirely through DOM scraping, no GitHub API tokens required
-- **Codebase Size**: ~1000 lines total across 6 focused modules
+- **Codebase Size**: ~2000 lines total across 7 focused modules
 - **Dependencies**: Uses lodash-es (with patches), ignore library, webpack build system
 
 ## Architecture
@@ -62,10 +67,11 @@ npm run zip
 ### Core Components
 
 **`src/decorator.js`** - Main orchestration and entry point
-- Sets up MutationObserver with debounced updates for both file page and conversation page
-- Coordinates calls to `updatePrFilesPage()` and `updateMergeBox()` functions
+- Sets up MutationObserver with debounced updates for all page decorations
+- Coordinates calls to `updatePrFilesPage()`, `updateMergeBox()`, and `updateCommentDecorations()` functions
 - Imports CSS and manages top-level extension lifecycle
-- **Clean architecture**: Very minimal orchestration layer (17 lines)
+- **Clean architecture**: Very minimal orchestration layer
+- **MutationObserver**: Watches entire `document.body` with 100ms debounce - all decoration functions must check if elements already exist to avoid infinite loops
 
 **`src/files-page.js`** - File header decoration
 - **`updatePrFilesPage()`**: Decorates file headers on PR files page with owner labels
@@ -95,7 +101,7 @@ npm run zip
 - **Drawer management**: Hover drawers showing team members using CSS anchor positioning and Popover API
 - **Label sorting**: User's own teams always appear first in label lists
 
-**`src/ownership.js`** - Data aggregation and processing
+**`src/ownership.js`** - Data aggregation and ownership checking
 - **`getPrOwnershipData()`**: Aggregates data from multiple github.js functions and processes it for UI needs
 - **`getUserLogin()`**: Extracts current user information from GitHub DOM
 - **`isOwnerOfFile()`**: Checks if commenter owns a specific file based on CODEOWNERS and team membership
@@ -109,7 +115,7 @@ npm run zip
   - `repoCacheKey()`: Cache team members per repository
   - `prBaseCacheKey()`: Cache CODEOWNERS per base branch
 - **`getIsMerged()`**: Checks merge status via DOM query (not cached - just a querySelector, exported for use in conversation-page.js)
-- **`getPrInfo()`**: Synchronously extracts owner/repo/PR number/base branch from URL and DOM (no author or merge status - lightweight)
+- **`getPrInfo()`**: Synchronously extracts owner/repo/PR number/base branch/page from URL and DOM (no author or merge status - lightweight, use for file links and URLs)
 - **`getPrAuthor()`**: Async function that extracts PR author from various DOM sources with fallbacks (cached per URL, expensive - only use when needed for comment decorations)
 - **`getDiffFilesMap()`**: Maps file path digests to paths (handles both old/new GitHub UI)
 - **`getFolderOwners()`**: Fetches CODEOWNERS from `.github/`, root, or `docs/` directory
@@ -134,6 +140,21 @@ npm run zip
   - `getSimulatedMergeState()`: Returns simulated merge state (null = use real state, true/false = simulated)
 - **Styling**: Separated into `src/debug-panel.css` with `ghco-` prefixed classes
 
+**`src/comment-decorator.js`** - Comment author role decoration
+- **`updateCommentDecorations()`**: Decorates comments, draft forms, reply buttons, and placeholders (runs all in parallel)
+- **`decorateExistingComments()`**: Adds SVG role icons next to comment author names
+- **`decorateDraftWriteTabs()`**: Adds role icon to Write tab when opening comment form (handles old/new UI)
+- **`decorateReplyButtons()`**: Adds role icon and updates button text to "Reply as {role}..."
+- **`updateDraftPlaceholderText()`**: Updates placeholder text ("Comment as owner...", "Reply as author...")
+- **`getCommenterRole()`**: Determines icon based on PR author and code ownership (file-specific or PR-level)
+- **`getCommentFilePath()`**: Extracts file context from comment DOM (supports 5 GitHub UI patterns)
+- **Icon system**: Three SVG icons (pencil-paper/blue for author, shield/green for owner, lightbulb/yellow for others)
+- **Animation**: Icons reveal via `requestAnimationFrame` after DOM insertion (0.15s ease-out transition)
+- **Race condition protection**: ⚠️ **CRITICAL - DO NOT REMOVE**
+  - `decorateExistingComments()`: Uses `data-ghcoDecorating` flag (decorates parent, can't use class on author link)
+  - Other functions: Use `.ghco-processed` class with double-check pattern (queried in selector AND checked in loop)
+  - Without these checks, MutationObserver firing during async operations causes duplicate icons
+
 ### Key Technical Details
 
 - **Pattern matching**: CODEOWNERS folder patterns are matched using `ignore` library with `.ignores()` method (matching = true means the pattern applies)
@@ -152,23 +173,29 @@ npm run zip
 - **CSSOM consolidation**: `getGithubClassNames()` closure-based caching parses all stylesheets once to find 8 GitHub CSS module patterns, eliminating repetitive CSSOM searches
 - **classList.add() safety**: Direct calls without conditionals since it silently ignores undefined/null values
 - **Debug mode**: Debug panel automatically enabled in development builds (`npm run watch`), completely excluded from production builds (`npm run build`, `npm run zip`)
+- **MutationObserver infinite loop prevention**: ⚠️ **CRITICAL** - All decoration functions MUST check if decoration already exists before adding it. The observer watches entire `document.body` with 100ms debounce - adding elements triggers observer → updateAll → adds elements → infinite loop. Check for existing decorations first.
+- **CSSOM vs CSS selectors**: Use CSSOM (`getGithubClassNames()`) only when creating new elements needing exact class names. For querying existing elements, use attribute selectors like `[class*="module-name"]` - more robust and doesn't require CSSOM parsing.
+- **Structural selectors only**: Never query by text content - use attributes, classes, and positions (`:first-of-type`) for reliable element detection across GitHub UI changes.
 
 ### CSS Architecture
-- All styles in `src/decorator.css` use `ghco-` prefix to avoid conflicts (e.g., `ghco-label`, `ghco-merge-box-container`)
-- Debug panel styles in `src/debug-panel.css` with same `ghco-` prefix convention
-- Uses CSS anchor positioning for drawer placement below labels
-- Animated hover effects with transform/opacity transitions
-- Click feedback animation on labels
-- Theming via CSS custom properties: yellow (default), red (user's teams), green (approved)
+- Styles split into feature-specific files imported by their respective modules:
+  - `src/file-labels.css` → `files-page.js` (labels, drawers, highlighting)
+  - `src/merge-box.css` → `conversation-page.js` (owner groups, file lists)
+  - `src/comments.css` → `comment-decorator.js` (icons, placeholder text)
+- All styles use `ghco-` prefix to avoid conflicts
+- CSS anchor positioning for label drawers
+- Single `--ghco-reveal-transition` variable (0.15s ease-out) for consistent animations
+- Theming via CSS custom properties: yellow (default), red (user), green (approved)
 
 ## Common Development Patterns
 
-- **File organization**: Each module has a single responsibility (orchestration, UI, data, etc.)
+- **Check → Fetch → Process**: Always check DOM state before fetching expensive data (see Performance section)
+- **File organization**: Each module has single responsibility (orchestration, UI, data)
+- **Keep it DRY**: Centralize shared logic (e.g., ownership checking in ownership.js, not duplicated)
+- **Working with DOM samples**: Ask user to capture HTML via DevTools (Copy outerHTML), store temporarily in `zz-samples/` with descriptive names, delete before merging to main
+- **Error handling**: Graceful degradation when GitHub changes DOM or CODEOWNERS is missing
+- **GitHub DOM changes**: Handle both old and new UI patterns using fallback selectors
 - **Ownership data architecture**: Ownership data flows as cohesive object rather than being destructured/reconstructed multiple times throughout call chain
-- **Error handling**: Graceful degradation when GitHub changes DOM structure or CODEOWNERS is missing
-- **Performance**: Debounced updates (100ms) and memoized caching to handle GitHub's dynamic DOM
-- **Cross-browser**: ES6 modules with webpack bundling for Chrome/Firefox compatibility
-- **GitHub DOM changes**: Code handles both old and new GitHub UI patterns using fallback selectors
 - **Function signatures**: Clean parameter patterns - minimal destructuring, pass complete objects when appropriate
 - **Style properties**: Use individual `element.style.property = value` assignments instead of `cssText` strings for clarity and maintainability
 - **Inline styles**: Avoid inline styles in JavaScript; use CSS classes and stylesheets instead for maintainability
@@ -309,3 +336,4 @@ const decorateComments = async () => {
 - Filter out already-decorated elements before processing
 - Use synchronous cache keys (don't call async functions in memoize key functions)
 - Skip sticky headers (`.sticky-file-header`) - they lack path data and cause false positives
+

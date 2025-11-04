@@ -2,7 +2,7 @@ import {getPrOwnershipData} from './ownership';
 import {createOwnerLabels, clearHighlightedOwner} from './labels';
 import * as github from './github';
 
-let headersCache = new WeakSet();
+import './file-labels.css';
 
 const getFileHeadersForDecoration = () => {
   const selectors = [
@@ -12,10 +12,25 @@ const getFileHeadersForDecoration = () => {
     'div[class^="Diff-module__diffHeaderWrapper"]',
   ];
   const fileHeaders = document.querySelectorAll(selectors.join(', '));
-  const newHeaders = Array.from(fileHeaders).filter(
-    (node) => !headersCache.has(node)
-  );
-  headersCache = new WeakSet(fileHeaders);
+
+  // Only return headers that don't already have our decoration AND have the data we need
+  const newHeaders = Array.from(fileHeaders).filter((node) => {
+    // Skip if already decorated
+    if (node.parentNode?.querySelector('.ghco-decoration')) {
+      return false;
+    }
+
+    // Skip sticky headers and other headers without path data
+    // Old UI: needs data-anchor attribute
+    // New UI: needs DiffFileHeader-module__file-name link
+    const hasOldUiData = node.dataset.anchor;
+    const hasNewUiData = node.querySelector(
+      '[class^="DiffFileHeader-module__file-name"] a'
+    );
+
+    return hasOldUiData || hasNewUiData;
+  });
+
   return newHeaders;
 };
 
@@ -27,7 +42,8 @@ export const updatePrFilesPage = async () => {
   if (fileHeaders.length === 0) {
     return;
   }
-  console.log('[GHCO] Decorate PR', github.getPrInfo());
+  const prInfo = github.getPrInfo();
+  console.log('[GHCO] Decorate PR', prInfo);
 
   const ownershipData = await getPrOwnershipData();
   if (!ownershipData) {

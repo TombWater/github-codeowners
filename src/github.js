@@ -63,6 +63,71 @@ export const getIsMerged = () => {
   return isMerged;
 };
 
+// Extract PR author from various sources on the page
+export const getPrAuthor = cacheResult(urlCacheKey, async () => {
+  const isMerged = getIsMerged();
+
+  // Priority 1: React embedded data (new files page) - most reliable, includes merged PRs
+  const reactData = document.querySelector(
+    '[data-target="react-app.embeddedData"]'
+  );
+  if (reactData) {
+    try {
+      const data = JSON.parse(reactData.textContent);
+      const author = data?.payload?.pullRequest?.author?.login;
+      if (author) return author;
+    } catch (e) {
+      // Ignore parse errors, fall through to DOM selectors
+    }
+  }
+
+  // Priority 2: Timeline avatar (conversation page - both open and merged PRs)
+  const timelineAvatar = document.querySelector(
+    '.TimelineItem-avatar[href^="/"]'
+  );
+  if (timelineAvatar) {
+    const author = timelineAvatar.getAttribute('href')?.replace(/^\//, '');
+    if (author) return author;
+  }
+
+  // Priority 3: Header selectors (files/conversation pages - open/draft PRs ONLY)
+  // Skip this for merged PRs because header shows the merger (e.g. "zattoo-merge"), not the PR author
+  if (!isMerged) {
+    const authorSelectors = [
+      '.gh-header-meta .author', // Old UI
+      '[class*="PullRequestHeaderSummary"] a[data-hovercard-url*="/users/"]', // New UI
+    ];
+    for (const selector of authorSelectors) {
+      const authorEl = document.querySelector(selector);
+      if (authorEl) {
+        const author =
+          authorEl.textContent.trim() ||
+          authorEl.getAttribute('href')?.replace(/^\//, '');
+        if (author) return author;
+      }
+    }
+  }
+
+  // Fallback: If merged PR and no author found (old files page), fetch from conversation page
+  if (isMerged) {
+    const {owner, repo, num} = getPrInfo();
+    if (num) {
+      const conversationUrl = `https://github.com/${owner}/${repo}/pull/${num}`;
+      const doc = await loadPage(conversationUrl);
+      const timelineAvatar = doc?.querySelector(
+        '.TimelineItem-avatar[href^="/"]'
+      );
+      if (timelineAvatar) {
+        const author = timelineAvatar.getAttribute('href')?.replace(/^\//, '');
+        if (author) return author;
+      }
+    }
+  }
+
+  return null;
+});
+
+// Synchronous helper to extract basic PR info from URL and DOM (no author)
 export const getPrInfo = () => {
   const url = window.location.href;
   const match = url.match(
@@ -73,19 +138,11 @@ export const getPrInfo = () => {
   [, owner, repo, , num, , page] = match || {};
 
   const baseSelectors = [
-    // Old Files Changed page
     '#partial-discussion-header .base-ref',
     '#partial-discussion-header .commit-ref',
-    // New Files Changed page
     'div[class*="PageHeader-Description"] a[class*="BranchName-BranchName"]',
   ];
   const base = document.querySelector(baseSelectors.join(', '))?.textContent;
-
-  // Check if PR is merged by looking for the merged state badge in the header
-  const mergedSelectors = [
-    '#partial-discussion-header .State--merged', // Old UI (both conversation and files pages)
-    '[data-status="pullMerged"]', // New React UI (files page)
-  ];
 
   return {page, owner, repo, num, base};
 };
@@ -121,9 +178,9 @@ export const getDiffFilesMap = cacheResult(urlCacheKey, async () => {
 
   // If not on files page or no files found, fetch from files tab
   if (diffFilesMap.size === 0) {
-    const pr = getPrInfo();
-    if (pr.num) {
-      const url = `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.num}/files`;
+    const {owner, repo, num} = getPrInfo();
+    if (num) {
+      const url = `https://github.com/${owner}/${repo}/pull/${num}/files`;
       const doc = await loadPage(url);
       if (doc) {
         diffFilesMap = parseDiffFilesFromDoc(doc);
@@ -196,14 +253,14 @@ export const getReviewersFromDoc = (doc) => {
 };
 
 export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
-  const pr = getPrInfo();
-  if (!pr.num || !pr.base) {
+  const {owner, repo, num, base} = getPrInfo();
+  if (!num || !base) {
     return [];
   }
 
   const paths = ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS'];
   for (const path of paths) {
-    const url = `https://github.com/${pr.owner}/${pr.repo}/blob/${pr.base}/${path}`;
+    const url = `https://github.com/${owner}/${repo}/blob/${base}/${path}`;
     const doc = await loadPage(url);
     if (!doc) {
       continue;
@@ -250,10 +307,9 @@ const loadTeamMembers = async (org, teamSlug) => {
 export const getTeamMembers = cacheResult(
   repoCacheKey,
   async (folderOwners) => {
-    const pr = getPrInfo();
-    const {owner: org} = pr;
-    if (!org) {
-      return [];
+    const {owner: org} = getPrInfo();
+    if (!org || !folderOwners || !Array.isArray(folderOwners)) {
+      return new Map();
     }
 
     // Array of all unique owner names mentioned in CODEOWNERS file
@@ -268,15 +324,14 @@ export const getTeamMembers = cacheResult(
     );
 
     // Fetch all org teams in parallel, mapping team names to their members
-    const orgTeams = new Map(
-      await Promise.all(
-        teamNames.map(async (teamName) => {
-          const teamSlug = teamName.replace(prefix, '');
-          const members = await loadTeamMembers(org, teamSlug);
-          return [teamName, members];
-        })
-      )
+    const teamResults = await Promise.all(
+      teamNames.map(async (teamName) => {
+        const teamSlug = teamName.replace(prefix, '');
+        const members = await loadTeamMembers(org, teamSlug);
+        return [teamName, members];
+      })
     );
+    const orgTeams = new Map(teamResults);
 
     // Map owner teams to an array of members, or if not a team then a pseudo-team with just the owner
     const owners = new Map(

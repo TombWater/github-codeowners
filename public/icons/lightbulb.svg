@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Bulb group (adjust position with translate) -->
+  <g transform="translate(0, -4)">
+    <!-- Light bulb glass -->
+    <path d="M128 42 C168 42 200 74 200 114 C200 138 184 158 164 169 L160 172 L160 194 C160 200 156 204 150 204 L106 204 C100 204 96 200 96 194 L96 172 L92 169 C72 158 56 138 56 114 C56 74 88 42 128 42 Z"
+          fill="#FEF7E0"
+          stroke="#F9AB00"
+          stroke-width="10"/>
+
+    <!-- Filament (zigzag pattern) -->
+    <path d="M128 80 L118 95 L138 110 L118 125 L128 140"
+          stroke="#F9AB00"
+          stroke-width="6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          fill="none"/>
+  </g>
+
+  <!-- Light rays (positioned outside the bulb) -->
+  <line x1="128" y1="6" x2="128" y2="24" stroke="#F9AB00" stroke-width="10" stroke-linecap="round"/>
+  <line x1="22" y1="114" x2="40" y2="114" stroke="#F9AB00" stroke-width="10" stroke-linecap="round"/>
+  <line x1="234" y1="114" x2="216" y2="114" stroke="#F9AB00" stroke-width="10" stroke-linecap="round"/>
+  <line x1="47" y1="43" x2="60" y2="56" stroke="#F9AB00" stroke-width="10" stroke-linecap="round"/>
+  <line x1="209" y1="43" x2="196" y2="56" stroke="#F9AB00" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- Base screw threads -->
+  <rect x="100" y="208" width="56" height="14" rx="3" fill="#9AA0A6"/>
+  <rect x="100" y="224" width="56" height="14" rx="3" fill="#9AA0A6"/>
+
+  <!-- Bottom cap (narrower at tip) -->
+  <ellipse cx="128" cy="248" rx="21" ry="7.5" fill="#5F6368"/>
+</svg>

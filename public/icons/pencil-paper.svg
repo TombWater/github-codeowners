@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Paper/Document -->
+  <rect x="48" y="32" width="160" height="192" rx="12" fill="#E8F0FE" stroke="#1967D2" stroke-width="10"/>
+  <line x1="72" y1="80" x2="184" y2="80" stroke="#1967D2" stroke-width="10" stroke-linecap="round"/>
+  <line x1="72" y1="128" x2="184" y2="128" stroke="#1967D2" stroke-width="10" stroke-linecap="round"/>
+  <line x1="72" y1="176" x2="144" y2="176" stroke="#1967D2" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- Pencil positioned over bottom-right -->
+  <g transform="translate(210, 64) rotate(45)">
+    <!-- Pencil tip (dark graphite) at bottom -->
+    <path d="M-3 90 L24 120 L51 90 Z" fill="#5F6368"/>
+    <!-- Pencil body (orange/yellow) -->
+    <rect x="0" y="0" width="48" height="90" fill="#FBBC04" stroke="#EA8600" stroke-width="5"/>
+    <!-- Pencil eraser (pink) at top -->
+    <rect x="0" y="-14" width="48" height="28" rx="5" fill="#F28B82" stroke="#C5221F" stroke-width="5"/>
+  </g>
+</svg>
