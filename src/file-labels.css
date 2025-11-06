@@ -1,5 +1,9 @@
 /* File label decorations and highlighting */
 
+:root {
+  --ghco-label-transition: 0.15s ease-in-out;
+}
+
 .file .ghco-decoration {
   display: block;
   padding: 2px 5px;
@@ -87,7 +91,7 @@ react-app
   white-space: nowrap;
   border-radius: 9px;
   color: var(--fgColor-muted);
-  transition: transform 0.15s ease-in-out;
+  transition: transform var(--ghco-label-transition);
 }
 
 .ghco-label--clicked {

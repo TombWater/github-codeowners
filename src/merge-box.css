@@ -1,5 +1,9 @@
 /* Merge box owner groups and file lists */
 
+:root {
+  --ghco-merge-box-transition: 0.15s ease-in-out;
+}
+
 /* Add border to element before standalone section wrapper for merged PRs */
 div[class*='MergeBoxSectionHeader-module__wrapper']:has(
     + div > section.ghco-standalone-section
@@ -13,7 +17,7 @@ div[class*='MergeBoxSectionHeader-module__wrapper']:has(
 .ghco-merge-box-container {
   display: flex;
   flex-direction: column;
-  gap: var(--base-size-12, 12px);
+  gap: var(--base-size-6, 6px);
   max-height: 500px;
   overflow-y: auto;
   padding-top: var(--base-size-12, 12px);
@@ -21,7 +25,7 @@ div[class*='MergeBoxSectionHeader-module__wrapper']:has(
 }
 
 .ghco-merge-box-owner-group {
-  padding: var(--stack-padding-condensed, 8px) var(--base-size-12, 12px);
+  padding: var(--base-size-6, 6px) var(--base-size-8, 8px);
   border-radius: var(--borderRadius-medium);
   background-color: var(--bgColor-muted, var(--color-canvas-subtle));
   border: var(--borderWidth-thin) solid
@@ -29,21 +33,58 @@ div[class*='MergeBoxSectionHeader-module__wrapper']:has(
 }
 
 .ghco-merge-box-labels {
-  margin-bottom: var(--stack-gap-condensed, 8px);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--control-small-gap, 4px);
 }
 
-.ghco-file-count-container {
+.ghco-file-count-button {
   display: flex;
   align-items: center;
   gap: var(--control-small-gap, 4px);
-  padding-right: var(--base-size-8, 8px);
+  padding: var(--control-small-paddingBlock, 4px)
+    var(--control-small-paddingInline-condensed, 8px);
   margin-right: var(--control-small-gap, 4px);
+  border: none;
   border-right: var(--borderWidth-thin, 1px) solid
     var(--borderColor-default, var(--color-border-default));
+  background: transparent;
+  color: var(--fgColor-default, var(--color-fg-default));
+  cursor: pointer;
+  border-radius: var(--borderRadius-small, 4px);
+  font-family: inherit;
+  font-size: var(--text-body-size-small, 12px);
+}
+
+.ghco-file-count-button:hover {
+  background-color: var(
+    --control-transparent-bgColor-hover,
+    rgba(0, 0, 0, 0.04)
+  );
+}
+
+.ghco-file-count-button:active {
+  background-color: var(
+    --control-transparent-bgColor-active,
+    rgba(0, 0, 0, 0.08)
+  );
+}
+
+.ghco-chevron-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  transform: rotate(180deg); /* Default expanded (down) */
+  transition: transform var(--ghco-merge-box-transition);
+  color: var(--fgColor-muted, var(--color-fg-muted));
+}
+
+.ghco-chevron-wrapper svg {
+  width: 12px;
+  height: 12px;
 }
 
 .ghco-file-text {
@@ -51,11 +92,24 @@ div[class*='MergeBoxSectionHeader-module__wrapper']:has(
   color: var(--fgColor-default, var(--color-fg-default));
 }
 
-.ghco-merge-box-files-list {
+.ghco-files-wrapper {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: opacity var(--ghco-merge-box-transition);
+}
+
+.ghco-files-wrapper--expanded {
+  max-height: 30000px; /* Room for a little over 1000 files */
+  opacity: 1;
+}
+
+.ghco-files-content {
   display: flex;
   flex-direction: column;
-  gap: var(--control-small-gap, 4px);
+  gap: var(--base-size-2, 2px);
   margin-left: var(--base-size-8, 8px);
+  padding-top: var(--base-size-6, 6px);
 }
 
 .ghco-merge-box-file-link {
@@ -63,7 +117,7 @@ div[class*='MergeBoxSectionHeader-module__wrapper']:has(
   font-family: var(--fontStack-monospace);
   color: var(--fgColor-accent, var(--color-accent-fg));
   text-decoration: none;
-  padding: var(--base-size-2, 2px) 0;
+  padding: var(--base-size-2, 2px) var(--base-size-4, 4px);
 }
 
 .ghco-merge-box-file-link:hover {

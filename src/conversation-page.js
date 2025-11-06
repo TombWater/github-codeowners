@@ -246,9 +246,21 @@ const getExpandStateKey = () => {
   return `${prId}:${EXPAND_STATE_KEY}`;
 };
 
-const getSavedExpandState = () => {
-  const saved = sessionStorage.getItem(getExpandStateKey()) ?? 'false';
-  return saved === 'true';
+const getDefaultExpandState = (approvalStatus, isMerged) => {
+  const saved = sessionStorage.getItem(getExpandStateKey());
+  if (saved !== null) {
+    return saved === 'true';
+  }
+
+  // Default: expanded if PR is not merged and there are still approvals required
+  if (isMerged) return false;
+
+  // Check if there are approvals still needed
+  if (approvalStatus) {
+    return approvalStatus.approvalsReceived < approvalStatus.totalApprovalsNeeded;
+  }
+
+  return false;
 };
 
 const saveExpandState = (isExpanded) => {
@@ -309,7 +321,7 @@ const createMergeBoxSectionHeader = (approvalStatus, isMerged) => {
   wrapper.appendChild(headerContent);
 
   if (isExpandable) {
-    const isExpanded = getSavedExpandState();
+    const isExpanded = getDefaultExpandState(approvalStatus, isMerged);
 
     const expandButton = document.createElement('button');
     expandButton.setAttribute('aria-label', 'Code owners');
@@ -378,7 +390,7 @@ const createMergeBoxOwnerGroupsContent = (ownerGroupsMap, ownershipData) => {
   return content;
 };
 
-const createMergeBoxSectionContent = (ownerGroupsContent) => {
+const createMergeBoxSectionContent = (ownerGroupsContent, approvalStatus, isMerged) => {
   const classNames = github.getGithubClassNames();
   const expandableWrapper = document.createElement('div');
   expandableWrapper.classList.add(classNames.expandableWrapper);
@@ -387,7 +399,7 @@ const createMergeBoxSectionContent = (ownerGroupsContent) => {
   const expandableContent = document.createElement('div');
   expandableContent.classList.add(classNames.expandableContent);
 
-  const isExpanded = getSavedExpandState();
+  const isExpanded = getDefaultExpandState(approvalStatus, isMerged);
   expandableContent.classList.toggle(classNames.expanded, isExpanded);
   expandableWrapper.classList.toggle(classNames.expanded, isExpanded);
 
@@ -438,6 +450,11 @@ const updateMergeBoxSectionWithContent = (
   // Set aria-describedby only after loading to avoid screen readers announcing the brief loading state
   section.setAttribute('aria-describedby', APPROVALS_DESCRIPTION_ID);
 
+  const approvalStatus = calculateApprovalStatus(
+    ownerGroupsMap,
+    ownershipData.ownerApprovals
+  );
+
   const existingHeader = section.querySelector(
     'div[class*="MergeBoxSectionHeader"]'
   );
@@ -446,11 +463,6 @@ const updateMergeBoxSectionWithContent = (
       'button[aria-label="Code owners"]'
     );
     existingButton?.removeEventListener('click', onClickHeader);
-
-    const approvalStatus = calculateApprovalStatus(
-      ownerGroupsMap,
-      ownershipData.ownerApprovals
-    );
 
     const oldApprovalsReceived = Number(
       existingHeader.dataset.approvalCount || 0
@@ -467,14 +479,21 @@ const updateMergeBoxSectionWithContent = (
     section.replaceChild(newHeader, existingHeader);
   }
 
-  section.querySelector('div[class*="__expandableWrapper"]')?.remove();
+  // Clean up event listeners before removing old content
+  const oldWrapper = section.querySelector('div[class*="__expandableWrapper"]');
+  if (oldWrapper) {
+    oldWrapper.querySelectorAll('.ghco-file-count-button').forEach((button) => {
+      button.removeEventListener('click', onClickFileGroupExpander);
+    });
+    oldWrapper.remove();
+  }
 
   const ownerGroupsContent = createMergeBoxOwnerGroupsContent(
     ownerGroupsMap,
     ownershipData
   );
 
-  const sectionContent = createMergeBoxSectionContent(ownerGroupsContent);
+  const sectionContent = createMergeBoxSectionContent(ownerGroupsContent, approvalStatus, isMerged);
   section.appendChild(sectionContent);
 
   console.log(
@@ -512,6 +531,53 @@ const getMergeBoxOwnerGroupPriority = (group, userTeams, ownerApprovals) => {
   return 4;
 };
 
+const onClickFileGroupExpander = (event) => {
+  const button = event.currentTarget;
+  const wasExpanded = button.getAttribute('aria-expanded') === 'true';
+  const isExpanded = !wasExpanded;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  // Option/Alt key: expand/collapse all file groups (not on our recursive call, though)
+  if (event.altKey && event.isTrusted) {
+    const section = button.closest('section[aria-label="Code owners"]');
+    const allButtons = section?.querySelectorAll('.ghco-file-count-button');
+
+    allButtons?.forEach((btn) => {
+      const btnExpanded = btn.getAttribute('aria-expanded') === 'true';
+      if (btnExpanded !== isExpanded) btn.click();
+    });
+    return; // Don't toggle the clicked button again - already handled in loop
+  }
+
+  button.setAttribute('aria-expanded', isExpanded.toString());
+
+  const fileCount = button.querySelector('.Counter')?.textContent || '0';
+  const fileWord = fileCount === '1' ? 'file' : 'files';
+  button.setAttribute(
+    'aria-label',
+    `${
+      isExpanded ? 'Collapse' : 'Expand'
+    } ${fileCount} ${fileWord} for this owner group`
+  );
+
+  const chevronWrapper = button.querySelector('.ghco-chevron-wrapper');
+  if (chevronWrapper) {
+    chevronWrapper.style.transform = `rotate(${isExpanded ? 180 : 90}deg)`;
+  }
+
+  const wrapper = button
+    .closest('.ghco-merge-box-owner-group')
+    ?.querySelector('.ghco-files-wrapper');
+  const content = wrapper?.querySelector('.ghco-files-content');
+
+  if (wrapper && content) {
+    wrapper.classList.toggle('ghco-files-wrapper--expanded', isExpanded);
+    content.classList.toggle('ghco-files-content--expanded', isExpanded);
+  }
+};
+
 const createMergeBoxOwnerGroup = ({owners, paths, digests, ownershipData}) => {
   const listDiv = document.createElement('div');
   listDiv.classList.add('ghco-merge-box-owner-group');
@@ -519,20 +585,36 @@ const createMergeBoxOwnerGroup = ({owners, paths, digests, ownershipData}) => {
   const labelsDiv = document.createElement('div');
   labelsDiv.classList.add('ghco-merge-box-labels');
 
-  const fileCountContainer = document.createElement('span');
-  fileCountContainer.classList.add('ghco-file-count-container');
+  const fileWord = paths.length === 1 ? 'file' : 'files';
+
+  // Create expander button for file list (default collapsed)
+  const fileCountButton = document.createElement('button');
+  fileCountButton.type = 'button';
+  fileCountButton.classList.add('ghco-file-count-button');
+  fileCountButton.setAttribute('aria-expanded', 'false');
+  fileCountButton.setAttribute(
+    'aria-label',
+    `Expand ${paths.length} ${fileWord} for this owner group`
+  );
+  fileCountButton.addEventListener('click', onClickFileGroupExpander);
+
+  const chevronWrapper = document.createElement('span');
+  chevronWrapper.classList.add('ghco-chevron-wrapper');
+  chevronWrapper.style.transform = 'rotate(90deg)'; // Default collapsed (pointing right)
+  chevronWrapper.innerHTML = chevronUpSvg;
+  fileCountButton.appendChild(chevronWrapper);
 
   const fileCount = document.createElement('span');
   fileCount.classList.add('Counter');
   fileCount.textContent = paths.length;
-  fileCountContainer.appendChild(fileCount);
+  fileCountButton.appendChild(fileCount);
 
   const fileText = document.createElement('span');
   fileText.classList.add('ghco-file-text');
-  fileText.textContent = paths.length === 1 ? 'file' : 'files';
-  fileCountContainer.appendChild(fileText);
+  fileText.textContent = fileWord;
+  fileCountButton.appendChild(fileText);
 
-  labelsDiv.appendChild(fileCountContainer);
+  labelsDiv.appendChild(fileCountButton);
 
   const labels = createOwnerLabels({
     owners,
@@ -543,8 +625,12 @@ const createMergeBoxOwnerGroup = ({owners, paths, digests, ownershipData}) => {
 
   listDiv.appendChild(labelsDiv);
 
-  const filesDiv = document.createElement('div');
-  filesDiv.classList.add('ghco-merge-box-files-list');
+  // Wrap file list in expandable structure (default collapsed)
+  const filesWrapper = document.createElement('div');
+  filesWrapper.classList.add('ghco-files-wrapper');
+
+  const filesContent = document.createElement('div');
+  filesContent.classList.add('ghco-files-content');
 
   // Get PR info synchronously from the URL for file links
   const {owner, repo, num} = github.getPrInfo();
@@ -554,9 +640,10 @@ const createMergeBoxOwnerGroup = ({owners, paths, digests, ownershipData}) => {
     fileLink.href = `https://github.com/${owner}/${repo}/pull/${num}/files#diff-${digests[index]}`;
     fileLink.textContent = path;
     fileLink.classList.add('ghco-merge-box-file-link');
-    filesDiv.appendChild(fileLink);
+    filesContent.appendChild(fileLink);
   });
 
-  listDiv.appendChild(filesDiv);
+  filesWrapper.appendChild(filesContent);
+  listDiv.appendChild(filesWrapper);
   return listDiv;
 };

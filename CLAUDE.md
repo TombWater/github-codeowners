@@ -84,15 +84,18 @@ npm run zip
 - **`updateMergeBox()`**: Creates expandable "Code owners" section in PR conversation merge box
 - **`findSectionPosition()`**: Determines correct insertion point for section based on merge box structure
 - **`ensureCorrectPosition()`**: Checks and repositions section when merge box structure changes (handles GitHub React app updates)
+- **`onClickFileGroupExpander()`**: Handles collapsible file list button clicks with Alt-click to expand/collapse all groups
 - **Live updates**: Tracks approval state in `section.dataset.state` for automatic updates when approvals change
 - **State management**: Compares old vs new state (merge status + approvers) to determine if update needed
 - **Smart repositioning**: Only recreates section when merge status changes, updates in-place for approval changes
 - **Section positioning**: Places section after "Pull request successfully merged" message on merged PRs, or after Reviews section on open PRs
 - **Groups files by owner**: Shows owner groups with file lists and approval status
+- **Collapsible file lists**: Default expanded with chevron button (right when collapsed, down when expanded), Alt/Option-click expands/collapses all groups
 - **Progressive loading**: Shows loading state immediately, then populates with data
 - **Expandable UI**: Uses GitHub's native expandable section styling with CSSOM-based class detection
 - **Priority sorting**: Owner groups sorted by user relevance (user-only → user co-owners → approved → others)
 - **Performance**: Early returns when section already up-to-date, avoiding unnecessary data fetches
+- **Click handling pattern**: Uses `event.isTrusted` to distinguish user clicks from programmatic `.click()` calls, enabling Alt-click bulk operations without recursion
 
 **`src/labels.js`** - Owner label creation and interaction
 - **`createOwnerLabels()`**: Creates owner labels with approval status indicators (✓ for approved, ★/☆ for user's teams)
@@ -164,9 +167,13 @@ npm run zip
 - **Merge box priority**: Owner groups sorted by user relevance (user-only owners → user co-owners → user approved → others needing approval → others approved)
 - **Live updates**: Merge box section tracks state (merge status + approvers) in data attribute and updates automatically when approvals change
 - **Auto-collapse behavior**: Section automatically collapses when PR gets merged or when the last required approval is received (but not on additional redundant approvals)
-- **Expand state persistence**: User's manual expand/collapse preference saved to sessionStorage
+- **Section expand state**: Defaults to expanded when PR is not merged AND approvals are still needed; user's manual expand/collapse preference saved to sessionStorage takes precedence
+- **File group expand state**: Defaults to collapsed (chevron at 90° pointing right); expands to 180° (pointing down) when clicked
 - **Smart repositioning**: `ensureCorrectPosition()` checks section position on every update to handle GitHub React app dynamically changing merge box structure
 - **State-based updates**: Only fetches data when state changes or section lacks content, avoiding expensive operations on every mutation
+- **Collapsible file lists**: Each owner group has expandable file list with chevron button (default collapsed), Alt/Option-click expands/collapses all groups simultaneously
+- **File list animations**: Opacity-only transition (no max-height animation) to avoid timing issues with variable content heights, max-height set to 30000px (~1000 files)
+- **Event listener cleanup**: Removes click handlers before recreating DOM elements to prevent memory leaks
 - **Shared label creation**: `createOwnerLabels()` is used by both file header and merge box decorations with consistent `{owners, ownershipData}` interface
 - **Data orchestration**: `getPrOwnershipData()` in ownership.js aggregates data from multiple github.js functions and processes it for UI needs
 - **Ownership data flow**: Complete ownership objects passed through call chain to avoid repetitive destructuring and reconstruction
@@ -178,15 +185,19 @@ npm run zip
 - **MutationObserver infinite loop prevention**: ⚠️ **CRITICAL** - All decoration functions MUST check if decoration already exists before adding it. The observer watches entire `document.body` with 100ms debounce - adding elements triggers observer → updateAll → adds elements → infinite loop. Check for existing decorations first.
 - **CSSOM vs CSS selectors**: Use CSSOM (`getGithubClassNames()`) only when creating new elements needing exact class names. For querying existing elements, use attribute selectors like `[class*="module-name"]` - more robust and doesn't require CSSOM parsing.
 - **Structural selectors only**: Never query by text content - use attributes, classes, and positions (`:first-of-type`) for reliable element detection across GitHub UI changes.
+- **State derivation**: ⚠️ **CRITICAL** - Never derive state from DOM text content (e.g., parsing "2 of 3 approvals"). Always pass state as function parameters from the source data (`approvalStatus`, `isMerged`). Text content is for display only, not a source of truth.
 
 ### CSS Architecture
 - Styles split into feature-specific files imported by their respective modules:
   - `src/file-labels.css` → `files-page.js` (labels, drawers, highlighting)
-  - `src/merge-box.css` → `conversation-page.js` (owner groups, file lists)
+  - `src/merge-box.css` → `conversation-page.js` (owner groups, file lists, collapsible file groups)
   - `src/comments.css` → `comment-decorator.js` (icons, placeholder text)
 - All styles use `ghco-` prefix to avoid conflicts
 - CSS anchor positioning for label drawers
-- Single `--ghco-reveal-transition` variable (0.15s ease-out) for consistent animations
+- CSS custom properties for module-specific transitions:
+  - `--ghco-label-transition: 0.15s ease-in-out` (label click scale animation)
+  - `--ghco-merge-box-transition: 0.15s ease-in-out` (file group collapse/expand, chevron rotation)
+  - `--ghco-comment-icon-transition: 0.15s ease-out` (icon reveal animations)
 - Theming via CSS custom properties: yellow (default), red (user), green (approved)
 
 ## Common Development Patterns
@@ -248,12 +259,15 @@ npm run zip
 
 - Styles split into feature-specific files imported by their respective modules:
   - `src/file-labels.css` → `files-page.js` (labels, drawers, highlighting)
-  - `src/merge-box.css` → `conversation-page.js` (owner groups, file lists)
+  - `src/merge-box.css` → `conversation-page.js` (owner groups, collapsible file lists)
   - `src/comments.css` → `comment-decorator.js` (icons, placeholder text)
   - `src/debug-panel.css` → `debug-panel.js` (debug UI)
 - All styles use `ghco-` prefix to avoid conflicts
 - CSS anchor positioning for label drawers
-- Single `--ghco-reveal-transition` variable (0.15s ease-out) for consistent animations
+- CSS custom properties for module-specific transitions:
+  - `--ghco-label-transition: 0.15s ease-in-out` (label click scale animation)
+  - `--ghco-merge-box-transition: 0.15s ease-in-out` (file group collapse/expand, chevron rotation)
+  - `--ghco-comment-icon-transition: 0.15s ease-out` (icon reveal animations)
 - Theming via CSS custom properties: yellow (default), red (user), green (approved)
 
 **Sizing Philosophy:**
@@ -276,7 +290,6 @@ npm run zip
 
 ## Known Issues and Future Work
 
-- ⚠️ **Merge box UX**: File lists too long, need collapsible sections
 - ⚠️ **Accessibility gaps**: Missing `aria-label` on owner label buttons, non-standard `role="drawer"` on hover drawers
 - ⚠️ Test performance with 100+ comment PRs
 

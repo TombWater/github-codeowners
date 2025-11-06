@@ -2,7 +2,7 @@
 
 /* Global custom properties */
 :root {
-  --ghco-reveal-transition: 0.15s ease-out;
+  --ghco-comment-icon-transition: 0.15s ease-out;
 }
 
 .ghco-comment-role-icon {
@@ -14,8 +14,8 @@
   margin-bottom: 2px;
   width: 16px;
   overflow: hidden;
-  transition: width var(--ghco-reveal-transition),
-    margin-right var(--ghco-reveal-transition);
+  transition: width var(--ghco-comment-icon-transition),
+    margin-right var(--ghco-comment-icon-transition);
 }
 
 .ghco-comment-role-icon.ghco-icon-hidden {
@@ -29,7 +29,7 @@
   width: 16px;
   height: 16px;
   transform: scale(1);
-  transition: transform var(--ghco-reveal-transition);
+  transition: transform var(--ghco-comment-icon-transition);
 }
 
 .ghco-comment-role-icon.ghco-icon-hidden svg {
@@ -45,7 +45,7 @@ textarea.CommentBox-input::placeholder,
 button[class*='CompactCommentButton'],
 textarea[class*='prc-Textarea']::placeholder {
   color: transparent !important;
-  transition: color var(--ghco-reveal-transition);
+  transition: color var(--ghco-comment-icon-transition);
 }
 
 /* Reveal placeholder after JS updates it with role */
