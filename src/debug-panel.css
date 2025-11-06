@@ -1,24 +1,25 @@
 #ghco-debug-panel {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: var(--base-size-20, 20px);
+  right: var(--base-size-20, 20px);
   background: #ffffff;
-  border: 2px solid #d0d7de;
-  padding: 12px;
+  border: var(--borderWidth-thick, 2px) solid #d0d7de;
+  padding: var(--base-size-12, 12px);
   z-index: 10000;
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 12px;
+  border-radius: var(--borderRadius-medium, 6px);
+  box-shadow: 0 var(--base-size-8, 8px) var(--base-size-24, 24px)
+    rgba(140, 149, 159, 0.2);
+  font-family: var(--fontStack-system);
+  font-size: var(--text-body-size-small, 12px);
   max-width: 300px;
   color: #24292f;
 }
 
 #ghco-debug-panel .ghco-debug-header {
   font-weight: 600;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #d0d7de;
+  margin-bottom: var(--base-size-12, 12px);
+  padding-bottom: var(--base-size-8, 8px);
+  border-bottom: var(--borderWidth-thin, 1px) solid #d0d7de;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -39,15 +40,15 @@
 }
 
 #ghco-debug-panel .ghco-debug-stats {
-  margin-bottom: 12px;
-  padding: 8px;
+  margin-bottom: var(--base-size-12, 12px);
+  padding: var(--base-size-8, 8px);
   background: #f6f8fa;
-  border-radius: 4px;
+  border-radius: var(--borderRadius-small, 4px);
   font-size: 11px;
 }
 
 #ghco-debug-panel .ghco-debug-stats > div {
-  margin-bottom: 4px;
+  margin-bottom: var(--control-small-gap, 4px);
 }
 
 #ghco-debug-panel .ghco-debug-stats > div:last-child {
@@ -55,23 +56,23 @@
 }
 
 #ghco-debug-panel .ghco-debug-stats code {
-  font-family: ui-monospace, monospace;
+  font-family: var(--fontStack-monospace);
   font-size: 10px;
   background: #ffffff;
-  padding: 2px 4px;
-  border-radius: 3px;
+  padding: var(--base-size-2, 2px) var(--control-small-gap, 4px);
+  border-radius: var(--borderRadius-small, 3px);
 }
 
 #ghco-debug-panel button {
   display: block;
   width: 100%;
-  margin-bottom: 6px;
-  padding: 6px 12px;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
+  margin-bottom: var(--base-size-6, 6px);
+  padding: var(--base-size-6, 6px) var(--base-size-12, 12px);
+  border: var(--borderWidth-thin, 1px) solid #d0d7de;
+  border-radius: var(--borderRadius-medium, 6px);
   background: #f6f8fa;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-body-size-small, 12px);
   text-align: left;
   transition: background 0.1s;
   font-family: inherit;
@@ -101,16 +102,17 @@
   left: 50%;
   transform: translate(-50%, -50%);
   background: #ffffff;
-  border: 2px solid #d0d7de;
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(140, 149, 159, 0.4);
+  border: var(--borderWidth-thick, 2px) solid #d0d7de;
+  border-radius: var(--borderRadius-medium, 6px);
+  box-shadow: 0 var(--base-size-8, 8px) var(--base-size-24, 24px)
+    rgba(140, 149, 159, 0.4);
   z-index: 10001;
   max-width: 400px;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 12px;
+  font-family: var(--fontStack-system);
+  font-size: var(--text-body-size-small, 12px);
   color: #24292f;
 }
 
@@ -118,16 +120,17 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid #d0d7de;
+  padding: var(--stack-padding-normal, 16px);
+  border-bottom: var(--borderWidth-thin, 1px) solid #d0d7de;
   flex-shrink: 0;
   background: #ffffff;
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--borderRadius-medium, 6px) var(--borderRadius-medium, 6px)
+    0 0;
 }
 
 #ghco-approval-popup .ghco-popup-title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--text-body-size-medium, 14px);
 }
 
 #ghco-approval-popup .ghco-popup-close {
@@ -145,7 +148,7 @@
 }
 
 #ghco-approval-popup .ghco-owner-list {
-  padding: 16px;
+  padding: var(--stack-padding-normal, 16px);
   margin: 0;
   overflow-y: auto;
   flex: 1;
@@ -155,11 +158,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 8px;
-  border-radius: 4px;
-  margin-bottom: 2px;
+  padding: var(--base-size-6, 6px) var(--base-size-8, 8px);
+  border-radius: var(--borderRadius-small, 4px);
+  margin-bottom: var(--base-size-2, 2px);
   background: #f6f8fa;
-  gap: 8px;
+  gap: var(--base-size-8, 8px);
 }
 
 #ghco-approval-popup .ghco-owner-item:hover {
@@ -167,22 +170,22 @@
 }
 
 #ghco-approval-popup .ghco-owner-name {
-  font-family: ui-monospace, monospace;
-  font-size: 12px;
+  font-family: var(--fontStack-monospace);
+  font-size: var(--text-body-size-small, 12px);
   flex: 1;
 }
 
 #ghco-approval-popup .ghco-team-header {
   font-weight: 600;
-  margin-top: 12px;
-  margin-bottom: 6px;
-  font-size: 13px;
+  margin-top: var(--base-size-12, 12px);
+  margin-bottom: var(--base-size-6, 6px);
+  font-size: var(--text-body-size-medium, 13px);
   color: #24292f;
 }
 
 #ghco-approval-popup .ghco-approval-checkbox {
-  width: 16px;
-  height: 16px;
+  width: var(--base-size-16, 16px);
+  height: var(--base-size-16, 16px);
   cursor: pointer;
   accent-color: #2da44e;
 }

@@ -256,12 +256,29 @@ npm run zip
 - Single `--ghco-reveal-transition` variable (0.15s ease-out) for consistent animations
 - Theming via CSS custom properties: yellow (default), red (user), green (approved)
 
+**Sizing Philosophy:**
+- **Fixed px values** for self-contained UI components:
+  - Labels: `12px` font, `18px` line-height, `9px` border-radius, `5px` padding (intentionally fixed for consistent appearance)
+  - Drawer: `4px 12px 8px` padding, `9px` border-radius (matches label exactly for seamless connection)
+  - Icons: `16px` size, `2px` alignment margin (fixed component sizing)
+  - Decoration containers: `2px/3px/5px` padding variations (minimal chrome, matched to label sizing)
+- **GitHub design system vars** for responsive layouts:
+  - All spacing in merge box and conversation page (gap, padding, margin)
+  - Border widths: `var(--borderWidth-thin, 1px)`
+  - Inter-element spacing: `var(--control-small-gap, 4px)` for gaps between components
+  - Typography in non-label contexts: `var(--text-body-size-small, 12px)`, etc.
+- **Functional constraints** use fixed px:
+  - `max-height: 500px` (scroll containers)
+  - `max-width: 300px/400px` (debug panel sizing)
+  - Small debug font sizes: `10px`, `11px` (dense information display)
+- **Layout contexts**: Labels get `margin-right` only in file headers (block layout), not in merge box (uses flex `gap`)
+- **JS coordination**: JavaScript value `9` in `labels.js` drawer corner rounding must match CSS `border-radius: 9px` (documented with inline comment)
+
 ## Known Issues and Future Work
 
 - ⚠️ **Merge box UX**: File lists too long, need collapsible sections
 - ⚠️ **Accessibility gaps**: Missing `aria-label` on owner label buttons, non-standard `role="drawer"` on hover drawers
 - ⚠️ Test performance with 100+ comment PRs
-- ⚠️ Use GitHub design system variables instead of hardcoded px values
 
 ---
 

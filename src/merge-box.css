@@ -6,22 +6,22 @@ div[class*='MergeBoxSectionHeader-module__wrapper']:has(
   ) {
   border-bottom: var(--borderWidth-thin, 1px) solid
     var(--borderColor-default, var(--color-border-default));
-  padding-bottom: 16px;
+  padding-bottom: var(--stack-gap-normal, 16px);
 }
 
 /* Merge box owner groups container */
 .ghco-merge-box-container {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--base-size-12, 12px);
   max-height: 500px;
   overflow-y: auto;
-  padding-top: 12px;
+  padding-top: var(--base-size-12, 12px);
   background-color: var(--bgColor-muted, var(--color-canvas-subtle));
 }
 
 .ghco-merge-box-owner-group {
-  padding: 8px 12px;
+  padding: var(--stack-padding-condensed, 8px) var(--base-size-12, 12px);
   border-radius: var(--borderRadius-medium);
   background-color: var(--bgColor-muted, var(--color-canvas-subtle));
   border: var(--borderWidth-thin) solid
@@ -29,42 +29,41 @@ div[class*='MergeBoxSectionHeader-module__wrapper']:has(
 }
 
 .ghco-merge-box-labels {
-  margin-bottom: 8px;
+  margin-bottom: var(--stack-gap-condensed, 8px);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: var(--control-small-gap, 4px);
 }
 
 .ghco-file-count-container {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding-right: 8px;
-  margin-right: 4px;
-  border-right: 1px solid
+  gap: var(--control-small-gap, 4px);
+  padding-right: var(--base-size-8, 8px);
+  margin-right: var(--control-small-gap, 4px);
+  border-right: var(--borderWidth-thin, 1px) solid
     var(--borderColor-default, var(--color-border-default));
 }
 
 .ghco-file-text {
-  font-size: 12px;
+  font-size: var(--text-body-size-small, 12px);
   color: var(--fgColor-default, var(--color-fg-default));
 }
 
 .ghco-merge-box-files-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-left: 8px;
+  gap: var(--control-small-gap, 4px);
+  margin-left: var(--base-size-8, 8px);
 }
 
 .ghco-merge-box-file-link {
-  font-size: 12px;
-  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas,
-    Liberation Mono, monospace;
+  font-size: var(--text-body-size-small, 12px);
+  font-family: var(--fontStack-monospace);
   color: var(--fgColor-accent, var(--color-accent-fg));
   text-decoration: none;
-  padding: 2px 0;
+  padding: var(--base-size-2, 2px) 0;
 }
 
 .ghco-merge-box-file-link:hover {

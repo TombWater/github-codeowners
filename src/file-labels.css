@@ -9,6 +9,10 @@
   color: var(--fgColor-muted, var(--color-fg-muted));
 }
 
+.file .ghco-decoration .ghco-label {
+  margin-right: var(--control-small-gap, 4px);
+}
+
 .file:not(.open) .ghco-decoration {
   border-top: var(--borderWidth-thin) solid
     var(--borderColor-default, var(--color-border-default));
@@ -25,6 +29,10 @@ react-app .ghco-decoration {
   color: var(--fgColor-muted, var(--color-fg-muted));
   border-top: 0;
   border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
+}
+
+react-app .ghco-decoration .ghco-label {
+  margin-right: var(--control-small-gap, 4px);
 }
 
 react-app .ghco-decoration:has(+ div) {
@@ -72,7 +80,6 @@ react-app
 
 .ghco-label {
   display: inline-block;
-  margin-right: 5px;
   padding: 0 5px;
   font-size: 12px;
   font-weight: var(--base-text-weight-medium, 500);
@@ -99,11 +106,11 @@ react-app
   left: anchor(left);
   min-width: calc(anchor-size(width));
   width: max-content;
-  padding: 0.25em 0.75em 0.5em 0.75em;
+  padding: 4px 12px 8px;
   margin: 0;
 
   /* Themed background color */
-  border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
+  border-radius: 0 0 9px 9px;
   background-clip: padding-box, border-box; /* Ensures solid background behind themed one */
   background-origin: padding-box, border-box;
 
@@ -111,7 +118,7 @@ react-app
   color: var(--fgColor-muted);
   font-size: 12px;
   font-weight: var(--base-text-weight-medium, 500);
-  line-height: 18px;
+  line-height: var(--text-body-lineHeight-small, 1.6666);
   text-align: left;
   white-space: pre;
   -webkit-font-smoothing: subpixel-antialiased;
@@ -136,7 +143,7 @@ react-app
 /* Apply variables to the label and drawer */
 .ghco-label,
 .ghco-label + .ghco-drawer {
-  border-width: 1px;
+  border-width: var(--borderWidth-thin, 1px);
   border-style: solid;
   background-color: var(--ghco-label-bgColor);
   border-color: var(--ghco-label-borderColor);

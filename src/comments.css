@@ -10,7 +10,7 @@
   vertical-align: middle;
   line-height: 1;
   user-select: none;
-  margin-right: 4px;
+  margin-right: var(--control-small-gap, 4px);
   margin-bottom: 2px;
   width: 16px;
   overflow: hidden;

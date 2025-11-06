@@ -121,7 +121,7 @@ const createLabel = (owner, {user, userOwns, approved, members, reviewers}) => {
           // If drawer is wider than label, make the overhanging corner round
           drawer.style.borderTopRightRadius = `${Math.min(
             drawerWidth - labelWidth,
-            9
+            9 // matches .ghco-label border-radius in CSS
           )}px`;
         }
 
