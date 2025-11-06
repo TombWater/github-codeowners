@@ -37,35 +37,16 @@ const loadPage = async (url) => {
   return doc;
 };
 
-export const getPrInfo = () => {
-  const url = window.location.href;
-  const match = url.match(
-    /github\.com\/([^/]+)\/([^/]+)(\/pull\/(\d+)(\/([^/]+))?)?/
-  );
-
-  let owner, repo, num, page;
-  [, owner, repo, , num, , page] = match || {};
-
-  const selectors = [
-    // Old Files Changed page
-    '#partial-discussion-header .base-ref',
-    '#partial-discussion-header .commit-ref',
-    // New Files Changed page
-    'div[class*="PageHeader-Description"] a[class*="BranchName-BranchName"]',
-  ];
-  const base = document.querySelector(selectors.join(', '))?.textContent;
-
-  // Check if PR is merged by looking for the merged state badge in the header
+export const getIsMerged = () => {
   const mergedSelectors = [
-    '#partial-discussion-header .State--merged', // Old UI (both conversation and files pages)
-    '[data-status="pullMerged"]', // New React UI (files page)
+    '#partial-discussion-header .State--merged',
+    '[data-status="pullMerged"]',
   ];
   let isMerged = Boolean(document.querySelector(mergedSelectors.join(', ')));
 
   // Apply simulated merge state if in debug mode
   if (__DEBUG__) {
     try {
-      // Use dynamic import to avoid circular dependency
       const debugPanel = window.__ghcoDebugPanel;
       if (debugPanel?.getSimulatedMergeState) {
         const simulatedState = debugPanel.getSimulatedMergeState();
@@ -78,7 +59,35 @@ export const getPrInfo = () => {
     }
   }
 
-  return {page, owner, repo, num, base, isMerged};
+  console.log('[GHCO] isMerged:', isMerged);
+  return isMerged;
+};
+
+export const getPrInfo = () => {
+  const url = window.location.href;
+  const match = url.match(
+    /github\.com\/([^/]+)\/([^/]+)(\/pull\/(\d+)(\/([^/]+))?)?/
+  );
+
+  let owner, repo, num, page;
+  [, owner, repo, , num, , page] = match || {};
+
+  const baseSelectors = [
+    // Old Files Changed page
+    '#partial-discussion-header .base-ref',
+    '#partial-discussion-header .commit-ref',
+    // New Files Changed page
+    'div[class*="PageHeader-Description"] a[class*="BranchName-BranchName"]',
+  ];
+  const base = document.querySelector(baseSelectors.join(', '))?.textContent;
+
+  // Check if PR is merged by looking for the merged state badge in the header
+  const mergedSelectors = [
+    '#partial-discussion-header .State--merged', // Old UI (both conversation and files pages)
+    '[data-status="pullMerged"]', // New React UI (files page)
+  ];
+
+  return {page, owner, repo, num, base};
 };
 
 const parseDiffFilesFromDoc = (doc) => {
@@ -126,14 +135,29 @@ export const getDiffFilesMap = cacheResult(urlCacheKey, async () => {
   return diffFilesMap;
 });
 
-export const getReviewers = cacheResult(urlCacheKey, async () => {
-  const pr = getPrInfo();
-  const url = `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.num}`;
-  const doc = await loadPage(url);
+const prConversationUrl = () => {
+  const {owner, repo, num} = getPrInfo();
+  return `https://github.com/${owner}/${repo}/pull/${num}`;
+};
+
+const loadConversationPage = cacheResult(urlCacheKey, () =>
+  loadPage(prConversationUrl())
+);
+
+export const getReviewers = async () => {
+  const url = prConversationUrl();
+  if (window.location.pathname === new URL(url).pathname) {
+    return getReviewersFromDoc(document);
+  } else {
+    return getReviewersFromDoc(await loadConversationPage());
+  }
+};
+
+export const getReviewersFromDoc = (doc) => {
   const reviewerNodes = doc?.querySelectorAll(
     '[data-assignee-name], .js-reviewer-team'
   );
-  const reviewers = Array.from(reviewerNodes || []).reduce((acc, node) => {
+  let reviewers = Array.from(reviewerNodes || []).reduce((acc, node) => {
     const statusIcon = node.parentElement.querySelector(
       '.reviewers-status-icon'
     );
@@ -144,9 +168,32 @@ export const getReviewers = cacheResult(urlCacheKey, async () => {
     }
     return acc;
   }, new Map());
+
+  // Apply simulated approvals if in debug mode
+  if (__DEBUG__) {
+    const {getSimulatedApprovals} = window.__ghcoDebugPanel;
+    const simulatedApprovals = getSimulatedApprovals();
+
+    if (simulatedApprovals.size > 0) {
+      console.log(
+        '[GHCO] Applying simulated approvals:',
+        Array.from(simulatedApprovals.entries())
+      );
+
+      // Create a new reviewers map with simulated approvals applied
+      const modifiedReviewers = new Map(reviewers);
+
+      for (const [owner, approved] of simulatedApprovals.entries()) {
+        modifiedReviewers.set(owner, approved);
+      }
+
+      reviewers = modifiedReviewers;
+    }
+  }
+
   console.log('[GHCO] Reviewers', reviewers);
   return reviewers;
-});
+};
 
 export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
   const pr = getPrInfo();
