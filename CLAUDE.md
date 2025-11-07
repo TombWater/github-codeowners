@@ -345,6 +345,12 @@ npm run zip
 - **Working with DOM samples**: Ask user to capture HTML via DevTools (Copy outerHTML), store temporarily in `zz-samples/` with descriptive names, delete before merging to main
 - **Error handling**: Graceful degradation when GitHub changes DOM or CODEOWNERS is missing
 - **GitHub DOM changes**: Handle both old and new UI patterns using fallback selectors
+- **Logging philosophy**: Keep console quiet in production. Only log:
+  - External data sources that are hard to reproduce (CODEOWNERS parsing, team membership from GitHub)
+  - Debug panel operations (guarded by `__DEBUG__` flag, dev builds only)
+  - Build tool output (pack.js)
+  - Remove operational/progress logs ("Decorating X items", "Section up to date") - noisy and not helpful for debugging real issues
+  - Use `[GHCO]` prefix for runtime logs, `[GHCO Debug]` for debug panel logs
 
 ## Performance Optimization Patterns
 

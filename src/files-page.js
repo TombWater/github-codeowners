@@ -43,7 +43,6 @@ export const updatePrFilesPage = async () => {
     return;
   }
   const prInfo = github.getPrInfo();
-  console.log('[GHCO] Decorate PR', prInfo);
 
   const ownershipData = await getPrOwnershipData();
   if (!ownershipData) {
@@ -58,7 +57,6 @@ export const updatePrFilesPage = async () => {
   // Clear highlighted owner
   clearHighlightedOwner();
 
-  console.log(`[GHCO] Decorating ${fileHeaders.length} file headers`);
   fileHeaders.forEach((node) =>
     decorateFileHeader(node, {
       folderOwners,

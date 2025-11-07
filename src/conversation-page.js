@@ -34,7 +34,6 @@ const createOwnerGroupsMap = (diffFilesMap, folderOwners) => {
 export const updateMergeBox = async () => {
   const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
   if (!mergeBox) {
-    console.log('[GHCO] No merge box found, skipping update');
     return;
   }
 
@@ -73,10 +72,8 @@ export const updateMergeBox = async () => {
 
   // Create section if it doesn't exist
   if (!section) {
-    console.log('[GHCO] Creating merge box section', github.getPrInfo());
     section = createLoadingMergeBoxSection(container, isMerged);
     if (!section) {
-      console.log('[GHCO] Failed to create merge box section');
       return;
     }
   } else {
@@ -90,11 +87,10 @@ export const updateMergeBox = async () => {
   // If state hasn't changed and section has content, we're done (fast path!)
   const hasContent = section.querySelector('div[class*="__expandableWrapper"]');
   if (oldState === newState && hasContent) {
-    console.log('[GHCO] Section already up to date');
     return;
   }
 
-  // State changed - fetch ownership data and update section content
+  // Fetch ownership data and update section content
   const [ownershipData, diffFilesMap] = await Promise.all([
     getPrOwnershipData(),
     github.getDiffFilesMap(),
@@ -495,12 +491,6 @@ const updateMergeBoxSectionWithContent = (
 
   const sectionContent = createMergeBoxSectionContent(ownerGroupsContent, approvalStatus, isMerged);
   section.appendChild(sectionContent);
-
-  console.log(
-    '[GHCO] Updated merge box section with content:',
-    ownerGroupsMap.size,
-    'groups'
-  );
 };
 
 const getMergeBoxOwnerGroupPriority = (group, userTeams, ownerApprovals) => {

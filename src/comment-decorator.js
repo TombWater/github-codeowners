@@ -196,8 +196,6 @@ const decorateExistingComments = async () => {
   }
   const {num: prNum} = github.getPrInfo();
 
-  console.log(`[GHCO] Decorating ${undecorated.length} comments`);
-
   // Batch process all icons so we can trigger animations together
   const iconsToAnimate = [];
 
@@ -265,8 +263,6 @@ const decorateDraftWriteTabs = async () => {
   if (!ownershipData || !prAuthor) return;
   const {num: prNum} = github.getPrInfo();
 
-  console.log(`[GHCO] Decorating ${allWriteTabs.length} Write tabs`);
-
   undecorated.forEach((writeTab) => {
     // Double-check: icon might have been added since query (race condition protection)
     if (writeTab.querySelector('.ghco-comment-role-icon')) {
@@ -313,8 +309,6 @@ const decorateReplyButtons = async () => {
   ]);
   if (!ownershipData || !prAuthor) return;
   const {num: prNum} = github.getPrInfo();
-
-  console.log(`[GHCO] Decorating ${replyButtons.length} reply buttons`);
 
   replyButtons.forEach((button) => {
     if (button.classList.contains('ghco-processed')) {
@@ -399,9 +393,6 @@ const updateDraftPlaceholderText = async () => {
     '.CommentBox-placeholder:not(.ghco-processed)'
   );
   if (placeholders.length > 0) {
-    console.log(
-      `[GHCO] Updating ${placeholders.length} CommentBox placeholders`
-    );
     placeholders.forEach((placeholder) => {
       const textarea = placeholder.parentElement?.querySelector('textarea');
       if (!textarea) return;
@@ -424,7 +415,6 @@ const updateDraftPlaceholderText = async () => {
       textarea.placeholder.includes('Reply')
   );
   if (textareas.length > 0) {
-    console.log(`[GHCO] Updating ${textareas.length} textarea placeholders`);
     textareas.forEach((textarea) => {
       const filePath = getCommentFilePath(textarea);
       textarea.placeholder = getPlaceholderText(textarea, filePath);

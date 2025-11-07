@@ -59,7 +59,6 @@ export const getIsMerged = () => {
     }
   }
 
-  console.log('[GHCO] isMerged:', isMerged);
   return isMerged;
 };
 
@@ -202,7 +201,6 @@ export const getDiffFilesMap = cacheResult(urlCacheKey, async () => {
     }
   }
 
-  console.log('[GHCO] Diff files map', diffFilesMap);
   return diffFilesMap;
 });
 
@@ -266,7 +264,6 @@ export const getReviewersFromDoc = (doc) => {
     }
   }
 
-  console.log('[GHCO] Reviewers', reviewers);
   return reviewers;
 };
 
@@ -402,8 +399,6 @@ export const getGithubClassNames = (() => {
         return [key, match?.[1]];
       })
     );
-
-    console.log('[GHCO] GitHub class names:', cache);
 
     return cache;
   };
