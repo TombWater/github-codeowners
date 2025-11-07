@@ -17,8 +17,7 @@
     {
       "matches": ["https://github.com/*"],
       "run_at": "document_idle",
-      "js": ["content.js"],
-      "css": ["content.css"]
+      "js": ["content.js"]
     }
   ],
   "browser_specific_settings": {

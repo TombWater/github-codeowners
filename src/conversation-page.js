@@ -4,7 +4,11 @@ import chevronUpSvg from './chevron-up.svg';
 import {getPrOwnershipData} from './ownership';
 import {createOwnerLabels} from './labels';
 
-import './merge-box.css';
+import mergeBoxCss from './merge-box.css';
+import {injectStyles} from './inject-styles';
+
+// Inject CSS into page head for DevTools inspection
+injectStyles(mergeBoxCss, 'ghco-merge-box-styles');
 
 const createOwnerGroupsMap = (diffFilesMap, folderOwners) => {
   const ownerGroupsMap = new Map();
@@ -253,7 +257,9 @@ const getDefaultExpandState = (approvalStatus, isMerged) => {
 
   // Check if there are approvals still needed
   if (approvalStatus) {
-    return approvalStatus.approvalsReceived < approvalStatus.totalApprovalsNeeded;
+    return (
+      approvalStatus.approvalsReceived < approvalStatus.totalApprovalsNeeded
+    );
   }
 
   return false;
@@ -348,7 +354,7 @@ const createMergeBoxSectionHeader = (approvalStatus, isMerged) => {
 
 const createMergeBoxOwnerGroupsContent = (ownerGroupsMap, ownershipData) => {
   const content = document.createElement('div');
-  content.classList.add('ghco-merge-box-container', 'px-3', 'pb-3');
+  content.classList.add('ghco-merge-box-container', 'px-3');
 
   const {userTeams, ownerApprovals} = ownershipData;
 
@@ -386,7 +392,11 @@ const createMergeBoxOwnerGroupsContent = (ownerGroupsMap, ownershipData) => {
   return content;
 };
 
-const createMergeBoxSectionContent = (ownerGroupsContent, approvalStatus, isMerged) => {
+const createMergeBoxSectionContent = (
+  ownerGroupsContent,
+  approvalStatus,
+  isMerged
+) => {
   const classNames = github.getGithubClassNames();
   const expandableWrapper = document.createElement('div');
   expandableWrapper.classList.add(classNames.expandableWrapper);
@@ -489,7 +499,11 @@ const updateMergeBoxSectionWithContent = (
     ownershipData
   );
 
-  const sectionContent = createMergeBoxSectionContent(ownerGroupsContent, approvalStatus, isMerged);
+  const sectionContent = createMergeBoxSectionContent(
+    ownerGroupsContent,
+    approvalStatus,
+    isMerged
+  );
   section.appendChild(sectionContent);
 };
 
@@ -572,9 +586,6 @@ const createMergeBoxOwnerGroup = ({owners, paths, digests, ownershipData}) => {
   const listDiv = document.createElement('div');
   listDiv.classList.add('ghco-merge-box-owner-group');
 
-  const labelsDiv = document.createElement('div');
-  labelsDiv.classList.add('ghco-merge-box-labels');
-
   const fileWord = paths.length === 1 ? 'file' : 'files';
 
   // Create expander button for file list (default collapsed)
@@ -604,7 +615,10 @@ const createMergeBoxOwnerGroup = ({owners, paths, digests, ownershipData}) => {
   fileText.textContent = fileWord;
   fileCountButton.appendChild(fileText);
 
-  labelsDiv.appendChild(fileCountButton);
+  listDiv.appendChild(fileCountButton);
+
+  const labelsDiv = document.createElement('div');
+  labelsDiv.classList.add('ghco-merge-box-labels');
 
   const labels = createOwnerLabels({
     owners,

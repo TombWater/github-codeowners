@@ -1,6 +1,10 @@
 import * as github from './github';
 import {getPrOwnershipData} from './ownership';
-import './debug-panel.css';
+import debugPanelCss from './debug-panel.css';
+import {injectStyles} from './inject-styles';
+
+// Inject CSS into page head for DevTools inspection
+injectStyles(debugPanelCss, 'ghco-debug-panel-styles');
 
 let updateCount = 0;
 let lastUpdateTime = null;

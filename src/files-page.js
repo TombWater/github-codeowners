@@ -2,7 +2,11 @@ import {getPrOwnershipData} from './ownership';
 import {createOwnerLabels, clearHighlightedOwner} from './labels';
 import * as github from './github';
 
-import './file-labels.css';
+import fileLabelsCss from './file-labels.css';
+import {injectStyles} from './inject-styles';
+
+// Inject CSS into page head for DevTools inspection
+injectStyles(fileLabelsCss, 'ghco-file-labels-styles');
 
 const getFileHeadersForDecoration = () => {
   const selectors = [

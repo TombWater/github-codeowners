@@ -17,19 +17,25 @@ div[class*='MergeBoxSectionHeader-module__wrapper']:has(
 .ghco-merge-box-container {
   display: flex;
   flex-direction: column;
-  gap: var(--base-size-6, 6px);
+  gap: var(--control-small-gap, 4px);
   max-height: 500px;
   overflow-y: auto;
-  padding-top: var(--base-size-12, 12px);
+  padding: var(--base-size-6, 6px) 0 0;
   background-color: var(--bgColor-muted, var(--color-canvas-subtle));
 }
 
 .ghco-merge-box-owner-group {
-  padding: var(--base-size-6, 6px) var(--base-size-8, 8px);
-  border-radius: var(--borderRadius-medium);
-  background-color: var(--bgColor-muted, var(--color-canvas-subtle));
-  border: var(--borderWidth-thin) solid
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--control-small-gap, 4px);
+  align-items: center;
+  border-bottom: var(--borderWidth-thin, 1px) solid
     var(--borderColor-default, var(--color-border-default));
+}
+
+.ghco-merge-box-owner-group:last-child {
+  padding-bottom: var(--base-size-4, 4px);
+  border-bottom: none;
 }
 
 .ghco-merge-box-labels {
@@ -37,18 +43,21 @@ div[class*='MergeBoxSectionHeader-module__wrapper']:has(
   flex-wrap: wrap;
   align-items: center;
   gap: var(--control-small-gap, 4px);
+  padding-left: var(--base-size-8, 8px);
+  border-left: var(--borderWidth-thin, 1px) solid
+    var(--borderColor-default, var(--color-border-default));
 }
 
 .ghco-file-count-button {
   display: flex;
   align-items: center;
+  align-self: start;
+  justify-content: flex-start;
   gap: var(--control-small-gap, 4px);
   padding: var(--control-small-paddingBlock, 4px)
     var(--control-small-paddingInline-condensed, 8px);
-  margin-right: var(--control-small-gap, 4px);
+  min-width: 90px; /* Accommodate "99 files" with consistent width */
   border: none;
-  border-right: var(--borderWidth-thin, 1px) solid
-    var(--borderColor-default, var(--color-border-default));
   background: transparent;
   color: var(--fgColor-default, var(--color-fg-default));
   cursor: pointer;
@@ -93,6 +102,7 @@ div[class*='MergeBoxSectionHeader-module__wrapper']:has(
 }
 
 .ghco-files-wrapper {
+  grid-column: 1 / -1;
   overflow: hidden;
   max-height: 0;
   opacity: 0;
@@ -108,8 +118,8 @@ div[class*='MergeBoxSectionHeader-module__wrapper']:has(
   display: flex;
   flex-direction: column;
   gap: var(--base-size-2, 2px);
-  margin-left: var(--base-size-8, 8px);
-  padding-top: var(--base-size-6, 6px);
+  margin-left: var(--base-size-24, 24px);
+  margin-bottom: var(--base-size-6, 6px);
 }
 
 .ghco-merge-box-file-link {

@@ -2,7 +2,6 @@
 
 const webpack = require('webpack');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 const PATHS = require('./paths');
 
@@ -29,10 +28,10 @@ const common = (mode = 'production') => ({
   },
   module: {
     rules: [
-      // Help webpack in understanding CSS files imported in .js files
+      // Import CSS as raw string for inline injection
       {
         test: /\.css$/,
-        use: [MiniCssExtractPlugin.loader, 'css-loader'],
+        type: 'asset/source',
       },
       // Import SVG as raw string for inline use
       {
@@ -72,10 +71,7 @@ const common = (mode = 'production') => ({
         },
       ],
     }),
-    // Extract CSS into separate files
-    new MiniCssExtractPlugin({
-      filename: '[name].css',
-    }),
+    // MiniCssExtractPlugin removed - CSS now injected inline for DevTools inspection
   ],
 });
 

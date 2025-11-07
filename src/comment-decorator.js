@@ -9,7 +9,11 @@ import pencilPaperSvg from '../public/icons/pencil-paper.svg';
 import shieldSvg from '../public/icons/shield.svg';
 import lightbulbSvg from '../public/icons/lightbulb.svg';
 
-import './comments.css';
+import commentsCss from './comments.css';
+import {injectStyles} from './inject-styles';
+
+// Inject CSS into page head for DevTools inspection
+injectStyles(commentsCss, 'ghco-comments-styles');
 
 // Parse SVGs once at module load time
 const parseSvg = (svgString) => {
