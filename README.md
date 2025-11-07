@@ -12,13 +12,13 @@ GitHub Codeowners Browser Extension
 Decorate GitHub PR pages with code owner approvals needed for the changed files
 
 - Add an expandable "Code owners" section to the PR conversation page showing approvals needed
-- Decorate file headers on the Files tab with owner labels for each changed file
+- Decorate file headers on the Files tab and compare view with owner labels for each changed file
 - Owner labels of teams that you're a member of are shown in red and have a star (★)
 - Owner labels of teams that have already approved are shown in green and have a checkmark (✓)
 - The star becomes lighter in your own teams that have approved (☆)
 - Hovering on an owner label shows a drawer with the members of that team
 - Clicking an owner label highlights that owner label in all file headers
-- **[In Development]** Visual role indicators next to comment authors showing PR author, code owners, and other contributors
+- Visual role indicators next to comment authors showing PR author, code owners, and other contributors
 
 Does not require a GitHub access token
 

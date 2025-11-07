@@ -21,7 +21,7 @@ const repoCacheKey = () => {
 };
 const prBaseCacheKey = () => {
   const pr = getPrInfo();
-  return pr.num ? `${pr.owner}/${pr.repo}/${pr.base}` : '';
+  return pr.base ? `${pr.owner}/${pr.repo}/${pr.base}` : '';
 };
 
 // Swap the arguments to memoize to make it easier to see the cache key
@@ -130,6 +130,20 @@ export const getPrAuthor = cacheResult(urlCacheKey, async () => {
 // Synchronous helper to extract basic PR info from URL and DOM (no author)
 export const getPrInfo = () => {
   const url = window.location.href;
+
+  // Check for compare view URL pattern: /owner/repo/compare/range
+  const compareMatch = url.match(
+    /github\.com\/([^/]+)\/([^/]+)\/compare\/([^?#]+)/
+  );
+
+  if (compareMatch) {
+    const [, owner, repo, range] = compareMatch;
+    // Extract base branch from range (e.g., "master...feature/branch" -> "master")
+    const base = range.split('...')[0];
+    return {page: 'compare', owner, repo, num: null, base};
+  }
+
+  // Standard PR URL pattern
   const match = url.match(
     /github\.com\/([^/]+)\/([^/]+)(\/pull\/(\d+)(\/([^/]+))?)?/
   );
@@ -176,7 +190,7 @@ export const getDiffFilesMap = cacheResult(urlCacheKey, async () => {
   // Try to get files from current page first
   let diffFilesMap = parseDiffFilesFromDoc(document);
 
-  // If not on files page or no files found, fetch from files tab
+  // If not on files page or no files found, fetch from files tab (only works for PRs)
   if (diffFilesMap.size === 0) {
     const {owner, repo, num} = getPrInfo();
     if (num) {
@@ -194,15 +208,19 @@ export const getDiffFilesMap = cacheResult(urlCacheKey, async () => {
 
 const prConversationUrl = () => {
   const {owner, repo, num} = getPrInfo();
-  return `https://github.com/${owner}/${repo}/pull/${num}`;
+  return num ? `https://github.com/${owner}/${repo}/pull/${num}` : null;
 };
 
-const loadConversationPage = cacheResult(urlCacheKey, () =>
-  loadPage(prConversationUrl())
-);
+const loadConversationPage = cacheResult(urlCacheKey, () => {
+  const url = prConversationUrl();
+  return url ? loadPage(url) : null;
+});
 
 export const getReviewers = async () => {
   const url = prConversationUrl();
+  if (!url) {
+    return new Map(); // No reviewers on compare pages
+  }
   if (window.location.pathname === new URL(url).pathname) {
     return getReviewersFromDoc(document);
   } else {
@@ -253,8 +271,8 @@ export const getReviewersFromDoc = (doc) => {
 };
 
 export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
-  const {owner, repo, num, base} = getPrInfo();
-  if (!num || !base) {
+  const {owner, repo, base} = getPrInfo();
+  if (!base) {
     return [];
   }
 

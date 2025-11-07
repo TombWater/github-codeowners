@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a browser extension (Chrome/Firefox) that decorates GitHub PR pages with code ownership information. The extension provides three main decorations:
 
-1. **File header decoration**: Adds owner labels below each file header on PR files page showing who must approve each file
+1. **File header decoration**: Adds owner labels below each file header on PR files page and compare view showing who must approve each file
 2. **Merge box decoration**: Creates an expandable "Code owners" section in the PR conversation page that groups files by owner and shows approval status
 3. **Comment decoration**: Adds visual role indicators (SVG icons) next to comment author names to show their relationship to the PR:
    - 📄 **Pencil-on-paper icon** (blue): PR author's comments
@@ -14,10 +14,10 @@ This is a browser extension (Chrome/Firefox) that decorates GitHub PR pages with
    - 💡 **Lightbulb icon** (yellow): Other contributors' comments
 
 The extension works by:
-1. Fetching and parsing the repository's CODEOWNERS file from the PR's base branch
+1. Fetching and parsing the repository's CODEOWNERS file from the PR's base branch (or compare view base branch)
 2. Matching PR files against CODEOWNERS patterns using the `ignore` library (gitignore-style matching)
 3. Fetching team membership data from GitHub org team pages
-4. Decorating PR pages with owner labels that show approval status and team membership
+4. Decorating PR pages and compare views with owner labels that show approval status and team membership
 
 ## Build and Development Commands
 
@@ -74,9 +74,9 @@ npm run zip
 - **MutationObserver**: Watches entire `document.body` with 100ms debounce - all decoration functions must check if elements already exist to avoid infinite loops
 
 **`src/files-page.js`** - File header decoration
-- **`updatePrFilesPage()`**: Decorates file headers on PR files page with owner labels
+- **`updatePrFilesPage()`**: Decorates file headers on PR files page and compare view with owner labels
 - **`decorateFileHeader()`**: Adds owner labels below each file header
-- **`getFileHeadersForDecoration()`**: Finds file headers that need decoration
+- **`getFileHeadersForDecoration()`**: Finds file headers that need decoration (works on both PR files page and compare view)
 - **Ownership data handling**: Passes complete ownership data object to maintain architectural consistency
 - Handles both old and new GitHub PR UI selectors
 
@@ -114,14 +114,20 @@ npm run zip
 
 **`src/github.js`** - GitHub data fetching and caching
 - **Caching strategy**: Uses lodash `memoize` with custom single-entry cache implementation
-  - `urlCacheKey()`: Cache per PR URL
+  - `urlCacheKey()`: Cache per PR or compare view URL
   - `repoCacheKey()`: Cache team members per repository
-  - `prBaseCacheKey()`: Cache CODEOWNERS per base branch
+  - `prBaseCacheKey()`: Cache CODEOWNERS per base branch (works for both PRs and compare view)
 - **`getIsMerged()`**: Checks merge status via DOM query (not cached - just a querySelector, exported for use in conversation-page.js)
-- **`getPrInfo()`**: Synchronously extracts owner/repo/PR number/base branch/page from URL and DOM (no author or merge status - lightweight, use for file links and URLs)
+- **`getPrInfo()`**: Synchronously extracts owner/repo/PR number/base branch/page from URL and DOM
+  - Detects both PR URLs (`/:owner/:repo/pull/:num`) and compare view URLs (`/:owner/:repo/compare/:range`)
+  - For compare view, extracts base branch from range (e.g., "master...feature/branch" → "master")
+  - Returns `{page, owner, repo, num, base}` where `num` is null for compare view
 - **`getPrAuthor()`**: Async function that extracts PR author from various DOM sources with fallbacks (cached per URL, expensive - only use when needed for comment decorations)
 - **`getDiffFilesMap()`**: Maps file path digests to paths (handles both old/new GitHub UI)
+  - Works on both PR files pages and compare view pages
+  - Fallback to fetch `/pull/:num/files` only applies to PRs (skipped for compare view)
 - **`getFolderOwners()`**: Fetches CODEOWNERS from `.github/`, root, or `docs/` directory
+  - Works for both PRs and compare view (only requires base branch, not PR number)
 - **`getReviewers()`**: Async function that fetches reviewer data from conversation page if not already there
 - **`getReviewersFromDoc()`**: Synchronously extracts reviewer approval status from a document (for live updates on conversation page)
 - **`getTeamMembers()`**: Fetches team member lists by scraping org team pages (handles pagination)
@@ -186,6 +192,7 @@ npm run zip
 - **CSSOM vs CSS selectors**: Use CSSOM (`getGithubClassNames()`) only when creating new elements needing exact class names. For querying existing elements, use attribute selectors like `[class*="module-name"]` - more robust and doesn't require CSSOM parsing.
 - **Structural selectors only**: Never query by text content - use attributes, classes, and positions (`:first-of-type`) for reliable element detection across GitHub UI changes.
 - **State derivation**: ⚠️ **CRITICAL** - Never derive state from DOM text content (e.g., parsing "2 of 3 approvals"). Always pass state as function parameters from the source data (`approvalStatus`, `isMerged`). Text content is for display only, not a source of truth.
+- **File path resolution**: Old UI file headers (PR files page, compare view) have `data-path` attribute - read directly for instant path access without needing `diffFilesMap` lookup. This handles GitHub's lazy loading (300 files at a time) and 3000 file limit gracefully since each header carries its own path data.
 
 ### CSS Architecture
 - Styles split into feature-specific files imported by their respective modules:
@@ -254,6 +261,7 @@ npm run zip
 - Cache keys must be synchronous - `getPrInfo()` is safe to use (it's synchronous)
 - **Prefer `getPrInfo()` and `getPrAuthor()` separately** - only fetch author when needed (comment decorations), use `getPrInfo()` for file links/URLs
 - **Live updates**: Use `getReviewersFromDoc(document)` on conversation page for synchronous access to current approval state
+- **File paths**: Old UI (PR files page, compare view) has `data-path` attribute - use directly instead of digest lookup for reliability with lazy-loaded files
 
 ### CSS Organization
 
@@ -368,4 +376,6 @@ const decorateComments = async () => {
 - Filter out already-decorated elements before processing
 - Use synchronous cache keys (don't call async functions in memoize key functions)
 - Skip sticky headers (`.sticky-file-header`) - they lack path data and cause false positives
+- **Large file lists**: Use `data-path` attribute directly from old UI headers instead of `diffFilesMap` lookup - handles GitHub's lazy loading (300 files at a time) and 3000 file limit gracefully
+- **Compare view performance**: MutationObserver debounce (100ms) naturally batches GitHub's progressive file loading without manual batching code
 

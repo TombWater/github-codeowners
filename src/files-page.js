@@ -52,11 +52,8 @@ export const updatePrFilesPage = async () => {
 
   const {folderOwners} = ownershipData;
 
-  const diffFilesMap = await github.getDiffFilesMap();
-  if (!diffFilesMap || diffFilesMap.size === 0) {
-    console.warn('[GHCO] No diff files found, cannot decorate file headers');
-    return;
-  }
+  // Get diff files map (needed for new UI, old UI uses data-path directly)
+  const diffFilesMap = (await github.getDiffFilesMap()) || new Map();
 
   // Clear highlighted owner
   clearHighlightedOwner();
@@ -75,13 +72,20 @@ const decorateFileHeader = (
   node,
   {folderOwners, ownershipData, diffFilesMap}
 ) => {
-  const link =
-    node?.dataset.anchor ||
-    node.querySelector('[class^="DiffFileHeader-module__file-name"] a')?.href;
-  const digest = link?.split('diff-')[1];
-  const path = diffFilesMap.get(digest);
+  // Try to get path directly from data-path attribute first (old UI, always present)
+  let path = node?.dataset.path;
+
+  // If not found, try to look up by digest in the map (new UI)
   if (!path) {
-    console.log('[GHCO] No path found for file header', node);
+    const link =
+      node?.dataset.anchor ||
+      node.querySelector('[class^="DiffFileHeader-module__file-name"] a')?.href;
+    const digest = link?.split('diff-')[1];
+    path = diffFilesMap.get(digest);
+  }
+
+  if (!path) {
+    // File header exists but path not available yet (lazy loading or placeholder)
     return;
   }
   const {owners} =
@@ -89,7 +93,6 @@ const decorateFileHeader = (
       // ignores() means it matches, as it's meant to match in .gitignore files
       folderMatch.ignores(path)
     ) || {};
-  console.log('[GHCO] File:', path, owners, node);
 
   // Remove any previous owners decoration
   node.parentNode.querySelectorAll('.ghco-decoration').forEach((decoration) => {
