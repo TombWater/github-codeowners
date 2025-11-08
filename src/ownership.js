@@ -15,10 +15,11 @@ export const getPrOwnershipData = async () => {
   }
 
   // Get these every time to invalidate their cache when needed
-  let reviewers, teamMembers;
-  [reviewers, teamMembers] = await Promise.all([
+  let reviewers, teamMembers, prAuthor;
+  [reviewers, teamMembers, prAuthor] = await Promise.all([
     github.getReviewers(),
     github.getTeamMembers(folderOwners),
+    github.getPrAuthor(),
   ]);
 
   // Map of users to a set of teams they are a member of
@@ -56,6 +57,7 @@ export const getPrOwnershipData = async () => {
     userTeams,
     userTeamsMap,
     diffFilesMap,
+    prAuthor,
   };
 };
 

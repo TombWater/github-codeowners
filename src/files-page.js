@@ -46,7 +46,6 @@ export const updatePrFilesPage = async () => {
   if (fileHeaders.length === 0) {
     return;
   }
-  const prInfo = github.getPrInfo();
 
   const ownershipData = await getPrOwnershipData();
   if (!ownershipData) {

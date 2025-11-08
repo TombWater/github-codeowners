@@ -74,12 +74,9 @@ const getCommentFilePath = (commentElement) => {
   return null; // General comment, not file-specific
 };
 
-const getCommenterRole = (
-  commenterLogin,
-  ownershipData,
-  prAuthor,
-  filePath = null
-) => {
+const getCommenterRole = (commenterLogin, ownershipData, filePath = null) => {
+  const {prAuthor} = ownershipData;
+
   if (commenterLogin === prAuthor) {
     return 'author';
   }
@@ -95,7 +92,6 @@ const createRoleIconWithTooltip = (
   role,
   commenterLogin,
   filePath,
-  prNum,
   skipAnimation = false
 ) => {
   const container = document.createElement('span');
@@ -104,7 +100,7 @@ const createRoleIconWithTooltip = (
   const icon = createSvgIcon(role, skipAnimation);
   icon.setAttribute('aria-label', `Comment by ${commenterLogin} as ${role}`);
 
-  const tooltipText = getTooltipText(commenterLogin, role, filePath, prNum);
+  const tooltipText = getTooltipText(commenterLogin, role, filePath);
   const tooltip = createTooltip(icon.id, tooltipText);
 
   container.appendChild(icon);
@@ -143,7 +139,9 @@ const triggerIconAnimation = (iconOrContainer) => {
   });
 };
 
-const getTooltipText = (commenterLogin, role, filePath, prNum) => {
+const getTooltipText = (commenterLogin, role, filePath) => {
+  const {num: prNum} = github.getPrInfo();
+
   if (role === 'author') {
     return `${commenterLogin} is the author of PR #${prNum}`;
   }
@@ -191,14 +189,10 @@ const decorateExistingComments = async () => {
     return; // All comments already decorated
   }
 
-  const [ownershipData, prAuthor] = await Promise.all([
-    getPrOwnershipData(),
-    github.getPrAuthor(),
-  ]);
-  if (!ownershipData || !prAuthor) {
+  const ownershipData = await getPrOwnershipData();
+  if (!ownershipData) {
     return;
   }
-  const {num: prNum} = github.getPrInfo();
 
   // Batch process all icons so we can trigger animations together
   const iconsToAnimate = [];
@@ -219,17 +213,11 @@ const decorateExistingComments = async () => {
     authorLink.dataset.ghcoDecorating = 'true';
 
     const filePath = getCommentFilePath(authorLink);
-    const role = getCommenterRole(
-      commenterLogin,
-      ownershipData,
-      prAuthor,
-      filePath
-    );
+    const role = getCommenterRole(commenterLogin, ownershipData, filePath);
     const iconWithTooltip = createRoleIconWithTooltip(
       role,
       commenterLogin,
       filePath,
-      prNum,
       true // Skip animation, we'll trigger it in batch
     );
     authorLink.parentNode.insertBefore(iconWithTooltip, authorLink);
@@ -260,12 +248,8 @@ const decorateDraftWriteTabs = async () => {
   const currentUser = getUserLogin();
   if (!currentUser) return;
 
-  const [ownershipData, prAuthor] = await Promise.all([
-    getPrOwnershipData(),
-    github.getPrAuthor(),
-  ]);
-  if (!ownershipData || !prAuthor) return;
-  const {num: prNum} = github.getPrInfo();
+  const ownershipData = await getPrOwnershipData();
+  if (!ownershipData) return;
 
   undecorated.forEach((writeTab) => {
     // Double-check: icon might have been added since query (race condition protection)
@@ -274,17 +258,11 @@ const decorateDraftWriteTabs = async () => {
     }
 
     const filePath = getCommentFilePath(writeTab);
-    const role = getCommenterRole(
-      currentUser,
-      ownershipData,
-      prAuthor,
-      filePath
-    );
+    const role = getCommenterRole(currentUser, ownershipData, filePath);
     const iconWithTooltip = createRoleIconWithTooltip(
       role,
       currentUser,
-      filePath,
-      prNum
+      filePath
     );
 
     writeTab.insertBefore(iconWithTooltip, writeTab.firstChild);
@@ -307,12 +285,8 @@ const decorateReplyButtons = async () => {
   const currentUser = getUserLogin();
   if (!currentUser) return;
 
-  const [ownershipData, prAuthor] = await Promise.all([
-    getPrOwnershipData(),
-    github.getPrAuthor(),
-  ]);
-  if (!ownershipData || !prAuthor) return;
-  const {num: prNum} = github.getPrInfo();
+  const ownershipData = await getPrOwnershipData();
+  if (!ownershipData) return;
 
   replyButtons.forEach((button) => {
     if (button.classList.contains('ghco-processed')) {
@@ -321,17 +295,11 @@ const decorateReplyButtons = async () => {
     button.classList.add('ghco-processed');
 
     const filePath = getCommentFilePath(button);
-    const role = getCommenterRole(
-      currentUser,
-      ownershipData,
-      prAuthor,
-      filePath
-    );
+    const role = getCommenterRole(currentUser, ownershipData, filePath);
     const iconWithTooltip = createRoleIconWithTooltip(
       role,
       currentUser,
       filePath,
-      prNum,
       true // Skip animation, we'll trigger after DOM settles
     );
 
@@ -369,11 +337,8 @@ const updateDraftPlaceholderText = async () => {
   const currentUser = getUserLogin();
   if (!currentUser) return;
 
-  const [ownershipData, prAuthor] = await Promise.all([
-    getPrOwnershipData(),
-    github.getPrAuthor(),
-  ]);
-  if (!ownershipData || !prAuthor) {
+  const ownershipData = await getPrOwnershipData();
+  if (!ownershipData) {
     return;
   }
 
@@ -383,12 +348,7 @@ const updateDraftPlaceholderText = async () => {
       element.closest('.review-thread-reply') !== null ||
       element.closest('[data-marker-navigation-thread-reply="true"]') !== null;
     const action = isReply ? 'Reply' : 'Comment';
-    const role = getCommenterRole(
-      currentUser,
-      ownershipData,
-      prAuthor,
-      filePath
-    );
+    const role = getCommenterRole(currentUser, ownershipData, filePath);
     return `${action} as ${role}...`;
   };
 

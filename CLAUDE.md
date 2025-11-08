@@ -82,6 +82,15 @@ npm run zip
 
 **`src/conversation-page.js`** - Merge box decoration
 - **`updateMergeBox()`**: Creates expandable "Code owners" section in PR conversation merge box
+- **`getMergeBoxOwnerGroupPriority()`**: Determines sort priority for owner groups based on user relevance
+  - Accepts full `ownershipData` object (extracts `user`, `prAuthor`, `userTeams`, `ownerApprovals` internally)
+  - When user is PR author: only applies priorities 3-4 (user can't approve own PR)
+  - When user is not PR author: applies full 0-4 priority range
+  - Priority 0: User-only owner groups
+  - Priority 1: User co-owner groups (with other teams)
+  - Priority 2: User-approved groups
+  - Priority 3: Other teams needing approval
+  - Priority 4: Other teams already approved
 - **`findSectionPosition()`**: Determines correct insertion point for section based on merge box structure
 - **`ensureCorrectPosition()`**: Checks and repositions section when merge box structure changes (handles GitHub React app updates)
 - **`onClickFileGroupExpander()`**: Handles collapsible file list button clicks with Alt-click to expand/collapse all groups
@@ -93,7 +102,6 @@ npm run zip
 - **Collapsible file lists**: Default expanded with chevron button (right when collapsed, down when expanded), Alt/Option-click expands/collapses all groups
 - **Progressive loading**: Shows loading state immediately, then populates with data
 - **Expandable UI**: Uses GitHub's native expandable section styling with CSSOM-based class detection
-- **Priority sorting**: Owner groups sorted by user relevance (user-only → user co-owners → approved → others)
 - **Performance**: Early returns when section already up-to-date, avoiding unnecessary data fetches
 - **Click handling pattern**: Uses `event.isTrusted` to distinguish user clicks from programmatic `.click()` calls, enabling Alt-click bulk operations without recursion
 
@@ -106,6 +114,8 @@ npm run zip
 
 **`src/ownership.js`** - Data aggregation and ownership checking
 - **`getPrOwnershipData()`**: Aggregates data from multiple github.js functions and processes it for UI needs
+  - Returns object with: `folderOwners`, `reviewers`, `teamMembers`, `ownerApprovals`, `user`, `userTeams`, `userTeamsMap`, `diffFilesMap`, `prAuthor`
+  - All UI decorators receive this complete object to avoid redundant data fetching
 - **`getUserLogin()`**: Extracts current user information from GitHub DOM
 - **`isOwnerOfFile()`**: Checks if commenter owns a specific file based on CODEOWNERS and team membership
 - **`isOwnerOfAnyFile()`**: Checks if commenter owns any file in the PR (iterates `diffFilesMap.values()` not `.keys()`)
@@ -115,6 +125,7 @@ npm run zip
 **`src/github.js`** - GitHub data fetching and caching
 - **Caching strategy**: Uses lodash `memoize` with custom single-entry cache implementation
   - `urlCacheKey()`: Cache per PR or compare view URL
+  - `prCacheKey()`: Cache per PR (owner/repo/num) - used for data that doesn't change between page types (conversation/files/commits)
   - `repoCacheKey()`: Cache team members per repository
   - `prBaseCacheKey()`: Cache CODEOWNERS per base branch (works for both PRs and compare view)
 - **`getIsMerged()`**: Checks merge status via DOM query (not cached - just a querySelector, exported for use in conversation-page.js)
@@ -122,7 +133,7 @@ npm run zip
   - Detects both PR URLs (`/:owner/:repo/pull/:num`) and compare view URLs (`/:owner/:repo/compare/:range`)
   - For compare view, extracts base branch from range (e.g., "master...feature/branch" → "master")
   - Returns `{page, owner, repo, num, base}` where `num` is null for compare view
-- **`getPrAuthor()`**: Async function that extracts PR author from various DOM sources with fallbacks (cached per URL, expensive - only use when needed for comment decorations)
+- **`getPrAuthor()`**: Async function that extracts PR author from various DOM sources with fallbacks (cached per PR using `prCacheKey`, persists across navigation between conversation/files/commits pages)
 - **`getDiffFilesMap()`**: Maps file path digests to paths (handles both old/new GitHub UI)
   - Works on both PR files pages and compare view pages
   - Fallback to fetch `/pull/:num/files` only applies to PRs (skipped for compare view)
@@ -156,6 +167,7 @@ npm run zip
 - **`decorateReplyButtons()`**: Adds role icon and updates button text to "Reply as {role}..."
 - **`updateDraftPlaceholderText()`**: Updates placeholder text ("Comment as owner...", "Reply as author...")
 - **`getCommenterRole()`**: Determines icon based on PR author and code ownership (file-specific or PR-level)
+  - Extracts `prAuthor` from `ownershipData` internally (no need to pass separately)
 - **`getCommentFilePath()`**: Extracts file context from comment DOM (supports 5 GitHub UI patterns)
 - **Icon system**: Three SVG icons (pencil-paper/blue for author, shield/green for owner, lightbulb/yellow for others)
 - **Animation**: Icons reveal via `requestAnimationFrame` after DOM insertion (0.15s ease-out transition)
@@ -259,7 +271,7 @@ npm run zip
 - `diffFilesMap.values()` for file paths (not `.keys()` which are hashes)
 - Pass ownership data as complete object through call chain (avoid destructure/reconstruct)
 - Cache keys must be synchronous - `getPrInfo()` is safe to use (it's synchronous)
-- **Prefer `getPrInfo()` and `getPrAuthor()` separately** - only fetch author when needed (comment decorations), use `getPrInfo()` for file links/URLs
+- **`getPrAuthor()` included in `ownershipData`** - `getPrOwnershipData()` fetches author once, all consumers get it from ownershipData object (no need for separate `getPrAuthor()` calls)
 - **Live updates**: Use `getReviewersFromDoc(document)` on conversation page for synchronous access to current approval state
 - **File paths**: Old UI (PR files page, compare view) has `data-path` attribute - use directly instead of digest lookup for reliability with lazy-loaded files
 

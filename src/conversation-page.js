@@ -56,11 +56,11 @@ export const updateMergeBox = async () => {
     .filter(([, approved]) => approved)
     .map(([approver]) => approver)
     .sort();
-  
+
   // Count timeline items to detect commits, review requests, etc.
   const timelineItems = document.querySelectorAll('.TimelineItem');
   const timelineCount = timelineItems.length;
-  
+
   const newState = [isMerged, timelineCount, ...approvers].join(',');
 
   let section = mergeBox.querySelector('section[aria-label="Code owners"]');
@@ -356,22 +356,12 @@ const createMergeBoxOwnerGroupsContent = (ownerGroupsMap, ownershipData) => {
   const content = document.createElement('div');
   content.classList.add('ghco-merge-box-container', 'px-3');
 
-  const {userTeams, ownerApprovals} = ownershipData;
-
   // Sort groups by relevance to current user:
   // Within each priority, sort by number of files (descending)
   const sortedGroups = Array.from(ownerGroupsMap.entries()).sort(
     ([, a], [, b]) => {
-      const aPriority = getMergeBoxOwnerGroupPriority(
-        a,
-        userTeams,
-        ownerApprovals
-      );
-      const bPriority = getMergeBoxOwnerGroupPriority(
-        b,
-        userTeams,
-        ownerApprovals
-      );
+      const aPriority = getMergeBoxOwnerGroupPriority(a, ownershipData);
+      const bPriority = getMergeBoxOwnerGroupPriority(b, ownershipData);
 
       if (aPriority !== bPriority) return aPriority - bPriority;
       return b.paths.length - a.paths.length;
@@ -507,26 +497,32 @@ const updateMergeBoxSectionWithContent = (
   section.appendChild(sectionContent);
 };
 
-const getMergeBoxOwnerGroupPriority = (group, userTeams, ownerApprovals) => {
+const getMergeBoxOwnerGroupPriority = (group, ownershipData) => {
+  const {userTeams, ownerApprovals, prAuthor, user} = ownershipData;
+
   // If there are no specific owners, use user's teams since they are "any reviewer" who can approve
   const owners = Array.from(group.owners || userTeams);
 
-  const userOnlyOwner = owners.every((owner) => userTeams.has(owner));
-  const userOwns = owners.some((owner) => userTeams.has(owner));
   const approved = group.owners
     ? // Specific owners: check if any owner approved
       owners.some((owner) => ownerApprovals.has(owner))
     : // Any reviewer: check if anyone approved
       ownerApprovals.size > 0;
 
-  // Priority 0: User is ONLY owner and needs to approve (red ★ - on all labels)
-  if (userOnlyOwner && !approved) return 0;
+  // If the user is the PR author, they can't approve their own PR
+  if (user !== prAuthor) {
+    const userOnlyOwner = owners.every((owner) => userTeams.has(owner));
+    const userOwns = owners.some((owner) => userTeams.has(owner));
 
-  // Priority 1: User is one of multiple owners and needs to approve (red ★ - one of several labels)
-  if (userOwns && !approved) return 1;
+    // Priority 0: User is ONLY owner and needs to approve (red ★ - on all labels)
+    if (userOnlyOwner && !approved) return 0;
 
-  // Priority 2: User's teams that are approved (green ✓ ☆)
-  if (userOwns && approved) return 2;
+    // Priority 1: User is one of multiple owners and needs to approve (red ★ - one of several labels)
+    if (userOwns && !approved) return 1;
+
+    // Priority 2: User's teams that are approved (green ✓ ☆)
+    if (userOwns && approved) return 2;
+  }
 
   // Priority 3: Other teams that need approval (yellow no icon)
   if (!approved) return 3;

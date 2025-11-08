@@ -15,6 +15,10 @@ memoize.Cache = function () {
 };
 
 const urlCacheKey = () => window.location.href;
+const prCacheKey = () => {
+  const pr = getPrInfo();
+  return pr.num ? `${pr.owner}/${pr.repo}/${pr.num}` : '';
+};
 const repoCacheKey = () => {
   const pr = getPrInfo();
   return pr.repo ? `${pr.owner}/${pr.repo}` : '';
@@ -63,7 +67,7 @@ export const getIsMerged = () => {
 };
 
 // Extract PR author from various sources on the page
-export const getPrAuthor = cacheResult(urlCacheKey, async () => {
+export const getPrAuthor = cacheResult(prCacheKey, async () => {
   const isMerged = getIsMerged();
 
   // Priority 1: React embedded data (new files page) - most reliable, includes merged PRs
