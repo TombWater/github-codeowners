@@ -177,49 +177,6 @@ npm run zip
   - Other functions: Use `.ghco-processed` class with double-check pattern (queried in selector AND checked in loop)
   - Without these checks, MutationObserver firing during async operations causes duplicate icons
 
-### Key Technical Details
-
-- **Pattern matching**: CODEOWNERS folder patterns are matched using `ignore` library with `.ignores()` method (matching = true means the pattern applies)
-- **Team resolution**: Individual users in CODEOWNERS create "pseudo-teams" containing just that user for consistent handling
-- **User ownership**: Files with no CODEOWNERS entry show "any reviewer" label (anyone with write access can approve)
-- **Highlighting**: Clicking a label toggles `ghco-highlight-active` body class and `ghco-label--highlighted` on matching labels
-- **Merge box priority**: Owner groups sorted by user relevance (user-only owners → user co-owners → user approved → others needing approval → others approved)
-- **Live updates**: Merge box section tracks state (merge status + approvers) in data attribute and updates automatically when approvals change
-- **Auto-collapse behavior**: Section automatically collapses when PR gets merged or when the last required approval is received (but not on additional redundant approvals)
-- **Section expand state**: Defaults to expanded when PR is not merged AND approvals are still needed; user's manual expand/collapse preference saved to sessionStorage takes precedence
-- **File group expand state**: Defaults to collapsed (chevron at 90° pointing right); expands to 180° (pointing down) when clicked
-- **Smart repositioning**: `ensureCorrectPosition()` checks section position on every update to handle GitHub React app dynamically changing merge box structure
-- **State-based updates**: Only fetches data when state changes or section lacks content, avoiding expensive operations on every mutation
-- **Collapsible file lists**: Each owner group has expandable file list with chevron button (default collapsed), Alt/Option-click expands/collapses all groups simultaneously
-- **File list animations**: Opacity-only transition (no max-height animation) to avoid timing issues with variable content heights, max-height set to 30000px (~1000 files)
-- **Event listener cleanup**: Removes click handlers before recreating DOM elements to prevent memory leaks
-- **Shared label creation**: `createOwnerLabels()` is used by both file header and merge box decorations with consistent `{owners, ownershipData}` interface
-- **Data orchestration**: `getPrOwnershipData()` in ownership.js aggregates data from multiple github.js functions and processes it for UI needs
-- **Ownership data flow**: Complete ownership objects passed through call chain to avoid repetitive destructuring and reconstruction
-- **No API token required**: All data fetched by scraping GitHub HTML pages using `fetch()` with credentials
-- **Modular architecture**: Code split into focused modules (decorator.js, files-page.js, conversation-page.js, labels.js, ownership.js, github.js)
-- **CSSOM consolidation**: `getGithubClassNames()` closure-based caching parses all stylesheets once to find 8 GitHub CSS module patterns, eliminating repetitive CSSOM searches
-- **classList.add() safety**: Direct calls without conditionals since it silently ignores undefined/null values
-- **Debug mode**: Debug panel automatically enabled in development builds (`npm run watch`), completely excluded from production builds (`npm run build`, `npm run zip`)
-- **MutationObserver infinite loop prevention**: ⚠️ **CRITICAL** - All decoration functions MUST check if decoration already exists before adding it. The observer watches entire `document.body` with 100ms debounce - adding elements triggers observer → updateAll → adds elements → infinite loop. Check for existing decorations first.
-- **CSSOM vs CSS selectors**: Use CSSOM (`getGithubClassNames()`) only when creating new elements needing exact class names. For querying existing elements, use attribute selectors like `[class*="module-name"]` - more robust and doesn't require CSSOM parsing.
-- **Structural selectors only**: Never query by text content - use attributes, classes, and positions (`:first-of-type`) for reliable element detection across GitHub UI changes.
-- **State derivation**: ⚠️ **CRITICAL** - Never derive state from DOM text content (e.g., parsing "2 of 3 approvals"). Always pass state as function parameters from the source data (`approvalStatus`, `isMerged`). Text content is for display only, not a source of truth.
-- **File path resolution**: Old UI file headers (PR files page, compare view) have `data-path` attribute - read directly for instant path access without needing `diffFilesMap` lookup. This handles GitHub's lazy loading (300 files at a time) and 3000 file limit gracefully since each header carries its own path data.
-
-### CSS Architecture
-- Styles split into feature-specific files imported by their respective modules:
-  - `src/file-labels.css` → `files-page.js` (labels, drawers, highlighting)
-  - `src/merge-box.css` → `conversation-page.js` (owner groups, file lists, collapsible file groups)
-  - `src/comments.css` → `comment-decorator.js` (icons, placeholder text)
-- All styles use `ghco-` prefix to avoid conflicts
-- CSS anchor positioning for label drawers
-- CSS custom properties for module-specific transitions:
-  - `--ghco-label-transition: 0.15s ease-in-out` (label click scale animation)
-  - `--ghco-merge-box-transition: 0.15s ease-in-out` (file group collapse/expand, chevron rotation)
-  - `--ghco-comment-icon-transition: 0.15s ease-out` (icon reveal animations)
-- Theming via CSS custom properties: yellow (default), red (user), green (approved)
-
 ## Common Development Patterns
 
 - **Check → Fetch → Process**: Always check DOM state before fetching expensive data (see Performance section)
@@ -233,6 +190,12 @@ npm run zip
 - **Style properties**: Use individual `element.style.property = value` assignments instead of `cssText` strings for clarity and maintainability
 - **Inline styles**: Avoid inline styles in JavaScript; use CSS classes and stylesheets instead for maintainability
 - **Merge state changes**: Section recreated when PR transitions between merged/unmerged states to ensure correct positioning below "Pull request successfully merged" message
+- **Logging philosophy**: Keep console quiet in production. Only log:
+  - External data sources that are hard to reproduce (CODEOWNERS parsing, team membership from GitHub)
+  - Debug panel operations (guarded by `__DEBUG__` flag, dev builds only)
+  - Build tool output (pack.js)
+  - Remove operational/progress logs ("Decorating X items", "Section up to date") - noisy and not helpful for debugging real issues
+  - Use `[GHCO]` prefix for runtime logs, `[GHCO Debug]` for debug panel logs
 
 ## Testing Tools
 
@@ -309,61 +272,33 @@ npm run zip
 - **Layout contexts**: Labels get `margin-right` only in file headers (block layout), not in merge box (uses flex `gap`)
 - **JS coordination**: JavaScript value `9` in `labels.js` drawer corner rounding must match CSS `border-radius: 9px` (documented with inline comment)
 
+### Implementation Details
+
+**Pattern matching and data processing:**
+- CODEOWNERS patterns matched using `ignore` library with `.ignores()` method (matching = true means pattern applies)
+- Individual users in CODEOWNERS create "pseudo-teams" containing just that user for consistent handling
+- Files with no CODEOWNERS entry show "any reviewer" label (anyone with write access can approve)
+- All data fetched by scraping GitHub HTML pages using `fetch()` with credentials (no API token required)
+
+**MutationObserver infinite loop prevention** ⚠️ **CRITICAL**:
+- All decoration functions MUST check if decoration already exists before adding it
+- Observer watches entire `document.body` with 100ms debounce - adding elements triggers observer → updateAll → adds elements → infinite loop
+- Check for existing decorations first to prevent this
+
+**State management:**
+- Never derive state from DOM text content (e.g., parsing "2 of 3 approvals") ⚠️ **CRITICAL**
+- Always pass state as function parameters from source data (`approvalStatus`, `isMerged`)
+- Text content is for display only, not a source of truth
+
+**GitHub UI selectors:**
+- Use CSSOM (`getGithubClassNames()`) only when creating new elements needing exact class names
+- For querying existing elements, use attribute selectors like `[class*="module-name"]` - more robust and doesn't require CSSOM parsing
+- Never query by text content - use attributes, classes, and positions (`:first-of-type`) for reliable element detection
+
 ## Known Issues and Future Work
 
 - ⚠️ **Accessibility gaps**: Missing `aria-label` on owner label buttons, non-standard `role="drawer"` on hover drawers
 - ⚠️ Test performance with 100+ comment PRs
-
----
-
-## Meta: Maintaining This Document
-
-**When to update:**
-- New module added → Add to Core Components with one-line descriptions of key functions
-- New GitHub UI pattern discovered → Add selector to Implementation Notes
-- Performance issue found/fixed → Update Performance section with pattern
-- Architecture decision changed → Update relevant section (e.g., data flow, caching strategy)
-- Critical bug pattern identified → Add to Key Technical Details or Implementation Notes with ⚠️ warning
-
-**What NOT to document:**
-- Implementation details already clear in code comments
-- Every single function (only document entry points and key architectural functions)
-- Step-by-step how features work (code is the source of truth)
-- Temporary debugging notes (clean these up after issue is resolved)
-
-**Structure to maintain:**
-- Keep Core Components section focused on "what and why", not "how"
-- Implementation Notes should be quick reference for debugging, not tutorials
-- Performance section should show patterns, not enumerate every optimization
-- Known Issues should be actionable, not wishlist items
-
-**⚠️ CRITICAL: When documenting defensive patterns (race condition fixes, animation timing, etc.):**
-1. **Mark them with ⚠️ CRITICAL - DO NOT REMOVE**
-2. **Explain WHY** - what breaks without it, not just what it does
-3. **Specify WHERE** - which functions/files use the pattern
-4. **Include consequences** - what happens if removed (e.g., "causes duplicate icons", "animations won't trigger")
-5. If you're tempted to "clean up" or "simplify" code marked CRITICAL, STOP and ask the user first
-
-**Before making "improvements" to existing code:**
-1. Search CLAUDE.md for mentions of the pattern you want to change
-2. Check for ⚠️ CRITICAL warnings
-3. If marked critical, understand WHY before changing
-4. If not documented as critical but seems defensive (flags, double-checks, timing), ASK before removing
-
-## Common Development Patterns
-
-- **Check → Fetch → Process**: Always check DOM state before fetching expensive data (see Performance section)
-- **File organization**: Each module has single responsibility (orchestration, UI, data)
-- **Keep it DRY**: Centralize shared logic (e.g., ownership checking in ownership.js, not duplicated)
-- **Working with DOM samples**: Ask user to capture HTML via DevTools (Copy outerHTML), store temporarily in `zz-samples/` with descriptive names, delete before merging to main
-- **Error handling**: Graceful degradation when GitHub changes DOM or CODEOWNERS is missing
-- **GitHub DOM changes**: Handle both old and new UI patterns using fallback selectors
-- **Logging philosophy**: Keep console quiet in production. Only log:
-  - External data sources that are hard to reproduce (CODEOWNERS parsing, team membership from GitHub)
-  - Debug panel operations (guarded by `__DEBUG__` flag, dev builds only)
-  - Build tool output (pack.js)
-  - Remove operational/progress logs ("Decorating X items", "Section up to date") - noisy and not helpful for debugging real issues
-  - Use `[GHCO]` prefix for runtime logs, `[GHCO Debug]` for debug panel logs
 
 ## Performance Optimization Patterns
 
@@ -398,3 +333,38 @@ const decorateComments = async () => {
 - **Large file lists**: Use `data-path` attribute directly from old UI headers instead of `diffFilesMap` lookup - handles GitHub's lazy loading (300 files at a time) and 3000 file limit gracefully
 - **Compare view performance**: MutationObserver debounce (100ms) naturally batches GitHub's progressive file loading without manual batching code
 
+---
+
+## Maintaining This Document
+
+**When to update:**
+- New module added → Add to Core Components with one-line descriptions of key functions
+- New GitHub UI pattern discovered → Add selector to Implementation Details
+- Performance issue found/fixed → Update Performance Optimization Patterns section
+- Architecture decision changed → Update relevant section (e.g., data flow, caching strategy)
+- Critical bug pattern identified → Add to Implementation Details with ⚠️ warning
+
+**What NOT to document:**
+- Implementation details already clear in code comments
+- Every single function (only document entry points and key architectural functions)
+- Step-by-step how features work (code is the source of truth)
+- Temporary debugging notes (clean these up after issue is resolved)
+
+**Structure to maintain:**
+- Keep Core Components section focused on "what and why", not "how"
+- Implementation Details should be quick reference for debugging, not tutorials
+- Performance section should show patterns, not enumerate every optimization
+- Known Issues should be actionable, not wishlist items
+
+**⚠️ CRITICAL: When documenting defensive patterns (race condition fixes, animation timing, etc.):**
+1. **Mark them with ⚠️ CRITICAL - DO NOT REMOVE**
+2. **Explain WHY** - what breaks without it, not just what it does
+3. **Specify WHERE** - which functions/files use the pattern
+4. **Include consequences** - what happens if removed (e.g., "causes duplicate icons", "animations won't trigger")
+5. If you're tempted to "clean up" or "simplify" code marked CRITICAL, STOP and ask the user first
+
+**Before making "improvements" to existing code:**
+1. Search CLAUDE.md for mentions of the pattern you want to change
+2. Check for ⚠️ CRITICAL warnings
+3. If marked critical, understand WHY before changing
+4. If not documented as critical but seems defensive (flags, double-checks, timing), ASK before removing
