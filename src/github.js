@@ -14,7 +14,16 @@ memoize.Cache = function () {
   return cache;
 };
 
-const urlCacheKey = () => window.location.href;
+const urlTimelineCacheKey = () => {
+  // Include timeline count to detect updates on conversation page
+  const timelineCount = document.querySelectorAll('.TimelineItem').length;
+  return `${window.location.href}::timeline=${timelineCount}`;
+};
+const urlPeriodicCacheKey = () => {
+  // Cache with 30-second granularity - auto-invalidates to catch server-side updates
+  const timeWindow = Math.floor(Date.now() / 30000);
+  return `${window.location.href}::time=${timeWindow}`;
+};
 const prCacheKey = () => {
   const pr = getPrInfo();
   return pr.num ? `${pr.owner}/${pr.repo}/${pr.num}` : '';
@@ -189,7 +198,7 @@ const parseDiffFilesFromDoc = (doc) => {
   return new Map(diffEntries);
 };
 
-export const getDiffFilesMap = cacheResult(urlCacheKey, async () => {
+export const getDiffFilesMap = cacheResult(urlTimelineCacheKey, async () => {
   // Try to get files from current page first
   let diffFilesMap = parseDiffFilesFromDoc(document);
 
@@ -213,7 +222,7 @@ const prConversationUrl = () => {
   return num ? `https://github.com/${owner}/${repo}/pull/${num}` : null;
 };
 
-const loadConversationPage = cacheResult(urlCacheKey, () => {
+const loadConversationPage = cacheResult(urlPeriodicCacheKey, () => {
   const url = prConversationUrl();
   return url ? loadPage(url) : null;
 });

@@ -124,7 +124,8 @@ npm run zip
 
 **`src/github.js`** - GitHub data fetching and caching
 - **Caching strategy**: Uses lodash `memoize` with custom single-entry cache implementation
-  - `urlCacheKey()`: Cache per PR or compare view URL
+  - `urlTimelineCacheKey()`: Cache per URL + timeline item count (detects conversation page updates)
+  - `urlPeriodicCacheKey()`: Cache per URL + 30-second time windows (periodic refresh for fetched pages)
   - `prCacheKey()`: Cache per PR (owner/repo/num) - used for data that doesn't change between page types (conversation/files/commits)
   - `repoCacheKey()`: Cache team members per repository
   - `prBaseCacheKey()`: Cache CODEOWNERS per base branch (works for both PRs and compare view)
