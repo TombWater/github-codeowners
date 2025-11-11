@@ -134,7 +134,15 @@ npm run zip
   - Detects both PR URLs (`/:owner/:repo/pull/:num`) and compare view URLs (`/:owner/:repo/compare/:range`)
   - For compare view, extracts base branch from range (e.g., "master...feature/branch" → "master")
   - Returns `{page, owner, repo, num, base}` where `num` is null for compare view
-- **`getPrAuthor()`**: Async function that extracts PR author from various DOM sources with fallbacks (cached per PR using `prCacheKey`, persists across navigation between conversation/files/commits pages)
+- **`normalizeAuthorHref()`**: Exported helper that transforms GitHub author hrefs to usernames
+  - Handles bot URLs: `/apps/dependabot` → `dependabot[bot]`
+  - Applies `decodeURIComponent` for URL-encoded usernames
+  - Used by both `getPrAuthor()` and comment decoration for consistency
+- **`getPrAuthor()`**: Async function that extracts PR author from various DOM sources with fallbacks
+  - Cached per PR using `prCacheKey`, persists across navigation between conversation/files/commits pages
+  - OG meta tag (`og:author:username`) works on conversation pages and new Files UI
+  - Timeline avatar fallback for merged PR conversation pages (uses `normalizeAuthorHref()`)
+  - Conversation page fallback for old Files UI (works for both open and merged PRs)
 - **`getDiffFilesMap()`**: Maps file path digests to paths (handles both old/new GitHub UI)
   - Works on both PR files pages and compare view pages
   - Fallback to fetch `/pull/:num/files` only applies to PRs (skipped for compare view)
@@ -164,6 +172,8 @@ npm run zip
 **`src/comment-decorator.js`** - Comment author role decoration
 - **`updateCommentDecorations()`**: Decorates comments, draft forms, reply buttons, and placeholders (runs all in parallel)
 - **`decorateExistingComments()`**: Adds SVG role icons next to comment author names
+  - Uses `github.normalizeAuthorHref()` for consistent bot username handling
+  - Separates `displayName` (for tooltips) from `login` (for role comparison)
 - **`decorateDraftWriteTabs()`**: Adds role icon to Write tab when opening comment form (handles old/new UI)
 - **`decorateReplyButtons()`**: Adds role icon and updates button text to "Reply as {role}..."
 - **`updateDraftPlaceholderText()`**: Updates placeholder text ("Comment as owner...", "Reply as author...")
@@ -221,6 +231,9 @@ npm run zip
 - Timeline avatar (`.TimelineItem-avatar[href^="/"]`) reliable for PR author on conversation page (works for merged PRs)
 - Header selectors show merger for merged PRs, not original author - don't use for merged state
 - Skip sticky headers (`.sticky-file-header`) - they lack path data
+- **Bot username handling**: GitHub bots use `/apps/{name}` hrefs (e.g., `/apps/dependabot`, `/apps/copilot-pull-request-reviewer`)
+  - Transform to `{name}[bot]` format for consistency with PR author format
+  - Use `github.normalizeAuthorHref()` helper for both author extraction and comment decoration
 
 **Comment Decoration Selectors:**
 - Draft Write tabs: Old UI `.CommentBox-header .write-tab`, new UI `[class*="prc-TabNav"] button[role="tab"]:first-of-type` (Write always first)

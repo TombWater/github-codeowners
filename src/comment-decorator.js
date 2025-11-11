@@ -198,9 +198,9 @@ const decorateExistingComments = async () => {
   const iconsToAnimate = [];
 
   undecorated.forEach((authorLink) => {
-    const commenterLogin =
-      authorLink.textContent.trim() ||
-      authorLink.getAttribute('href')?.replace('/', '');
+    const displayName = authorLink.textContent.trim();
+    const href = authorLink.getAttribute('href');
+    const commenterLogin = github.normalizeAuthorHref(href) || displayName;
 
     if (
       !commenterLogin ||
@@ -216,7 +216,7 @@ const decorateExistingComments = async () => {
     const role = getCommenterRole(commenterLogin, ownershipData, filePath);
     const iconWithTooltip = createRoleIconWithTooltip(
       role,
-      commenterLogin,
+      displayName,
       filePath,
       true // Skip animation, we'll trigger it in batch
     );

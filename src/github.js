@@ -75,69 +75,44 @@ export const getIsMerged = () => {
   return isMerged;
 };
 
-// Extract PR author from various sources on the page
 export const getPrAuthor = cacheResult(prCacheKey, async () => {
-  const isMerged = getIsMerged();
+  // Try extracting from current page first
+  let author = extractAuthorFromDoc(document);
+  if (author) return author;
 
-  // Priority 1: React embedded data (new files page) - most reliable, includes merged PRs
-  const reactData = document.querySelector(
-    '[data-target="react-app.embeddedData"]'
-  );
-  if (reactData) {
-    try {
-      const data = JSON.parse(reactData.textContent);
-      const author = data?.payload?.pullRequest?.author?.login;
+  // Fallback: If no author found (old files page), fetch from conversation page
+  const {owner, repo, num} = getPrInfo();
+  if (num) {
+    const conversationUrl = `https://github.com/${owner}/${repo}/pull/${num}`;
+    const doc = await loadPage(conversationUrl);
+    if (doc) {
+      author = extractAuthorFromDoc(doc);
       if (author) return author;
-    } catch (e) {
-      // Ignore parse errors, fall through to DOM selectors
-    }
-  }
-
-  // Priority 2: Timeline avatar (conversation page - both open and merged PRs)
-  const timelineAvatar = document.querySelector(
-    '.TimelineItem-avatar[href^="/"]'
-  );
-  if (timelineAvatar) {
-    const author = timelineAvatar.getAttribute('href')?.replace(/^\//, '');
-    if (author) return author;
-  }
-
-  // Priority 3: Header selectors (files/conversation pages - open/draft PRs ONLY)
-  // Skip this for merged PRs because header shows the merger (e.g. "zattoo-merge"), not the PR author
-  if (!isMerged) {
-    const authorSelectors = [
-      '.gh-header-meta .author', // Old UI
-      '[class*="PullRequestHeaderSummary"] a[data-hovercard-url*="/users/"]', // New UI
-    ];
-    for (const selector of authorSelectors) {
-      const authorEl = document.querySelector(selector);
-      if (authorEl) {
-        const author =
-          authorEl.textContent.trim() ||
-          authorEl.getAttribute('href')?.replace(/^\//, '');
-        if (author) return author;
-      }
-    }
-  }
-
-  // Fallback: If merged PR and no author found (old files page), fetch from conversation page
-  if (isMerged) {
-    const {owner, repo, num} = getPrInfo();
-    if (num) {
-      const conversationUrl = `https://github.com/${owner}/${repo}/pull/${num}`;
-      const doc = await loadPage(conversationUrl);
-      const timelineAvatar = doc?.querySelector(
-        '.TimelineItem-avatar[href^="/"]'
-      );
-      if (timelineAvatar) {
-        const author = timelineAvatar.getAttribute('href')?.replace(/^\//, '');
-        if (author) return author;
-      }
     }
   }
 
   return null;
 });
+
+const extractAuthorFromDoc = (doc) => {
+  // OG meta tag works on conversation pages and new Files UI
+  const ogAuthor = doc.querySelector('meta[property="og:author:username"]');
+  if (ogAuthor) {
+    const author = ogAuthor.getAttribute('content');
+    if (author) return author;
+  }
+
+  // Fallback for merged PR conversation pages that don't have og:author meta tag
+  const timelineAvatar = doc.querySelector('.TimelineItem-avatar[href^="/"]');
+  return normalizeAuthorHref(timelineAvatar?.getAttribute('href'));
+};
+
+export const normalizeAuthorHref = (href) => {
+  const normalized = href
+    ?.replace(/^\//, '')
+    ?.replace(/^apps\/(.+)/, '$1[bot]'); // "/apps/dependabot" → "dependabot[bot]"
+  return normalized ? decodeURIComponent(normalized) : null;
+};
 
 // Synchronous helper to extract basic PR info from URL and DOM (no author)
 export const getPrInfo = () => {
