@@ -354,7 +354,7 @@ const createMergeBoxSectionHeader = (approvalStatus, isMerged) => {
 
 const createMergeBoxOwnerGroupsContent = (ownerGroupsMap, ownershipData) => {
   const content = document.createElement('div');
-  content.classList.add('ghco-merge-box-container', 'px-3');
+  content.classList.add('ghco-merge-box-container');
 
   // Sort groups by relevance to current user:
   // Within each priority, sort by number of files (descending)
@@ -389,7 +389,7 @@ const createMergeBoxSectionContent = (
 ) => {
   const classNames = github.getGithubClassNames();
   const expandableWrapper = document.createElement('div');
-  expandableWrapper.classList.add(classNames.expandableWrapper);
+  expandableWrapper.classList.add(classNames.expandableWrapper, 'ghco-merge-box-expandable-wrapper');
   expandableWrapper.style.visibility = 'visible';
 
   const expandableContent = document.createElement('div');
