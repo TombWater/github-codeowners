@@ -27,5 +27,11 @@
         "required": ["none"]
       }
     }
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*", "content.*"],
+      "matches": ["https://github.com/*"]
+    }
+  ]
 }
