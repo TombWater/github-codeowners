@@ -19,38 +19,12 @@ The extension works by:
 3. Fetching team membership data from GitHub org team pages
 4. Decorating PR pages and compare views with owner labels that show approval status and team membership
 
-## Build and Development Commands
-
-```bash
-# Install dependencies (runs patch-package automatically via postinstall)
-npm install
-
-# Development mode with watch and source maps
-npm run watch
-
-# Production build (cleans build/ directory first)
-npm run build
-
-# Format code with Prettier (ALWAYS use this instead of manually fixing formatting)
-npm run format
-
-# Create release zip in release/ directory (reads version from build/manifest.json)
-npm run pack
-
-# Build and pack in one command
-npm run repack
-
-# Create distributable zip in root directory
-npm run zip
-```
-
-**Important**: Use `npm run format` to fix code formatting. Do not spend time manually formatting code.
-
 ## Development Workflow
 
 - **Live Development**: Use `npm run watch` for automatic rebuilds during development
   - ⚠️ **IMPORTANT**: User typically has `watch` running. Do NOT run build commands just to update the extension - changes are already being built automatically. Only run `npm run build` if you need to see compilation errors.
 - **Testing**: Load `build/` directory as unpacked extension in Chrome/Firefox developer mode
+- **Formatting**: Use `npm run format` to fix code formatting. Do not spend time manually formatting code.
 - **No API Keys**: Extension works entirely through DOM scraping, no GitHub API tokens required
 - **Codebase Size**: ~2000 lines total across 7 focused modules
 - **Dependencies**: Uses lodash-es (with patches), ignore library, webpack build system
@@ -64,167 +38,58 @@ npm run zip
 - **Extension type**: Browser extension (Chrome/Firefox) that modifies GitHub's DOM
 - **No permissions needed**: Uses content script with host permissions for github.com
 
-### Core Components
+### Core Architecture
 
-**`src/decorator.js`** - Main orchestration and entry point
-- Sets up MutationObserver with debounced updates for all page decorations
-- Coordinates calls to `updatePrFilesPage()`, `updateMergeBox()`, and `updateCommentDecorations()` functions
-- Imports CSS and manages top-level extension lifecycle
-- **Clean architecture**: Very minimal orchestration layer
-- **MutationObserver**: Watches entire `document.body` with 100ms debounce - all decoration functions must check if elements already exist to avoid infinite loops
+**Module Organization**
+- **`src/decorator.js`**: Entry point - MutationObserver watches `document.body` with 100ms debounce, coordinates all decorations
+- **`src/files-page.js`**: Decorates file headers on PR files page and compare view
+- **`src/merge-box.js`**: Creates expandable "Code owners" section in conversation page merge box
+- **`src/comment-decorator.js`**: Adds role icons (author/owner/other) to comments
+- **`src/labels.js`**: Creates owner labels with approval indicators and hover drawers
+- **`src/ownership.js`**: Aggregates ownership data via `getPrOwnershipData()` - single source for all decorators
+- **`src/github.js`**: Fetches/caches all GitHub data (CODEOWNERS, reviewers, team members, PR info)
+- **`src/debug-panel.js`**: Development-only debug UI with approval/merge simulation
 
-**`src/files-page.js`** - File header decoration
-- **`updatePrFilesPage()`**: Decorates file headers on PR files page and compare view with owner labels
-- **`decorateFileHeader()`**: Adds owner labels below each file header
-- **`getFileHeadersForDecoration()`**: Finds file headers that need decoration (works on both PR files page and compare view)
-- **Ownership data handling**: Passes complete ownership data object to maintain architectural consistency
-- Handles both old and new GitHub PR UI selectors
+**Critical Patterns** ⚠️
 
-**`src/merge-box.js`** - Merge box decoration
-- **`updateMergeBox()`**: Creates expandable "Code owners" section in PR conversation merge box
-- **`getMergeBoxOwnerGroupPriority()`**: Determines sort priority for owner groups based on user relevance
-  - Accepts full `ownershipData` object (extracts `user`, `prAuthor`, `userTeams`, `ownerApprovals` internally)
-  - When user is PR author: only applies priorities 3-4 (user can't approve own PR)
-  - When user is not PR author: applies full 0-4 priority range
-  - Priority 0: User-only owner groups
-  - Priority 1: User co-owner groups (with other teams)
-  - Priority 2: User-approved groups
-  - Priority 3: Other teams needing approval
-  - Priority 4: Other teams already approved
-- **`findSectionPosition()`**: Determines correct insertion point for section based on merge box structure
-- **`ensureCorrectPosition()`**: Checks and repositions section when merge box structure changes (handles GitHub React app updates)
-- **`onClickFileGroupExpander()`**: Handles collapsible file list button clicks with Alt-click to expand/collapse all groups
-- **Live updates**: Tracks approval state in `section.dataset.state` for automatic updates when approvals change
-- **State management**: Compares old vs new state (merge status + approvers) to determine if update needed
-- **Smart repositioning**: Only recreates section when merge status changes, updates in-place for approval changes
-- **Section positioning**: Places section after "Pull request successfully merged" message on merged PRs, or after Reviews section on open PRs
-- **Groups files by owner**: Shows owner groups with file lists and approval status
-- **Collapsible file lists**: Default expanded with chevron button (right when collapsed, down when expanded), Alt/Option-click expands/collapses all groups
-- **Progressive loading**: Shows loading state immediately, then populates with data
-- **Expandable UI**: Uses GitHub's native expandable section styling with CSSOM-based class detection
-- **Performance**: Early returns when section already up-to-date, avoiding unnecessary data fetches
-- **Click handling pattern**: Uses `event.isTrusted` to distinguish user clicks from programmatic `.click()` calls, enabling Alt-click bulk operations without recursion
+1. **MutationObserver + Performance**: Observer watches entire `document.body`, fires on every DOM change
+   - Check if decoration exists BEFORE fetching data, or you get infinite loops: add element → observer fires → add element → loop
+   - Filter undecorated elements first, return early if none found, THEN fetch expensive ownership data
+   - Example: `decorateExistingComments()` uses `data-ghcoDecorating` flag, others use `.ghco-processed` class
 
-**`src/labels.js`** - Owner label creation and interaction
-- **`createOwnerLabels()`**: Creates owner labels with approval status indicators (✓ for approved, ★/☆ for user's teams)
-- **Ownership data interface**: Accepts `{owners, ownershipData}` parameters for clean separation of concerns
-- **`clearHighlightedOwner()`**: Manages click-to-highlight functionality across all owner labels
-- **Drawer management**: Hover drawers showing team members using CSS anchor positioning and Popover API
-- **Label sorting**: User's own teams always appear first in label lists
+2. **State management**: Never derive state from DOM text (e.g., parsing "2 of 3 approvals"). Always pass state as parameters from source data. Text is display only, not source of truth.
 
-**`src/ownership.js`** - Data aggregation and ownership checking
-- **`getPrOwnershipData()`**: Aggregates data from multiple github.js functions and processes it for UI needs
-  - Returns object with: `folderOwners`, `reviewers`, `teamMembers`, `ownerApprovals`, `user`, `userTeams`, `userTeamsMap`, `diffFilesMap`, `prAuthor`
-  - All UI decorators receive this complete object to avoid redundant data fetching
-- **`getUserLogin()`**: Extracts current user information from GitHub DOM
-- **`isOwnerOfFile()`**: Checks if commenter owns a specific file based on CODEOWNERS and team membership
-- **`isOwnerOfAnyFile()`**: Checks if commenter owns any file in the PR (iterates `diffFilesMap.values()` not `.keys()`)
-- **Team processing**: Handles team membership, approvals, and user team associations
-- **Centralized ownership logic**: All ownership determination in one module for reuse across decorators
+3. **Animation timing**: Double RAF for reply buttons is NOT optional - first RAF waits for DOM updates, second ensures layout stable. CSS transitions won't trigger reliably without it.
 
-**`src/github.js`** - GitHub data fetching and caching
-- **Caching strategy**: Uses lodash `memoize` with custom single-entry cache implementation
-  - `urlTimelineCacheKey()`: Cache per URL + timeline item count (detects conversation page updates)
-  - `urlPeriodicCacheKey()`: Cache per URL + 30-second time windows (periodic refresh for fetched pages)
-  - `prCacheKey()`: Cache per PR (owner/repo/num) - used for data that doesn't change between page types (conversation/files/commits)
-  - `repoCacheKey()`: Cache team members per repository
-  - `prBaseCacheKey()`: Cache CODEOWNERS per base branch (works for both PRs and compare view)
-- **`getIsMerged()`**: Checks merge status via DOM query (not cached - just a querySelector, exported for use in merge-box.js)
-- **`getPrInfo()`**: Synchronously extracts owner/repo/PR number/base branch/page from URL and DOM
-  - Detects both PR URLs (`/:owner/:repo/pull/:num`) and compare view URLs (`/:owner/:repo/compare/:range`)
-  - For compare view, extracts base branch from range (e.g., "master...feature/branch" → "master")
-  - Returns `{page, owner, repo, num, base}` where `num` is null for compare view
-- **`normalizeAuthorHref()`**: Exported helper that transforms GitHub author hrefs to usernames
-  - Handles bot URLs: `/apps/dependabot` → `dependabot[bot]`
-  - Applies `decodeURIComponent` for URL-encoded usernames
-  - Used by both `getPrAuthor()` and comment decoration for consistency
-- **`getPrAuthor()`**: Async function that extracts PR author from various DOM sources with fallbacks
-  - Cached per PR using `prCacheKey`, persists across navigation between conversation/files/commits pages
-  - OG meta tag (`og:author:username`) works on conversation pages and new Files UI
-  - Timeline avatar fallback for merged PR conversation pages (uses `normalizeAuthorHref()`)
-  - Conversation page fallback for old Files UI (works for both open and merged PRs)
-- **`getDiffFilesMap()`**: Maps file path digests to paths (handles both old/new GitHub UI)
-  - Works on both PR files pages and compare view pages
-  - Fallback to fetch `/pull/:num/files` only applies to PRs (skipped for compare view)
-- **`getFolderOwners()`**: Fetches CODEOWNERS from `.github/`, root, or `docs/` directory
-  - Works for both PRs and compare view (only requires base branch, not PR number)
-- **`getReviewers()`**: Async function that fetches reviewer data from conversation page if not already there
-- **`getReviewersFromDoc()`**: Synchronously extracts reviewer approval status from a document (for live updates on conversation page)
-- **`getTeamMembers()`**: Fetches team member lists by scraping org team pages (handles pagination)
-  - **Defensive checks**: Validates `folderOwners` parameter is defined and is an array before processing
-  - **Consistent return type**: Always returns `Map` (not array) for type consistency
-- **`getGithubClassNames()`**: Cached CSSOM parser that finds all GitHub CSS module class names in one pass using closure-based caching
-- **Debug mode support**:
-  - `getIsMerged()` checks `window.__ghcoDebugPanel` for simulated merge state
-  - `getReviewersFromDoc()` applies simulated approvals from debug panel
+**Data Flow**
+- `getPrOwnershipData()` in `ownership.js` is the single aggregation point - returns: `folderOwners`, `reviewers`, `teamMembers`, `ownerApprovals`, `user`, `userTeams`, `userTeamsMap`, `diffFilesMap`, `prAuthor`
+- Pass ownership data as complete object through call chain (avoid destructure/reconstruct)
+- `isOwnerOfAnyFile()` iterates `diffFilesMap.values()` not `.keys()` (keys are hashes, not paths)
 
-**`src/debug-panel.js`** - Debug and testing tools (only included in development builds via `npm run watch`)
-- **Debug panel UI**: Fixed bottom-right panel showing update count, last update time, and current state
-- **Approval simulation**: Interactive popup to toggle approval states for any team member, triggers DOM mutations to test live updates
-- **Merge simulation**: One-way operation that removes other merge box sections and adds "Pull request successfully merged" message
-- **State tracking**: Real-time stats display with 500ms polling, filtered mutation observer to avoid infinite loops
-- **URL change detection**: Automatically resets simulations when navigating between PRs
-- **Cross-module communication**: Exposes functions via `window.__ghcoDebugPanel` for use in github.js
-  - `getSimulatedApprovals()`: Returns Map of owner → approval state for simulated approvals
-  - `getSimulatedMergeState()`: Returns simulated merge state (null = use real state, true/false = simulated)
-- **Styling**: Separated into `src/debug-panel.css` with `ghco-` prefixed classes
+**Caching Strategy** (`github.js`)
+- `prCacheKey()`: Cache per PR (owner/repo/num) - for data that doesn't change between pages
+- `urlTimelineCacheKey()`: Cache per URL + timeline count (detects conversation updates)
+- `urlPeriodicCacheKey()`: Cache per URL + 30s windows (periodic refresh for fetched pages)
+- `prBaseCacheKey()`: Cache CODEOWNERS per base branch (works for PRs and compare view)
+- Cache keys must be synchronous - `getPrInfo()` is safe (it's synchronous)
 
-**`src/comment-decorator.js`** - Comment author role decoration
-- **`updateCommentDecorations()`**: Decorates comments, draft forms, reply buttons, and placeholders (runs all in parallel)
-- **`decorateExistingComments()`**: Adds SVG role icons next to comment author names
-  - Uses `github.normalizeAuthorHref()` for consistent bot username handling
-  - Separates `displayName` (for tooltips) from `login` (for role comparison)
-- **`decorateDraftWriteTabs()`**: Adds role icon to Write tab when opening comment form (handles old/new UI)
-- **`decorateReplyButtons()`**: Adds role icon and updates button text to "Reply as {role}..."
-- **`updateDraftPlaceholderText()`**: Updates placeholder text ("Comment as owner...", "Reply as author...")
-- **`getCommenterRole()`**: Determines icon based on PR author and code ownership (file-specific or PR-level)
-  - Extracts `prAuthor` from `ownershipData` internally (no need to pass separately)
-- **`getCommentFilePath()`**: Extracts file context from comment DOM (supports 5 GitHub UI patterns)
-- **Icon system**: Three SVG icons (pencil-paper/blue for author, shield/green for owner, lightbulb/yellow for others)
-- **Animation**: Icons reveal via `requestAnimationFrame` after DOM insertion (0.15s ease-out transition)
-- **Race condition protection**: ⚠️ **CRITICAL - DO NOT REMOVE**
-  - `decorateExistingComments()`: Uses `data-ghcoDecorating` flag (decorates parent, can't use class on author link)
-  - Other functions: Use `.ghco-processed` class with double-check pattern (queried in selector AND checked in loop)
-  - Without these checks, MutationObserver firing during async operations causes duplicate icons
+**Merge Box Smart Updates**
+- Tracks state in `section.dataset.state` for automatic updates when approvals change
+- Only recreates section when merge status changes (positioning differs for merged/open PRs)
+- Updates in-place for approval changes (avoids expensive re-renders)
+- `event.isTrusted` distinguishes user clicks from programmatic `.click()` for Alt-click bulk operations
 
 ## Common Development Patterns
 
-- **Check → Fetch → Process**: Always check DOM state before fetching expensive data (see Performance section)
-- **File organization**: Each module has single responsibility (orchestration, UI, data)
-- **Keep it DRY**: Centralize shared logic (e.g., ownership checking in ownership.js, not duplicated)
-- **Working with DOM samples**: Ask user to capture HTML via DevTools (Copy outerHTML), store temporarily in `zz-samples/` with descriptive names, delete before merging to main
-- **Error handling**: Graceful degradation when GitHub changes DOM or CODEOWNERS is missing
 - **GitHub DOM changes**: Handle both old and new UI patterns using fallback selectors
-- **Ownership data architecture**: Ownership data flows as cohesive object rather than being destructured/reconstructed multiple times throughout call chain
-- **Function signatures**: Clean parameter patterns - minimal destructuring, pass complete objects when appropriate
-- **Style properties**: Use individual `element.style.property = value` assignments instead of `cssText` strings for clarity and maintainability
-- **Inline styles**: Avoid inline styles in JavaScript; use CSS classes and stylesheets instead for maintainability
-- **Merge state changes**: Section recreated when PR transitions between merged/unmerged states to ensure correct positioning below "Pull request successfully merged" message
+- **Working with DOM samples**: Capture HTML via DevTools, store in `zz-samples/` with descriptive names, and remind the user to delete them before merging
 - **Logging philosophy**: Keep console quiet in production. Only log:
-  - External data sources that are hard to reproduce (CODEOWNERS parsing, team membership from GitHub)
+  - External data sources that are hard to reproduce (CODEOWNERS parsing, team membership)
   - Debug panel operations (guarded by `__DEBUG__` flag, dev builds only)
   - Build tool output (pack.js)
-  - Remove operational/progress logs ("Decorating X items", "Section up to date") - noisy and not helpful for debugging real issues
-  - Use `[GHCO]` prefix for runtime logs, `[GHCO Debug]` for debug panel logs
+  - Use `[GHCO]` prefix for runtime logs, `[GHCO Debug]` for debug panel
 
-## Testing Tools
-
-**Debug Panel** (automatically enabled in development builds)
-- Only included when using `npm run watch` (development mode), completely excluded from production builds
-- Real-time statistics panel (update count, last update time, section state)
-- Six debug functions:
-  - Force Update: Manually trigger updateAll()
-  - Log Current State: Console logs PR info, section existence, merge box state
-  - Log Ownership Data: Console logs complete ownership data structure
-  - Clear Session State: Removes expand state from sessionStorage
-  - Simulate Approval Change: Interactive popup to toggle approvals for any team member
-  - Simulate Merge: One-way simulation of PR merge (removes sections, adds merged message)
-- Approval simulation shows team-grouped checkboxes for all owners with files in current PR
-- Merge simulation removes all merge box sections except Code owners and adds "Pull request successfully merged" message
-- Simulations automatically reset when navigating to different PRs
-- Debug panel mutations filtered from MutationObserver to prevent infinite loops
-
-### Implementation Notes
+## Implementation Notes - Non-Obvious Patterns
 
 **GitHub UI Detection:**
 - **React embedded data**: Use `getEmbeddedData(doc, extractor)` helper to scrape JSON from GitHub's React app
@@ -235,153 +100,50 @@ npm run zip
 - Timeline avatar (`.TimelineItem-avatar[href^="/"]`) reliable for PR author on conversation page (works for merged PRs)
 - Header selectors show merger for merged PRs, not original author - don't use for merged state
 - Skip sticky headers (`.sticky-file-header`) - they lack path data
-- **Bot username handling**: GitHub bots use `/apps/{name}` hrefs (e.g., `/apps/dependabot`, `/apps/copilot-pull-request-reviewer`)
+- **Bot username handling**: GitHub bots use `/apps/{name}` hrefs (e.g., `/apps/dependabot`)
   - Transform to `{name}[bot]` format for consistency with PR author format
   - Use `github.normalizeAuthorHref()` helper for both author extraction and comment decoration
 
 **Comment Decoration Selectors:**
-- Draft Write tabs: Old UI `.CommentBox-header .write-tab`, new UI `[class*="prc-TabNav"] button[role="tab"]:first-of-type` (Write always first)
-- Reply buttons: Old UI `.review-thread-reply-button`, new UI `button[class*="CompactCommentButton"]`
+- Draft Write tabs: Old UI `.CommentBox-header .write-tab`, new UI `[class*="prc-TabNav"] button[role="tab"]:first-of-type`
+- Reply buttons: Old UI `.review-thread-review-button`, new UI `button[class*="CompactCommentButton"]`
 - Placeholders: Old UI `.CommentBox-placeholder` element, new UI textarea `placeholder` attribute
-- **Animation timing** ⚠️ **CRITICAL - DO NOT CHANGE**:
-  - Single RAF for batch inserts when no DOM changes needed (comments, write tabs) - triggers after all DOM insertions complete
-  - Double RAF for reply buttons: First RAF waits for DOM updates (text node changes), second RAF ensures layout stabilizes before animation starts (required for CSS transitions to trigger properly)
-  - The double RAF is NOT optional - without it, animations won't trigger reliably
 
 **Data Flow:**
 - `diffFilesMap.values()` for file paths (not `.keys()` which are hashes)
 - Pass ownership data as complete object through call chain (avoid destructure/reconstruct)
-- Cache keys must be synchronous - `getPrInfo()` is safe to use (it's synchronous)
-- **`getPrAuthor()` included in `ownershipData`** - `getPrOwnershipData()` fetches author once, all consumers get it from ownershipData object (no need for separate `getPrAuthor()` calls)
-- **Live updates**: Use `getReviewersFromDoc(document)` on conversation page for synchronous access to current approval state
-- **File paths**: Old UI (PR files page, compare view) has `data-path` attribute - use directly instead of digest lookup for reliability with lazy-loaded files
+- Cache keys must be synchronous - `getPrInfo()` is safe (it's synchronous)
+- `getPrAuthor()` included in `ownershipData` - fetched once, all consumers get it from ownershipData object
+- Live updates: Use `getReviewersFromDoc(document)` for synchronous access to current approval state
+- File paths: Old UI has `data-path` attribute - use directly instead of digest lookup for reliability with lazy-loaded files
 
-### CSS Organization
-
-- Styles split into feature-specific files imported by their respective modules:
-  - `src/file-labels.css` → `files-page.js` (labels, drawers, highlighting)
-  - `src/merge-box.css` → `merge-box.js` (owner groups, collapsible file lists)
-  - `src/comments.css` → `comment-decorator.js` (icons, placeholder text)
-  - `src/debug-panel.css` → `debug-panel.js` (debug UI)
+**CSS Organization:**
+- Styles split into feature files: `file-labels.css`, `merge-box.css`, `comments.css`, `debug-panel.css`
 - All styles use `ghco-` prefix to avoid conflicts
 - CSS anchor positioning for label drawers
-- CSS custom properties for module-specific transitions:
-  - `--ghco-label-transition: 0.15s ease-in-out` (label click scale animation)
-  - `--ghco-merge-box-transition: 0.15s ease-in-out` (file group collapse/expand, chevron rotation)
-  - `--ghco-comment-icon-transition: 0.15s ease-out` (icon reveal animations)
-- Theming via CSS custom properties: yellow (default), red (user), green (approved)
+- Module-specific transitions: `--ghco-label-transition`, `--ghco-merge-box-transition`, `--ghco-comment-icon-transition`
+- **Fixed px for UI components** (labels, icons), **GitHub vars for layouts** (spacing, borders, typography)
+- **JS/CSS coordination**: Drawer corner rounding value `9` in `labels.js` must match CSS `border-radius: 9px`
 
-**Sizing Philosophy:**
-- **Fixed px values** for self-contained UI components:
-  - Labels: `12px` font, `18px` line-height, `9px` border-radius, `5px` padding (intentionally fixed for consistent appearance)
-  - Drawer: `4px 12px 8px` padding, `9px` border-radius (matches label exactly for seamless connection)
-  - Icons: `16px` size, `2px` alignment margin (fixed component sizing)
-  - Decoration containers: `2px/3px/5px` padding variations (minimal chrome, matched to label sizing)
-- **GitHub design system vars** for responsive layouts:
-  - All spacing in merge box and conversation page (gap, padding, margin)
-  - Border widths: `var(--borderWidth-thin, 1px)`
-  - Inter-element spacing: `var(--control-small-gap, 4px)` for gaps between components
-  - Typography in non-label contexts: `var(--text-body-size-small, 12px)`, etc.
-- **Functional constraints** use fixed px:
-  - `max-height: 500px` (scroll containers)
-  - `max-width: 300px/400px` (debug panel sizing)
-  - Small debug font sizes: `10px`, `11px` (dense information display)
-- **Layout contexts**: Labels get `margin-right` only in file headers (block layout), not in merge box (uses flex `gap`)
-- **JS coordination**: JavaScript value `9` in `labels.js` drawer corner rounding must match CSS `border-radius: 9px` (documented with inline comment)
-
-### Implementation Details
-
-**Pattern matching and data processing:**
-- CODEOWNERS patterns matched using `ignore` library with `.ignores()` method (matching = true means pattern applies)
-- Individual users in CODEOWNERS create "pseudo-teams" containing just that user for consistent handling
-- Files with no CODEOWNERS entry show "any reviewer" label (anyone with write access can approve)
-- All data fetched by scraping GitHub HTML pages using `fetch()` with credentials (no API token required)
-
-**MutationObserver infinite loop prevention** ⚠️ **CRITICAL**:
-- All decoration functions MUST check if decoration already exists before adding it
-- Observer watches entire `document.body` with 100ms debounce - adding elements triggers observer → updateAll → adds elements → infinite loop
-- Check for existing decorations first to prevent this
-
-**State management:**
-- Never derive state from DOM text content (e.g., parsing "2 of 3 approvals") ⚠️ **CRITICAL**
-- Always pass state as function parameters from source data (`approvalStatus`, `isMerged`)
-- Text content is for display only, not a source of truth
-
-**GitHub UI selectors:**
-- Use CSSOM (`getGithubClassNames()`) only when creating new elements needing exact class names
-- For querying existing elements, use attribute selectors like `[class*="module-name"]` - more robust and doesn't require CSSOM parsing
-- Never query by text content - use attributes, classes, and positions (`:first-of-type`) for reliable element detection
-
-## Known Issues and Future Work
-
-- ⚠️ **Accessibility gaps**: Missing `aria-label` on owner label buttons, non-standard `role="drawer"` on hover drawers
-- ⚠️ Test performance with 100+ comment PRs
-
-## Performance Optimization Patterns
-
-**Critical principle:** Check DOM state BEFORE fetching expensive data. MutationObserver fires on every DOM change, so decoration functions must bail out early when there's nothing to do.
-
-**Pattern: Check → Fetch → Process**
-```javascript
-// ❌ BAD: Fetch data first, check later
-const decorateComments = async () => {
-  const ownershipData = await getPrOwnershipData(); // Expensive!
-  const comments = document.querySelectorAll('.comment');
-  if (comments.length === 0) return; // Too late
-};
-
-// ✅ GOOD: Check first, fetch only if needed
-const decorateComments = async () => {
-  const undecorated = Array.from(document.querySelectorAll('.comment'))
-    .filter(c => !c.querySelector('.ghco-icon'));
-  if (undecorated.length === 0) return; // Fast exit
-
-  const ownershipData = await getPrOwnershipData(); // Only when needed
-  // ... process
-};
-```
-
-**Key optimizations:**
-- Check if decorations already exist before fetching ownership data
-- Query DOM elements first, return early if none found
-- Filter out already-decorated elements before processing
-- Use synchronous cache keys (don't call async functions in memoize key functions)
-- Skip sticky headers (`.sticky-file-header`) - they lack path data and cause false positives
-- **Large file lists**: Use `data-path` attribute directly from old UI headers instead of `diffFilesMap` lookup - handles GitHub's lazy loading (300 files at a time) and 3000 file limit gracefully
-- **Compare view performance**: MutationObserver debounce (100ms) naturally batches GitHub's progressive file loading without manual batching code
+**Pattern Matching:**
+- CODEOWNERS patterns matched using `ignore` library with `.ignores()` method
+- Individual users create "pseudo-teams" for consistent handling
+- Files with no CODEOWNERS entry show "any reviewer" label
 
 ---
 
 ## Maintaining This Document
 
 **When to update:**
-- New module added → Add to Core Components with one-line descriptions of key functions
-- New GitHub UI pattern discovered → Add selector to Implementation Details
-- Performance issue found/fixed → Update Performance Optimization Patterns section
-- Architecture decision changed → Update relevant section (e.g., data flow, caching strategy)
-- Critical bug pattern identified → Add to Implementation Details with ⚠️ warning
+- Architecture decision changed → Update relevant section
+- Critical bug pattern identified → Add with ⚠️ warning explaining WHY
 
 **What NOT to document:**
-- Implementation details already clear in code comments
-- Every single function (only document entry points and key architectural functions)
-- Step-by-step how features work (code is the source of truth)
-- Temporary debugging notes (clean these up after issue is resolved)
+- Details already clear in code
+- Step-by-step feature explanations (code is source of truth)
 
-**Structure to maintain:**
-- Keep Core Components section focused on "what and why", not "how"
-- Implementation Details should be quick reference for debugging, not tutorials
-- Performance section should show patterns, not enumerate every optimization
-- Known Issues should be actionable, not wishlist items
-
-**⚠️ CRITICAL: When documenting defensive patterns (race condition fixes, animation timing, etc.):**
-1. **Mark them with ⚠️ CRITICAL - DO NOT REMOVE**
-2. **Explain WHY** - what breaks without it, not just what it does
-3. **Specify WHERE** - which functions/files use the pattern
-4. **Include consequences** - what happens if removed (e.g., "causes duplicate icons", "animations won't trigger")
-5. If you're tempted to "clean up" or "simplify" code marked CRITICAL, STOP and ask the user first
-
-**Before making "improvements" to existing code:**
-1. Search CLAUDE.md for mentions of the pattern you want to change
-2. Check for ⚠️ CRITICAL warnings
-3. If marked critical, understand WHY before changing
-4. If not documented as critical but seems defensive (flags, double-checks, timing), ASK before removing
+**⚠️ CRITICAL patterns:**
+1. Mark with **⚠️ CRITICAL - DO NOT REMOVE**
+2. Explain WHY it breaks without it
+3. Specify WHERE it's used
+4. Before "simplifying" marked code, STOP and ask
