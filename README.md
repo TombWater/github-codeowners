@@ -71,3 +71,5 @@ The data collected includes:
 
 This project was bootstrapped with [Chrome Extension CLI](https://github.com/dutiyesh/chrome-extension-cli)
 
+<!-- Fake change for screenshot demo -->
+
