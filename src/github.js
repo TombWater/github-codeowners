@@ -148,21 +148,38 @@ export const getPrInfo = () => {
   return {page, owner, repo, num, base};
 };
 
+const getEmbeddedData = (doc, extractor) => {
+  const targets = ['react-app.embeddedData', 'react-partial.embeddedData'];
+  const selectors = targets.map((t) => `[data-target="${t}"]`);
+  const scripts = Array.from(doc.querySelectorAll(selectors.join(', ')));
+
+  for (const script of scripts) {
+    try {
+      const data = JSON.parse(script.textContent);
+      // Normalize: react-app uses 'payload', react-partial uses 'props'
+      const payload = data?.payload || data?.props;
+      const result = payload && extractor(payload);
+      if (result) return result;
+    } catch (e) {
+      // Skip invalid JSON
+    }
+  }
+  return null;
+};
+
 const parseDiffFilesFromDoc = (doc) => {
-  const jsonData = doc.querySelector(
-    '[data-target="react-app.embeddedData"]'
-  )?.textContent;
   let diffEntries = [];
 
-  if (jsonData) {
-    // New Files Changed page
-    const data = JSON.parse(jsonData);
-    const diffSummaries = data?.payload?.diffSummaries || [];
+  // Try new Files UI
+  const diffSummaries = getEmbeddedData(doc, (payload) =>
+    payload?.pullRequestsFilesRoute?.diffSummaries || payload?.diffSummaries
+  );
+  if (diffSummaries) {
     diffEntries = diffSummaries.map((file) => [file.pathDigest, file.path]);
   }
 
+  // Try old Files UI (DOM-based) if JSON didn't work
   if (diffEntries.length === 0) {
-    // Old Files Changed page - fallback
     const nodes = Array.from(doc.querySelectorAll('div.file-header'));
     diffEntries = nodes.map((node) => [
       node.dataset.anchor?.replace('diff-', ''),
@@ -268,11 +285,8 @@ export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
     if (!doc) {
       continue;
     }
-    const jsonData = doc.querySelector(
-      'react-app[app-name="react-code-view"] [data-target="react-app.embeddedData"]'
-    )?.textContent;
-    const data = JSON.parse(jsonData);
-    const lines = data?.payload?.blob?.rawLines ?? [];
+
+    const lines = getEmbeddedData(doc, (payload) => payload?.blob?.rawLines) ?? [];
     const ownerLines = lines
       .map((line) => line.trim())
       .filter((line) => line.length && !line.startsWith('#'));

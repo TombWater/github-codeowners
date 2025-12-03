@@ -227,7 +227,11 @@ npm run zip
 ### Implementation Notes
 
 **GitHub UI Detection:**
-- Use React embedded data when available - most reliable for merged PR metadata
+- **React embedded data**: Use `getEmbeddedData(doc, extractor)` helper to scrape JSON from GitHub's React app
+  - Checks both `react-app.embeddedData` and `react-partial.embeddedData` targets
+  - Normalizes `payload` vs `props` structure differences
+  - Returns extracted value or `null` if not found/invalid JSON
+  - Used in `parseDiffFilesFromDoc()` for new Files UI and `getFolderOwners()` for CODEOWNERS content
 - Timeline avatar (`.TimelineItem-avatar[href^="/"]`) reliable for PR author on conversation page (works for merged PRs)
 - Header selectors show merger for merged PRs, not original author - don't use for merged state
 - Skip sticky headers (`.sticky-file-header`) - they lack path data
