@@ -1,7 +1,7 @@
 import {debounce} from 'lodash-es';
 
 import {updatePrFilesPage} from './files-page';
-import {updateMergeBox} from './conversation-page';
+import {updateMergeBox} from './merge-box';
 import {updateCommentDecorations} from './comment-decorator';
 import * as debugPanel from './debug-panel';
 

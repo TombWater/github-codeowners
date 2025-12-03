@@ -80,7 +80,7 @@ npm run zip
 - **Ownership data handling**: Passes complete ownership data object to maintain architectural consistency
 - Handles both old and new GitHub PR UI selectors
 
-**`src/conversation-page.js`** - Merge box decoration
+**`src/merge-box.js`** - Merge box decoration
 - **`updateMergeBox()`**: Creates expandable "Code owners" section in PR conversation merge box
 - **`getMergeBoxOwnerGroupPriority()`**: Determines sort priority for owner groups based on user relevance
   - Accepts full `ownershipData` object (extracts `user`, `prAuthor`, `userTeams`, `ownerApprovals` internally)
@@ -129,7 +129,7 @@ npm run zip
   - `prCacheKey()`: Cache per PR (owner/repo/num) - used for data that doesn't change between page types (conversation/files/commits)
   - `repoCacheKey()`: Cache team members per repository
   - `prBaseCacheKey()`: Cache CODEOWNERS per base branch (works for both PRs and compare view)
-- **`getIsMerged()`**: Checks merge status via DOM query (not cached - just a querySelector, exported for use in conversation-page.js)
+- **`getIsMerged()`**: Checks merge status via DOM query (not cached - just a querySelector, exported for use in merge-box.js)
 - **`getPrInfo()`**: Synchronously extracts owner/repo/PR number/base branch/page from URL and DOM
   - Detects both PR URLs (`/:owner/:repo/pull/:num`) and compare view URLs (`/:owner/:repo/compare/:range`)
   - For compare view, extracts base branch from range (e.g., "master...feature/branch" → "master")
@@ -256,7 +256,7 @@ npm run zip
 
 - Styles split into feature-specific files imported by their respective modules:
   - `src/file-labels.css` → `files-page.js` (labels, drawers, highlighting)
-  - `src/merge-box.css` → `conversation-page.js` (owner groups, collapsible file lists)
+  - `src/merge-box.css` → `merge-box.js` (owner groups, collapsible file lists)
   - `src/comments.css` → `comment-decorator.js` (icons, placeholder text)
   - `src/debug-panel.css` → `debug-panel.js` (debug UI)
 - All styles use `ghco-` prefix to avoid conflicts
