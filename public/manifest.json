@@ -22,7 +22,10 @@
   ],
   "browser_specific_settings": {
     "gecko": {
-      "id": "github-codeowners@mindgear.com"
+      "id": "github-codeowners@mindgear.com",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   }
 }
