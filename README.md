@@ -85,3 +85,5 @@ The VSCode extension reads the same data from the GitHub API, with the GitHub ac
 
 This project was bootstrapped with [Chrome Extension CLI](https://github.com/dutiyesh/chrome-extension-cli)
 
+<!-- Fake change for screenshot demo -->
+

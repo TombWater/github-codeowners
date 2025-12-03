@@ -12,3 +12,5 @@ const config = (env, argv) => ({
 });
 
 module.exports = config;
+
+// Fake change for screenshot demo
