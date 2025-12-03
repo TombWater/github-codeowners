@@ -10,6 +10,11 @@ import {injectStyles} from './inject-styles';
 // Inject CSS into page head for DevTools inspection
 injectStyles(mergeBoxCss, 'ghco-merge-box-styles');
 
+const parser = new DOMParser();
+const xmlDeclRegex = /<\?xml[^?]*\?>\s*/g;
+const iconSvgDoc = parser.parseFromString(iconSvg.replace(xmlDeclRegex, ''), 'image/svg+xml');
+const chevronSvgDoc = parser.parseFromString(chevronUpSvg.replace(xmlDeclRegex, ''), 'image/svg+xml');
+
 const createOwnerGroupsMap = (diffFilesMap, folderOwners) => {
   const ownerGroupsMap = new Map();
 
@@ -183,10 +188,7 @@ const createHeaderIcon = (approvalStatus, isMerged) => {
     }
   }
 
-  const svgString = iconSvg.replace(/<\?xml[^?]*\?>\s*/g, '');
-  const parser = new DOMParser();
-  const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
-  const svg = svgDoc.documentElement;
+  const svg = iconSvgDoc.documentElement.cloneNode(true);
   svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('focusable', 'false');
   svg.setAttribute('width', '32');
@@ -341,7 +343,8 @@ const createMergeBoxSectionHeader = (approvalStatus, isMerged) => {
     const chevronWrapper = document.createElement('div');
     chevronWrapper.style.transition = 'transform 0.15s ease-in-out';
     chevronWrapper.style.transform = `rotate(${isExpanded ? 0 : 180}deg)`;
-    chevronWrapper.innerHTML = chevronUpSvg;
+    const svg = chevronSvgDoc.documentElement.cloneNode(true);
+    chevronWrapper.appendChild(svg);
 
     chevronContainer.appendChild(chevronWrapper);
     wrapper.appendChild(chevronContainer);
@@ -598,7 +601,8 @@ const createMergeBoxOwnerGroup = ({owners, paths, digests, ownershipData}) => {
   const chevronWrapper = document.createElement('span');
   chevronWrapper.classList.add('ghco-chevron-wrapper');
   chevronWrapper.style.transform = 'rotate(90deg)'; // Default collapsed (pointing right)
-  chevronWrapper.innerHTML = chevronUpSvg;
+  const svg = chevronSvgDoc.documentElement.cloneNode(true);
+  chevronWrapper.appendChild(svg);
   fileCountButton.appendChild(chevronWrapper);
 
   const fileCount = document.createElement('span');
