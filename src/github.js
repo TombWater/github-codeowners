@@ -171,8 +171,10 @@ const parseDiffFilesFromDoc = (doc) => {
   let diffEntries = [];
 
   // Try new Files UI
-  const diffSummaries = getEmbeddedData(doc, (payload) =>
-    payload?.pullRequestsFilesRoute?.diffSummaries || payload?.diffSummaries
+  const diffSummaries = getEmbeddedData(
+    doc,
+    (payload) =>
+      payload?.pullRequestsFilesRoute?.diffSummaries || payload?.diffSummaries
   );
   if (diffSummaries) {
     diffEntries = diffSummaries.map((file) => [file.pathDigest, file.path]);
@@ -191,22 +193,14 @@ const parseDiffFilesFromDoc = (doc) => {
 };
 
 export const getDiffFilesMap = cacheResult(urlTimelineCacheKey, async () => {
-  // Try to get files from current page first
-  let diffFilesMap = parseDiffFilesFromDoc(document);
-
-  // If not on files page or no files found, fetch from files tab (only works for PRs)
-  if (diffFilesMap.size === 0) {
-    const {owner, repo, num} = getPrInfo();
-    if (num) {
-      const url = `https://github.com/${owner}/${repo}/pull/${num}/files`;
-      const doc = await loadPage(url);
-      if (doc) {
-        diffFilesMap = parseDiffFilesFromDoc(doc);
-      }
-    }
-  }
-
-  return diffFilesMap;
+  // Fake data for diverse team ownership showcase
+  return new Map([
+    ['diff-abc123', 'src/ownership.js'],
+    ['diff-def456', 'src/github.js'],
+    ['diff-ghi789', 'config/webpack.config.js'],
+    ['diff-jkl012', 'public/manifest.json'],
+    ['diff-mno345', 'README.md'],
+  ]);
 });
 
 const prConversationUrl = () => {
@@ -232,76 +226,23 @@ export const getReviewers = async () => {
 };
 
 export const getReviewersFromDoc = (doc) => {
-  const reviewerNodes = doc?.querySelectorAll(
-    '[data-assignee-name], .js-reviewer-team'
-  );
-  let reviewers = Array.from(reviewerNodes || []).reduce((acc, node) => {
-    const statusIcon = node.parentElement.querySelector(
-      '.reviewers-status-icon'
-    );
-    if (statusIcon && !statusIcon.classList.contains('v-hidden')) {
-      const name = node.dataset.assigneeName || node.textContent.trim();
-      const approved = Boolean(statusIcon.querySelector('.octicon-check'));
-      acc.set(name, approved);
-    }
-    return acc;
-  }, new Map());
-
-  // Apply simulated approvals if in debug mode
-  if (__DEBUG__) {
-    const {getSimulatedApprovals} = window.__ghcoDebugPanel;
-    const simulatedApprovals = getSimulatedApprovals();
-
-    if (simulatedApprovals.size > 0) {
-      console.log(
-        '[GHCO] Applying simulated approvals:',
-        Array.from(simulatedApprovals.entries())
-      );
-
-      // Create a new reviewers map with simulated approvals applied
-      const modifiedReviewers = new Map(reviewers);
-
-      for (const [owner, approved] of simulatedApprovals.entries()) {
-        modifiedReviewers.set(owner, approved);
-      }
-
-      reviewers = modifiedReviewers;
-    }
-  }
-
-  return reviewers;
+  // Fake data for Athena (ops) approved only
+  return new Map([['Athena', true]]);
 };
 
 export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
-  const {owner, repo, base} = getPrInfo();
-  if (!base) {
-    return [];
-  }
-
-  const paths = ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS'];
-  for (const path of paths) {
-    const url = `https://github.com/${owner}/${repo}/blob/${base}/${path}`;
-    const doc = await loadPage(url);
-    if (!doc) {
-      continue;
-    }
-
-    const lines = getEmbeddedData(doc, (payload) => payload?.blob?.rawLines) ?? [];
-    const ownerLines = lines
-      .map((line) => line.trim())
-      .filter((line) => line.length && !line.startsWith('#'));
-    console.log('[GHCO] CODEOWNERS', url, ownerLines);
-
-    const folders = ownerLines.map((line) => {
-      const [folder, ...owners] = line.split(/\s+/);
-      return {
-        folderMatch: ignore().add(folder),
-        owners: new Set(owners),
-      };
-    });
-    return folders.reverse();
-  }
-  return [];
+  // Fake data for org teams with proper folderMatch structure
+  return [
+    {folderMatch: ignore().add('*'), owners: new Set(['@org/admins'])},
+    {
+      folderMatch: ignore().add('src/**'),
+      owners: new Set(['@org/admins', '@org/engineers']),
+    },
+    {
+      folderMatch: ignore().add('config/**'),
+      owners: new Set(['@org/admins', '@org/engineers', '@org/ops']),
+    },
+  ].reverse();
 });
 
 const loadTeamMembers = async (org, teamSlug) => {
@@ -324,42 +265,12 @@ const loadTeamMembers = async (org, teamSlug) => {
 export const getTeamMembers = cacheResult(
   repoCacheKey,
   async (folderOwners) => {
-    const {owner: org} = getPrInfo();
-    if (!org || !folderOwners || !Array.isArray(folderOwners)) {
-      return new Map();
-    }
-
-    // Array of all unique owner names mentioned in CODEOWNERS file
-    const allOwners = Array.from(
-      new Set(folderOwners.flatMap(({owners}) => Array.from(owners)))
-    );
-
-    // Filter out names that are not teams in the org owning the PR
-    const prefix = `@${org}/`;
-    const teamNames = allOwners.filter((teamName) =>
-      teamName.startsWith(prefix)
-    );
-
-    // Fetch all org teams in parallel, mapping team names to their members
-    const teamResults = await Promise.all(
-      teamNames.map(async (teamName) => {
-        const teamSlug = teamName.replace(prefix, '');
-        const members = await loadTeamMembers(org, teamSlug);
-        return [teamName, members];
-      })
-    );
-    const orgTeams = new Map(teamResults);
-
-    // Map owner teams to an array of members, or if not a team then a pseudo-team with just the owner
-    const owners = new Map(
-      allOwners.map((teamName) => {
-        const members = orgTeams.get(teamName) || [teamName];
-        return [teamName, members];
-      })
-    );
-
-    console.log('[GHCO] Teams', owners);
-    return owners;
+    // Fake data for org teams
+    return new Map([
+      ['@org/admins', ['Admin', 'Zeus']],
+      ['@org/engineers', ['TombWater', 'Apollo']],
+      ['@org/ops', ['Hermes', 'Athena']],
+    ]);
   }
 );
 

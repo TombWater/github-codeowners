@@ -24,5 +24,11 @@
     "gecko": {
       "id": "github-codeowners@mindgear.com"
     }
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*", "content.*"],
+      "matches": ["https://github.com/*"]
+    }
+  ]
 }
