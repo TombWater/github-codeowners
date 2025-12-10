@@ -8,6 +8,11 @@ import {injectStyles} from './inject-styles';
 // Inject CSS into page head for DevTools inspection
 injectStyles(fileLabelsCss, 'ghco-file-labels-styles');
 
+const getFileHeaderLink = (node) =>
+  node?.dataset.anchor ||
+  node.querySelector('[class*="DiffFileHeader-module"] a[href*="#diff-"]')
+    ?.href;
+
 const getFileHeadersForDecoration = () => {
   const selectors = [
     // Old Files Changed page
@@ -23,16 +28,7 @@ const getFileHeadersForDecoration = () => {
     if (node.parentNode?.querySelector('.ghco-decoration')) {
       return false;
     }
-
-    // Skip sticky headers and other headers without path data
-    // Old UI: needs data-anchor attribute
-    // New UI: needs DiffFileHeader-module__file-name link
-    const hasOldUiData = node.dataset.anchor;
-    const hasNewUiData = node.querySelector(
-      '[class^="DiffFileHeader-module__file-name"] a'
-    );
-
-    return hasOldUiData || hasNewUiData;
+    return !!getFileHeaderLink(node);
   });
 
   return newHeaders;
@@ -75,12 +71,9 @@ const decorateFileHeader = (
 ) => {
   // Try to get path directly from data-path attribute first (old UI, always present)
   let path = node?.dataset.path;
-
   // If not found, try to look up by digest in the map (new UI)
   if (!path) {
-    const link =
-      node?.dataset.anchor ||
-      node.querySelector('[class^="DiffFileHeader-module__file-name"] a')?.href;
+    const link = getFileHeaderLink(node);
     const digest = link?.split('diff-')[1];
     path = diffFilesMap.get(digest);
   }

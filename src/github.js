@@ -1,5 +1,5 @@
 import ignore from 'ignore';
-import {memoize} from 'lodash-es';
+import {memoize, isObject} from 'lodash-es';
 
 // Cache just one key-value pair to refresh data when the key changes.
 memoize.Cache = function () {
@@ -167,13 +167,22 @@ const getEmbeddedData = (doc, extractor) => {
   return null;
 };
 
+const findDiffSummaries = (obj) => {
+  if (!isObject(obj)) return null;
+  if (Array.isArray(obj.diffSummaries)) return obj.diffSummaries;
+
+  for (const value of Object.values(obj)) {
+    const result = findDiffSummaries(value);
+    if (result) return result;
+  }
+  return null;
+};
+
 const parseDiffFilesFromDoc = (doc) => {
   let diffEntries = [];
 
   // Try new Files UI
-  const diffSummaries = getEmbeddedData(doc, (payload) =>
-    payload?.pullRequestsFilesRoute?.diffSummaries || payload?.diffSummaries
-  );
+  const diffSummaries = getEmbeddedData(doc, findDiffSummaries);
   if (diffSummaries) {
     diffEntries = diffSummaries.map((file) => [file.pathDigest, file.path]);
   }
@@ -286,7 +295,8 @@ export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
       continue;
     }
 
-    const lines = getEmbeddedData(doc, (payload) => payload?.blob?.rawLines) ?? [];
+    const lines =
+      getEmbeddedData(doc, (payload) => payload?.blob?.rawLines) ?? [];
     const ownerLines = lines
       .map((line) => line.trim())
       .filter((line) => line.length && !line.startsWith('#'));

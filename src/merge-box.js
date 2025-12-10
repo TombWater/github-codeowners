@@ -12,8 +12,14 @@ injectStyles(mergeBoxCss, 'ghco-merge-box-styles');
 
 const parser = new DOMParser();
 const xmlDeclRegex = /<\?xml[^?]*\?>\s*/g;
-const iconSvgDoc = parser.parseFromString(iconSvg.replace(xmlDeclRegex, ''), 'image/svg+xml');
-const chevronSvgDoc = parser.parseFromString(chevronUpSvg.replace(xmlDeclRegex, ''), 'image/svg+xml');
+const iconSvgDoc = parser.parseFromString(
+  iconSvg.replace(xmlDeclRegex, ''),
+  'image/svg+xml'
+);
+const chevronSvgDoc = parser.parseFromString(
+  chevronUpSvg.replace(xmlDeclRegex, ''),
+  'image/svg+xml'
+);
 
 const createOwnerGroupsMap = (diffFilesMap, folderOwners) => {
   const ownerGroupsMap = new Map();
@@ -46,9 +52,25 @@ export const updateMergeBox = async () => {
     return;
   }
 
-  const container = mergeBox.querySelector(
-    'div[class*="MergeBox-module__mergeBoxAdjustBorders"], div.border.rounded-2'
+  let section = mergeBox.querySelector('section[aria-label="Code owners"]');
+
+  // Find the container by looking for siblings, which have section header wrappers
+  const sectionHeader = mergeBox.querySelector(
+    'div[class*="MergeBoxSectionHeader-module__wrapper"]'
   );
+
+  // If the section header is inside a section or is the section itself,
+  // we want the section's parent. If it's a naked wrapper, we want its parent.
+  const siblingSection = sectionHeader?.closest('section');
+  let container = (siblingSection || sectionHeader)?.parentElement;
+
+  // Fallback: try to find the container by class name if no siblings found
+  if (!container) {
+    container = mergeBox.querySelector(
+      'div[class*="MergeBox-module__mergeBoxAdjustBorders"]'
+    );
+  }
+
   if (!container) {
     console.info('[GHCO] Could not find merge box container');
     return;
@@ -67,8 +89,6 @@ export const updateMergeBox = async () => {
   const timelineCount = timelineItems.length;
 
   const newState = [isMerged, timelineCount, ...approvers].join(',');
-
-  let section = mergeBox.querySelector('section[aria-label="Code owners"]');
   const oldState = section?.dataset.state || '';
 
   // Check if merge status changed (requires recreating for correct positioning)
@@ -392,7 +412,10 @@ const createMergeBoxSectionContent = (
 ) => {
   const classNames = github.getGithubClassNames();
   const expandableWrapper = document.createElement('div');
-  expandableWrapper.classList.add(classNames.expandableWrapper, 'ghco-merge-box-expandable-wrapper');
+  expandableWrapper.classList.add(
+    classNames.expandableWrapper,
+    'ghco-merge-box-expandable-wrapper'
+  );
   expandableWrapper.style.visibility = 'visible';
 
   const expandableContent = document.createElement('div');
