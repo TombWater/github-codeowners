@@ -451,14 +451,15 @@ const calculateApprovalStatus = (ownerGroupsMap, ownerApprovals) => {
   let totalApprovalsNeeded = 0;
 
   for (const [, group] of ownerGroupsMap.entries()) {
-    if (group.owners && group.owners.size > 0) {
-      totalApprovalsNeeded++;
-      const hasApproval = Array.from(group.owners).some((owner) =>
-        ownerApprovals.has(owner)
-      );
-      if (hasApproval) {
-        approvalsReceived++;
-      }
+    totalApprovalsNeeded++;
+
+    const hasApproval =
+      group.owners && group.owners.size > 0
+        ? Array.from(group.owners).some((owner) => ownerApprovals.has(owner))
+        : ownerApprovals.size > 0;
+
+    if (hasApproval) {
+      approvalsReceived++;
     }
   }
 
