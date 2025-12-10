@@ -9,7 +9,7 @@ GitHub Codeowners Browser Extension
 
 ## Features
 
-Decorate GitHub PR pages with code ownership information \
+Decorate GitHub PR pages with code ownership and approval status \
 Does not require a GitHub access token
 
 **Decorations:**
