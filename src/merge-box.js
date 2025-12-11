@@ -249,9 +249,14 @@ const createHeaderText = (approvalStatus) => {
   const description = document.createElement('p');
   description.classList.add('fgColor-muted', 'mb-0');
   description.id = APPROVALS_DESCRIPTION_ID;
-  description.textContent = approvalStatus
-    ? `${approvalStatus.approvalsReceived} of ${approvalStatus.totalApprovalsNeeded} required approvals received`
-    : 'Loading approval status...';
+
+  if (approvalStatus) {
+    const {approvalsReceived, totalApprovalsNeeded, totalFiles} = approvalStatus;
+    const fileText = totalFiles === 1 ? 'file' : 'files';
+    description.textContent = `${approvalsReceived} of ${totalApprovalsNeeded} required approvals received (${totalFiles} ${fileText})`;
+  } else {
+    description.textContent = 'Loading approval status...';
+  }
 
   textInner.appendChild(heading);
   textInner.appendChild(description);
@@ -452,9 +457,11 @@ const calculateApprovalStatus = (ownerGroupsMap, ownerApprovals) => {
 
   let approvalsReceived = 0;
   let totalApprovalsNeeded = 0;
+  let totalFiles = 0;
 
   for (const [, group] of ownerGroupsMap.entries()) {
     totalApprovalsNeeded++;
+    totalFiles += group.paths.length;
 
     const hasApproval =
       group.owners && group.owners.size > 0
@@ -466,7 +473,7 @@ const calculateApprovalStatus = (ownerGroupsMap, ownerApprovals) => {
     }
   }
 
-  return {approvalsReceived, totalApprovalsNeeded};
+  return {approvalsReceived, totalApprovalsNeeded, totalFiles};
 };
 
 const updateMergeBoxSectionWithContent = (
