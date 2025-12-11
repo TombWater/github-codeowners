@@ -391,15 +391,18 @@ const createMergeBoxOwnerGroupsContent = (ownerGroupsMap, ownershipData) => {
     }
   );
 
-  sortedGroups.forEach(([, {owners, paths, digests}]) => {
-    content.appendChild(
-      createMergeBoxOwnerGroup({
+  sortedGroups.forEach(([, {owners, paths, digests}], index) => {
+    try {
+      const group = createMergeBoxOwnerGroup({
         owners,
         paths,
         digests,
         ownershipData,
-      })
-    );
+      });
+      content.appendChild(group);
+    } catch (error) {
+      console.error('[GHCO] Error creating owner group', index, error);
+    }
   });
 
   return content;

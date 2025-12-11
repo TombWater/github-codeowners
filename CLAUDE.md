@@ -71,6 +71,7 @@ The extension works by:
 - `urlTimelineCacheKey()`: Cache per URL + timeline count (detects conversation updates)
 - `urlPeriodicCacheKey()`: Cache per URL + 30s windows (periodic refresh for fetched pages)
 - `prBaseCacheKey()`: Cache CODEOWNERS per base branch (works for PRs and compare view)
+- `prCommitsCacheKey()`: Cache per PR + commit count (for expensive file list fetches)
 - Cache keys must be synchronous - `getPrInfo()` is safe (it's synchronous)
 
 **Merge Box Smart Updates**

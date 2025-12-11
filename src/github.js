@@ -36,6 +36,14 @@ const prBaseCacheKey = () => {
   const pr = getPrInfo();
   return pr.base ? `${pr.owner}/${pr.repo}/${pr.base}` : '';
 };
+const prCommitsCacheKey = () => {
+  const {owner, repo, num} = getPrInfo();
+  if (!num) return '';
+  const commitsTab = document.querySelector(`a[href$="/pull/${num}/commits"]`);
+  const count =
+    commitsTab?.querySelector('.Counter')?.textContent?.trim() || '';
+  return `${owner}/${repo}/${num}::commits=${count}`;
+};
 
 // Swap the arguments to memoize to make it easier to see the cache key
 const cacheResult = (cacheKey, fn) => memoize(fn, cacheKey);
@@ -167,51 +175,190 @@ const getEmbeddedData = (doc, extractor) => {
   return null;
 };
 
-const findDiffSummaries = (obj) => {
-  if (!isObject(obj)) return null;
-  if (Array.isArray(obj.diffSummaries)) return obj.diffSummaries;
+const parseEmbeddedDiffFiles = (doc) => {
+  const diffSummaries = getEmbeddedData(doc, (payload) => {
+    return payload?.pullRequestsChangesRoute?.diffSummaries;
+  });
 
-  for (const value of Object.values(obj)) {
-    const result = findDiffSummaries(value);
-    if (result) return result;
+  if (diffSummaries && Array.isArray(diffSummaries)) {
+    const diffEntries = diffSummaries
+      .map((summary) => {
+        if (summary.pathDigest && summary.path) {
+          return [summary.pathDigest, summary.path];
+        }
+        return null;
+      })
+      .filter((entry) => entry !== null);
+
+    if (diffEntries.length > 0) {
+      return new Map(diffEntries);
+    }
   }
   return null;
 };
 
 const parseDiffFilesFromDoc = (doc) => {
-  let diffEntries = [];
-
-  // Try new Files UI
-  const diffSummaries = getEmbeddedData(doc, findDiffSummaries);
-  if (diffSummaries) {
-    diffEntries = diffSummaries.map((file) => [file.pathDigest, file.path]);
+  // Strategy 1: Try extracting from embedded React data (most reliable for New UI)
+  // This contains the full file list with digests and paths, handling renames/ellipses correctly
+  const embeddedFiles = parseEmbeddedDiffFiles(doc);
+  if (embeddedFiles) {
+    return embeddedFiles;
   }
 
-  // Try old Files UI (DOM-based) if JSON didn't work
-  if (diffEntries.length === 0) {
-    const nodes = Array.from(doc.querySelectorAll('div.file-header'));
-    diffEntries = nodes.map((node) => [
-      node.dataset.anchor?.replace('diff-', ''),
-      node.dataset.path,
-    ]);
+  // Strategy 2: Fallback to old Files UI (div.file-header with data-path and data-anchor)
+  // We check this BEFORE the generic [id^="diff-"] selector because the /diffs endpoint
+  // returns Old UI HTML which contains both. The strict class selector is more reliable
+  // and avoids picking up non-file elements that might happen to have a diff- ID.
+  const oldUINodes = Array.from(doc.querySelectorAll('div.file-header'));
+  if (oldUINodes.length > 0) {
+    const diffEntries = oldUINodes
+      .map((node) => [
+        node.dataset.anchor?.replace('diff-', ''),
+        node.dataset.path,
+      ])
+      .filter(([digest, path]) => path);
+
+    return new Map(diffEntries);
   }
 
-  return new Map(diffEntries);
+  // Strategy 3: Parse file headers from DOM (New UI fallback)
+  // Try new Files UI: extract from loaded diff regions (not sidebar tree)
+  const newUIRegions = Array.from(doc.querySelectorAll('[id^="diff-"]'));
+  if (newUIRegions.length > 0) {
+    const diffEntries = newUIRegions
+      .map((region) => {
+        // Find the file path link in the header - it should match the region's ID
+        const regionId = region.id; // e.g., "diff-abc123"
+
+        // 1. Try data-path (Old UI and some New UI)
+        // Check the region itself or any child with data-path
+        const pathFromData =
+          region.dataset.path ||
+          region.querySelector('[data-path]')?.dataset.path;
+        if (pathFromData) {
+          const digest = regionId.replace('diff-', '');
+          return [digest, pathFromData];
+        }
+
+        const link = region.querySelector(`a[href="#${regionId}"]`);
+
+        // 2. Try to get path from title attribute first (sometimes present on ellipsized paths)
+        let path = link?.getAttribute('title');
+
+        // 3. Fallback to text content if title is missing
+        if (!path && link) {
+          let text = link.textContent;
+          // Handle renames: "old.js → new.js"
+          if (text.includes('→')) {
+            text = text.split('→').pop();
+          }
+          path = text.trim().replace(/^\u200E|\u200E$/g, '');
+        }
+
+        if (path) {
+          const digest = regionId.replace('diff-', '');
+          return [digest, path];
+        }
+        return null;
+      })
+      .filter((entry) => entry !== null);
+
+    // Deduplicate by digest (same file can appear multiple times)
+    if (diffEntries.length > 0) {
+      return new Map(diffEntries);
+    }
+  }
+
+  return new Map();
 };
+
+const fetchAllDiffFiles = cacheResult(
+  prCommitsCacheKey,
+  async (owner, repo, num) => {
+    // Hint: Check the "Files changed" tab on the current page to see which URL it uses
+    const filesUrl =
+      document.querySelector(
+        `a[href$="/pull/${num}/files"], a[href$="/pull/${num}/changes"]`
+      )?.href || `https://github.com/${owner}/${repo}/pull/${num}/files`;
+
+    let filesDoc = await loadPage(filesUrl);
+
+    // Fallback: If loading /files URL fails, try /changes URL
+    if (!filesDoc && /\/files([?#]|$)/.test(filesUrl)) {
+      filesDoc = await loadPage(
+        `https://github.com/${owner}/${repo}/pull/${num}/changes`
+      );
+    }
+
+    if (!filesDoc) {
+      console.log('[GHCO] Failed to load files page');
+      return new Map();
+    }
+
+    // Try to extract files directly from the doc (e.g. via embedded data)
+    // This avoids an additional fetch to the /diffs endpoint if the reliable embedded data is present.
+    // Otherwise (Old UI), we might only get partial files from the DOM, so we must proceed to the /diffs fetch.
+    const embeddedFiles = parseEmbeddedDiffFiles(filesDoc);
+    if (embeddedFiles) {
+      return embeddedFiles;
+    }
+
+    const commits = getEmbeddedData(filesDoc, (payload) => {
+      const baseCommit = payload?.baseOid;
+      const headCommit = payload?.headOid;
+      if (baseCommit && headCommit) {
+        return {baseRevision: baseCommit, headRevision: headCommit};
+      }
+      return null;
+    });
+
+    if (!commits) {
+      return parseDiffFilesFromDoc(filesDoc);
+    }
+
+    const {baseRevision: baseCommit, headRevision: headCommit} = commits;
+
+    // Fetch all files via /diffs endpoint with start_entry=0
+    const diffsUrl =
+      `https://github.com/${owner}/${repo}/diffs?` +
+      `base_sha=${baseCommit}` +
+      `&sha1=${baseCommit}` +
+      `&sha2=${headCommit}` +
+      `&pull_number=${num}` +
+      `&start_entry=0` +
+      `&w=false`;
+
+    const diffsDoc = await loadPage(diffsUrl);
+    if (!diffsDoc) {
+      return new Map();
+    }
+
+    return parseDiffFilesFromDoc(diffsDoc);
+  }
+);
 
 export const getDiffFilesMap = cacheResult(urlTimelineCacheKey, async () => {
   // Try to get files from current page first
   let diffFilesMap = parseDiffFilesFromDoc(document);
 
-  // If not on files page or no files found, fetch from files tab (only works for PRs)
+  // Check if we have a partial set of files (lazy loading in Old UI)
+  const fileCountElement = document.querySelector('#files_tab_counter');
+  if (fileCountElement && diffFilesMap.size > 0) {
+    const totalFiles = parseInt(
+      fileCountElement.textContent.trim().replace(/,/g, ''),
+      10
+    );
+    if (!isNaN(totalFiles) && diffFilesMap.size < totalFiles) {
+      // Partial files detected, clear map to trigger full fetch
+      diffFilesMap.clear();
+    }
+  }
+
+  // If not on files page or no files found, fetch all files
   if (diffFilesMap.size === 0) {
     const {owner, repo, num} = getPrInfo();
     if (num) {
-      const url = `https://github.com/${owner}/${repo}/pull/${num}/files`;
-      const doc = await loadPage(url);
-      if (doc) {
-        diffFilesMap = parseDiffFilesFromDoc(doc);
-      }
+      diffFilesMap = await fetchAllDiffFiles(owner, repo, num);
     }
   }
 
