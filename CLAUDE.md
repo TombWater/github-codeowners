@@ -136,6 +136,7 @@ The extension works by:
 - Module-specific transitions: `--ghco-label-transition`, `--ghco-merge-box-transition`, `--ghco-comment-icon-transition`
 - **Fixed px for UI components** (labels, icons), **GitHub vars for layouts** (spacing, borders, typography)
 - **JS/CSS coordination**: Drawer corner rounding value `9` in `labels.js` must match CSS `border-radius: 9px`
+- **Scroll hints**: pure CSS implementation using `background-attachment: local, scroll` (merge-box.css)
 
 **Pattern Matching:**
 - CODEOWNERS patterns matched using `ignore` library with `.ignores()` method
