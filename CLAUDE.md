@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a browser extension (Chrome/Firefox) that decorates GitHub PR pages with code ownership information. The extension provides three main decorations:
 
-1. **File header decoration**: Adds owner labels below each file header on PR files page and compare view showing who must approve each file
-2. **Merge box decoration**: Creates an expandable "Code owners" section in the PR conversation page that groups files by owner and shows approval status
+1. **File header decoration**: Adds owner labels below each file header on PR files page and compare view showing who must approve each file. Clicking a label expands/collapses that owner's files.
+2. **Merge box decoration**: Creates an expandable "Code owners" section in the PR conversation page that groups files by owner and shows approval status. Clicking an owner group expands/collapses it.
 3. **Comment decoration**: Adds visual role indicators (SVG icons) next to comment author names to show their relationship to the PR:
    - 📄 **Pencil-on-paper icon** (blue): PR author's comments
    - 🛡️ **Shield icon** (green): Code owner's comments (for files they own)
@@ -79,6 +79,12 @@ The extension works by:
 - Only recreates section when merge status changes (positioning differs for merged/open PRs)
 - Updates in-place for approval changes (avoids expensive re-renders)
 - `event.isTrusted` distinguishes user clicks from programmatic `.click()` for Alt-click bulk operations
+
+**Label Interaction & Expansion**
+- Clicking labels expands code sections programmatically
+- `setProgrammaticExpansion(true)` guards against `MutationObserver` loops during these updates
+- `ExpansionObserver` watches for UI expansion state to keep internal state synced
+- Scroll position is actively restored after expansion using layout delta calculation
 
 ## Common Development Patterns
 

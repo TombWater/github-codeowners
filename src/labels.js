@@ -1,6 +1,6 @@
 let highlightedOwner;
 
-const onClickOwner = (ev) => {
+const handleOwnerClick = (ev, owner, onOwnerClick) => {
   const clickedLabel = ev.target;
 
   // Give feedback for the click
@@ -11,16 +11,19 @@ const onClickOwner = (ev) => {
     clickedLabel.classList.remove('ghco-label--clicked');
   }, 150); // Corresponds to animation duration in CSS
 
-  // Defer the highlighting logic slightly to allow the animation to start smoothly
+  // Defer the logic slightly to allow the animation to start smoothly
   setTimeout(() => {
-    const owner = clickedLabel.dataset.owner;
+    // Toggle highlighting
     highlightedOwner = owner === highlightedOwner ? null : owner;
     document.body.classList.toggle('ghco-highlight-active', !!highlightedOwner);
+
     const labels = document.querySelectorAll('.ghco-label');
     labels.forEach((label) => {
       const isMatch = label.dataset.owner === highlightedOwner;
       label.classList.toggle('ghco-label--highlighted', isMatch);
     });
+
+    onOwnerClick?.(highlightedOwner, ev);
   });
 };
 
@@ -34,7 +37,7 @@ const sortOwnersByUserTeams = (owners, userTeams) => {
   });
 };
 
-export const createOwnerLabels = ({owners, ownershipData}) => {
+export const createOwnerLabels = ({owners, ownershipData, onOwnerClick}) => {
   const {ownerApprovals, user, userTeams, teamMembers, reviewers} =
     ownershipData;
   const labels = [];
@@ -53,6 +56,7 @@ export const createOwnerLabels = ({owners, ownershipData}) => {
         approved,
         members,
         reviewers,
+        onOwnerClick,
       });
       labels.push(label);
     });
@@ -68,6 +72,7 @@ export const createOwnerLabels = ({owners, ownershipData}) => {
       approved,
       members,
       reviewers,
+      onOwnerClick,
     });
     labels.push(label);
   }
@@ -75,7 +80,10 @@ export const createOwnerLabels = ({owners, ownershipData}) => {
   return labels;
 };
 
-const createLabel = (owner, {user, userOwns, approved, members, reviewers}) => {
+const createLabel = (
+  owner,
+  {user, userOwns, approved, members, reviewers, onOwnerClick}
+) => {
   const container = document.createElement('span');
   container.classList.add('ghco-label-container');
 
@@ -90,7 +98,9 @@ const createLabel = (owner, {user, userOwns, approved, members, reviewers}) => {
   label.textContent = `${checkmark}${owner}${star}`;
   label.dataset.owner = owner;
 
-  label.addEventListener('click', onClickOwner);
+  label.addEventListener('click', (ev) =>
+    handleOwnerClick(ev, owner, onOwnerClick)
+  );
 
   container.appendChild(label);
 
@@ -168,7 +178,19 @@ const createDrawer = ({user, approved, members, reviewers}) => {
   return drawer;
 };
 
+let programmaticExpansion = false;
+
+export const setProgrammaticExpansion = (value) => {
+  programmaticExpansion = value;
+};
+
 export const clearHighlightedOwner = () => {
+  if (programmaticExpansion) return;
+
   highlightedOwner = null;
   document.body.classList.remove('ghco-highlight-active');
+  const labels = document.querySelectorAll('.ghco-label');
+  labels.forEach((label) => {
+    label.classList.remove('ghco-label--highlighted');
+  });
 };

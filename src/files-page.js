@@ -1,5 +1,9 @@
 import {getPrOwnershipData} from './ownership';
-import {createOwnerLabels, clearHighlightedOwner} from './labels';
+import {
+  createOwnerLabels,
+  clearHighlightedOwner,
+  setProgrammaticExpansion,
+} from './labels';
 import * as github from './github';
 
 import fileLabelsCss from './file-labels.css';
@@ -8,22 +12,25 @@ import {injectStyles} from './inject-styles';
 // Inject CSS into page head for DevTools inspection
 injectStyles(fileLabelsCss, 'ghco-file-labels-styles');
 
+const fileHeaderSelectors = [
+  // Old Files Changed page
+  'div.file-header',
+  // New Files Changed page
+  'div[class^="Diff-module__diffHeaderWrapper"]',
+].join(', ');
+
 const getFileHeaderLink = (node) =>
   node?.dataset.anchor ||
   node.querySelector('[class*="DiffFileHeader-module"] a[href*="#diff-"]')
     ?.href;
 
 const getFileHeadersForDecoration = () => {
-  const selectors = [
-    // Old Files Changed page
-    'div.file-header',
-    // New Files Changed page
-    'div[class^="Diff-module__diffHeaderWrapper"]',
-  ];
-  const fileHeaders = document.querySelectorAll(selectors.join(', '));
+  const fileHeaders = Array.from(
+    document.querySelectorAll(fileHeaderSelectors)
+  );
 
   // Only return headers that don't already have our decoration AND have the data we need
-  const newHeaders = Array.from(fileHeaders).filter((node) => {
+  const newHeaders = fileHeaders.filter((node) => {
     // Skip if already decorated
     if (node.parentNode?.querySelector('.ghco-decoration')) {
       return false;
@@ -34,8 +41,165 @@ const getFileHeadersForDecoration = () => {
   return newHeaders;
 };
 
+const findExpandButton = (header) => {
+  // 1. Try generic button with aria-expanded
+  let button = header.querySelector('button[aria-expanded]');
+
+  // 2. In new UI, the expander is a chevron without aria-expanded,
+  //    and the button WITH aria-expanded is often the Comment button (octicon-comment) or Menu.
+  //    If we found a button but it's the comment button, ignore it.
+  if (button?.querySelector('.octicon-comment')) {
+    button = null;
+  }
+
+  // 3. If no valid button yet, look for the chevron specifically
+  if (!button) {
+    button = header
+      .querySelector(
+        'button .octicon-chevron-down, button .octicon-chevron-right'
+      )
+      ?.closest('button');
+  }
+  return button;
+};
+
+const toggleFileHeader = (header, expandOwner) => {
+  // The decoration is the next sibling
+  const decoration = header.nextElementSibling;
+  if (!decoration || !decoration.classList.contains('ghco-decoration')) {
+    return;
+  }
+
+  const labels = decoration.querySelectorAll('.ghco-label');
+  const expandFile =
+    !expandOwner ||
+    Array.from(labels).some((label) => label.dataset.owner === expandOwner);
+
+  const button = findExpandButton(header);
+  if (!button) return;
+
+  // Determine current state
+  let isExpanded = false;
+  if (button.hasAttribute('aria-expanded')) {
+    isExpanded = button.getAttribute('aria-expanded') === 'true';
+  } else {
+    // In new UI without aria-expanded, chevron-down means expanded
+    isExpanded = Boolean(button.querySelector('.octicon-chevron-down'));
+  }
+
+  if (expandFile !== isExpanded) {
+    button.click();
+  }
+};
+
+const onOwnerClick = (clickedOwner, event) => {
+  setProgrammaticExpansion(true);
+
+  // Capture the header that was clicked to maintain its scroll position
+  const clickedLabel = event?.target;
+  const clickedHeader =
+    clickedLabel?.closest('.ghco-decoration')?.previousElementSibling;
+  const oldRect = clickedHeader?.getBoundingClientRect();
+
+  const fileHeaders = document.querySelectorAll(fileHeaderSelectors);
+
+  fileHeaders.forEach((header) => {
+    toggleFileHeader(header, clickedOwner);
+  });
+
+  // Restore scroll position of the clicked header
+  // logic: if header moved down (newTop > oldTop), we scroll down to compensate
+  if (clickedHeader && oldRect) {
+    // Wait for frame to handle any immediate layout shifts
+    requestAnimationFrame(() => {
+      // Logic for preserving position:
+      // Current viewport Y + (New Element Y - Old Element Y)
+      const newRect = clickedHeader.getBoundingClientRect();
+      const deltaY = newRect.top - oldRect.top;
+      if (deltaY !== 0) {
+        window.scrollBy({top: deltaY, behavior: 'auto'});
+      }
+    });
+  }
+
+  // Reset flag after animations/updates have likely occurred
+  setTimeout(() => {
+    setProgrammaticExpansion(false);
+  }, 1000);
+};
+
+// Mutation observer to detect file expansion changes
+const expansionObserver = new MutationObserver((mutations) => {
+  for (const mutation of mutations) {
+    // Check for aria-expanded attribute change (Old UI)
+    if (
+      mutation.type === 'attributes' &&
+      mutation.attributeName === 'aria-expanded' &&
+      mutation.target.closest('.file-header')
+    ) {
+      clearHighlightedOwner();
+      return;
+    }
+
+    // Check for chevron icon change (New UI)
+    // The mutation target is likely the button or a wrapper, and children (svg) changed
+    if (mutation.type === 'childList' || mutation.type === 'attributes') {
+      const target = mutation.target;
+      // If we see a chevron change in a header wrapper
+      const chevronClasses = '.octicon-chevron-down, .octicon-chevron-right';
+      const chevron =
+        target.matches?.(chevronClasses) ||
+        target.querySelector?.(chevronClasses);
+      const header = target.closest(fileHeaderSelectors);
+      if (chevron && header) {
+        clearHighlightedOwner();
+        return;
+      }
+    }
+  }
+});
+
+let observedContainers = [];
+
+const attachExpansionObserver = () => {
+  const containerSelectors = [
+    'div[data-testid="progressive-diffs-list"]', // New UI
+    'div.js-diff-container', // Old UI
+  ].join(', ');
+  // Convert NodeList to Array for comparison and consistent storage
+  const containers = Array.from(document.querySelectorAll(containerSelectors));
+
+  // Check if containers have changed (shallow equality check of DOM nodes)
+  // This prevents observer thrashing (disconnect/reconnect) on unrelated mutations
+  const hasChanged =
+    containers.length !== observedContainers.length ||
+    containers.some((container, i) => container !== observedContainers[i]);
+
+  if (!hasChanged) {
+    return;
+  }
+
+  // Always disconnect first to avoid duplicate observations and memory leaks
+  expansionObserver.disconnect();
+  observedContainers = containers;
+
+  containers.forEach((container) => {
+    expansionObserver.observe(container, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['aria-expanded', 'class'],
+      childList: true,
+    });
+  });
+};
+
 // If we are on a PR files page, update reviewer decorations on the files
 export const updatePrFilesPage = async () => {
+  // Ensure expansion observer is watching current containers.
+  // Run this before early returns to ensure we disconnect from old containers
+  // if the user navigates away (e.g. to conversation tab), avoiding memory leaks.
+  attachExpansionObserver();
+
   const fileHeaders = getFileHeadersForDecoration();
 
   // Don't do anything when not on a PR files page, or the files haven't changed
@@ -53,21 +217,19 @@ export const updatePrFilesPage = async () => {
   // Get diff files map (needed for new UI, old UI uses data-path directly)
   const diffFilesMap = (await github.getDiffFilesMap()) || new Map();
 
-  // Clear highlighted owner
-  clearHighlightedOwner();
-
   fileHeaders.forEach((node) =>
     decorateFileHeader(node, {
       folderOwners,
       ownershipData,
       diffFilesMap,
+      onOwnerClick,
     })
   );
 };
 
 const decorateFileHeader = (
   node,
-  {folderOwners, ownershipData, diffFilesMap}
+  {folderOwners, ownershipData, diffFilesMap, onOwnerClick}
 ) => {
   // Try to get path directly from data-path attribute first (old UI, always present)
   let path = node?.dataset.path;
@@ -104,6 +266,7 @@ const decorateFileHeader = (
   const labels = createOwnerLabels({
     owners,
     ownershipData,
+    onOwnerClick,
   });
 
   labels.forEach((label) => decoration.appendChild(label));

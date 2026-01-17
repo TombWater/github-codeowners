@@ -2,7 +2,11 @@ import * as github from './github';
 import iconSvg from '../public/icons/icon.svg';
 import chevronUpSvg from './chevron-up.svg';
 import {getPrOwnershipData} from './ownership';
-import {createOwnerLabels} from './labels';
+import {
+  createOwnerLabels,
+  clearHighlightedOwner,
+  setProgrammaticExpansion,
+} from './labels';
 
 import mergeBoxCss from './merge-box.css';
 import {injectStyles} from './inject-styles';
@@ -251,7 +255,8 @@ const createHeaderText = (approvalStatus) => {
   description.id = APPROVALS_DESCRIPTION_ID;
 
   if (approvalStatus) {
-    const {approvalsReceived, totalApprovalsNeeded, totalFiles} = approvalStatus;
+    const {approvalsReceived, totalApprovalsNeeded, totalFiles} =
+      approvalStatus;
     const fileText = totalFiles === 1 ? 'file' : 'files';
     description.textContent = `${approvalsReceived} of ${totalApprovalsNeeded} required approvals received (${totalFiles} ${fileText})`;
   } else {
@@ -324,8 +329,9 @@ const onClickHeader = (event) => {
 
   const expandedClassName = expandButton.dataset.expandedClassName;
   if (expandedClassName) {
-    expandableWrapper?.classList.toggle(expandedClassName, isExpanded);
     expandableContent?.classList.toggle(expandedClassName, isExpanded);
+    expandableWrapper?.classList.toggle(expandedClassName, isExpanded);
+    expandableWrapper?.classList.toggle('ghco-expanded', isExpanded);
   }
 };
 
@@ -432,6 +438,7 @@ const createMergeBoxSectionContent = (
   const isExpanded = getDefaultExpandState(approvalStatus, isMerged);
   expandableContent.classList.toggle(classNames.expanded, isExpanded);
   expandableWrapper.classList.toggle(classNames.expanded, isExpanded);
+  expandableWrapper.classList.toggle('ghco-expanded', isExpanded);
 
   expandableContent.appendChild(ownerGroupsContent);
 
@@ -576,6 +583,10 @@ const onClickFileGroupExpander = (event) => {
   event.preventDefault();
   event.stopPropagation();
 
+  if (event.isTrusted) {
+    clearHighlightedOwner();
+  }
+
   // Option/Alt key: expand/collapse all file groups (not on our recursive call, though)
   if (event.altKey && event.isTrusted) {
     const section = button.closest('section[aria-label="Code owners"]');
@@ -613,6 +624,57 @@ const onClickFileGroupExpander = (event) => {
     wrapper.classList.toggle('ghco-files-wrapper--expanded', isExpanded);
     content.classList.toggle('ghco-files-content--expanded', isExpanded);
   }
+};
+
+const onOwnerClick = (clickedOwner, event) => {
+  setProgrammaticExpansion(true);
+
+  // Capture the group that was clicked to maintain its scroll position
+  const clickedLabel = event?.target;
+  const clickedGroup = clickedLabel?.closest('.ghco-merge-box-owner-group');
+  const oldRect = clickedGroup?.getBoundingClientRect();
+
+  const section = document.querySelector('section[aria-label="Code owners"]');
+  if (!section) return;
+
+  const groups = section.querySelectorAll('.ghco-merge-box-owner-group');
+  groups.forEach((group) => {
+    const labels = group.querySelectorAll('.ghco-label');
+    const expandGroup = Array.from(labels).some(
+      (label) => label.dataset.owner === clickedOwner
+    );
+
+    const button = group.querySelector('.ghco-file-count-button');
+    if (!button) return;
+
+    const isExpanded = button.getAttribute('aria-expanded') === 'true';
+
+    if (expandGroup !== isExpanded) {
+      button.click();
+    }
+  });
+
+  // Restore scroll position of the clicked group
+  // logic: if group moved down (newTop > oldTop), we scroll the container down to compensate
+  if (clickedGroup && oldRect) {
+    const container = clickedGroup.closest('.ghco-merge-box-container');
+
+    // Wait for frame to handle any immediate layout shifts
+    requestAnimationFrame(() => {
+      // Logic for preserving position:
+      // Current viewport Y + (New Element Y - Old Element Y)
+      const newRect = clickedGroup.getBoundingClientRect();
+      const deltaY = newRect.top - oldRect.top;
+      if (deltaY !== 0 && container) {
+        container.scrollBy({top: deltaY, behavior: 'auto'});
+      }
+    });
+  }
+
+  // Reset flag after animations/updates have likely occurred
+  setTimeout(() => {
+    setProgrammaticExpansion(false);
+  }, 1000);
 };
 
 const createMergeBoxOwnerGroup = ({owners, paths, digests, ownershipData}) => {
@@ -657,6 +719,7 @@ const createMergeBoxOwnerGroup = ({owners, paths, digests, ownershipData}) => {
   const labels = createOwnerLabels({
     owners,
     ownershipData,
+    onOwnerClick,
   });
 
   labels.forEach((label) => labelsDiv.appendChild(label));
