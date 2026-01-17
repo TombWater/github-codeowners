@@ -14,13 +14,53 @@ div[class*='MergeBoxSectionHeader-module__wrapper']:has(
 }
 
 /* Merge box owner groups container */
+
+/* Override GitHub's 300px max-height limit on the expandable content wrapper when expanded */
+.ghco-merge-box-expandable-wrapper.ghco-expanded,
+.ghco-merge-box-expandable-wrapper.ghco-expanded > div {
+  max-height: none !important;
+  overflow: hidden !important;
+}
+
 .ghco-merge-box-container {
   display: flex;
   flex-direction: column;
   gap: var(--control-small-gap, 4px);
-  max-height: 500px;
+  max-height: 315px;
   overflow-y: auto;
   padding: var(--base-size-6, 6px) var(--base-size-12, 12px) 0;
+
+  /* Scroll hints: shadows that appear only when there is content to scroll to */
+  background:
+    /* Top shadow cover (local: moves with content) */ linear-gradient(
+      var(--bgColor-muted, var(--color-canvas-subtle)) 30%,
+      transparent
+    ),
+    /* Bottom shadow cover (local: moves with content) */
+      linear-gradient(
+        transparent,
+        var(--bgColor-muted, var(--color-canvas-subtle)) 70%
+      )
+      0 100%,
+    /* Top shadow (scroll: fixed to container) */
+      radial-gradient(
+        farthest-side at 50% 0,
+        rgba(0, 0, 0, 0.2),
+        rgba(0, 0, 0, 0)
+      ),
+    /* Bottom shadow (scroll: fixed to container) */
+      radial-gradient(
+        farthest-side at 50% 100%,
+        rgba(0, 0, 0, 0.2),
+        rgba(0, 0, 0, 0)
+      )
+      0 100%;
+
+  background-repeat: no-repeat;
+  /* Ensure the background color matches the container's context so covers work */
+  background-color: var(--bgColor-muted, var(--color-canvas-subtle));
+  background-size: 100% 40px, 100% 40px, 100% 14px, 100% 14px;
+  background-attachment: local, local, scroll, scroll;
 }
 
 .ghco-merge-box-owner-group {
