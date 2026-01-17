@@ -22,12 +22,14 @@ Does not require a GitHub access token
 
 ***Owner Labels:***
 
-  - Hovering shows a drawer with the members of that team
-  - Clicking highlights that owner label in all file headers
-  - Green with a checkmark (✓): teams that have already approved
-  - Red with a star (★): teams that you're a member of
-  - Green with a star (☆): your teams that have approved
-
+- Hovering shows a drawer with the members of that team
+- Clicking expands that owner's files and collapses the others
+- Appearance indicates approval status and your team membership
+  - 🔴 **Red**: Pending your approval
+  - 🟡 **Yellow**: Pending approval from others
+  - 🟢 **Green**: Approved
+  - ★ **Star**: Your team
+  - ✓ **Checkmark**: Approved
 
 ## Install
 
