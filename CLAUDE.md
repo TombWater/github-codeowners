@@ -61,6 +61,11 @@ The extension works by:
 
 3. **Animation timing**: Double RAF for reply buttons is NOT optional - first RAF waits for DOM updates, second ensures layout stable. CSS transitions won't trigger reliably without it.
 
+4. **Global Event Delegation**: Use `document.addEventListener` with `event.target.closest(...)` instead of attaching listeners to individual elements.
+   - Reduces listener overhead for large PRs and handles dynamic React updates.
+   - Stores callbacks heavily on elements (e.g., `element._onOwnerClick`) for retrieval by the delegate.
+   - Uses synthetic events when delegating to existing handlers (e.g. `merge-box.js`).
+
 **Data Flow**
 - `getPrOwnershipData()` in `ownership.js` is the single aggregation point - returns: `folderOwners`, `reviewers`, `teamMembers`, `ownerApprovals`, `user`, `userTeams`, `userTeamsMap`, `diffFilesMap`, `prAuthor`
 - Pass ownership data as complete object through call chain (avoid destructure/reconstruct)

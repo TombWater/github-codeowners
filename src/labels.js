@@ -1,32 +1,5 @@
 let highlightedOwner;
 
-const handleOwnerClick = (ev, owner, onOwnerClick) => {
-  const clickedLabel = ev.target;
-
-  // Give feedback for the click
-  clickedLabel.classList.add('ghco-label--clicked');
-
-  // Remove the class after the animation is complete
-  setTimeout(() => {
-    clickedLabel.classList.remove('ghco-label--clicked');
-  }, 150); // Corresponds to animation duration in CSS
-
-  // Defer the logic slightly to allow the animation to start smoothly
-  setTimeout(() => {
-    // Toggle highlighting
-    highlightedOwner = owner === highlightedOwner ? null : owner;
-    document.body.classList.toggle('ghco-highlight-active', !!highlightedOwner);
-
-    const labels = document.querySelectorAll('.ghco-label');
-    labels.forEach((label) => {
-      const isMatch = label.dataset.owner === highlightedOwner;
-      label.classList.toggle('ghco-label--highlighted', isMatch);
-    });
-
-    onOwnerClick?.(highlightedOwner, ev);
-  });
-};
-
 const sortOwnersByUserTeams = (owners, userTeams) => {
   return Array.from(owners).sort((a, b) => {
     const aUserOwns = userTeams.has(a);
@@ -98,9 +71,8 @@ const createLabel = (
   label.textContent = `${checkmark}${owner}${star}`;
   label.dataset.owner = owner;
 
-  label.addEventListener('click', (ev) =>
-    handleOwnerClick(ev, owner, onOwnerClick)
-  );
+  // Store the callback on the element to be used by the delegated listener
+  label._onOwnerClick = onOwnerClick;
 
   container.appendChild(label);
 
@@ -113,43 +85,6 @@ const createLabel = (
     container.appendChild(drawer);
 
     label.style.anchorName = anchorName;
-
-    let hideTimeout;
-
-    label.addEventListener('mouseenter', () => {
-      clearTimeout(hideTimeout);
-      drawer.showPopover();
-
-      // Start the opening animation
-      requestAnimationFrame(() => {
-        const labelWidth = label.offsetWidth;
-        const drawerWidth = drawer.offsetWidth;
-        if (drawerWidth < labelWidth) {
-          // Firefox fallback: ensure drawer is at least as wide as label
-          drawer.style.width = `${labelWidth}px`;
-        } else if (drawerWidth > labelWidth) {
-          // If drawer is wider than label, make the overhanging corner round
-          drawer.style.borderTopRightRadius = `${Math.min(
-            drawerWidth - labelWidth,
-            9 // matches .ghco-label border-radius in CSS
-          )}px`;
-        }
-
-        drawer.style.transform = 'scaleY(1)';
-        drawer.style.opacity = '1';
-      });
-    });
-
-    label.addEventListener('mouseleave', () => {
-      // Start the closing animation immediately
-      drawer.style.transform = 'scaleY(0)';
-      drawer.style.opacity = '0';
-
-      // Hide the popover after the animation completes
-      hideTimeout = setTimeout(() => {
-        drawer.hidePopover();
-      }, 200); // Match the CSS transition duration
-    });
   }
 
   return container;
@@ -194,3 +129,85 @@ export const clearHighlightedOwner = () => {
     label.classList.remove('ghco-label--highlighted');
   });
 };
+
+// Delegate listeners to avoid attaching listeners to every label
+document.addEventListener('click', (ev) => {
+  const label = ev.target?.closest('.ghco-label');
+  if (label) {
+    const owner = label.dataset.owner;
+    const onOwnerClick = label._onOwnerClick;
+
+    // Give feedback for the click
+    label.classList.add('ghco-label--clicked');
+
+    // Remove the class after the animation is complete
+    setTimeout(() => {
+      label.classList.remove('ghco-label--clicked');
+    }, 150); // Corresponds to animation duration in CSS
+
+    // Defer the logic slightly to allow the animation to start smoothly
+    setTimeout(() => {
+      // Toggle highlighting
+      highlightedOwner = owner === highlightedOwner ? null : owner;
+      document.body.classList.toggle(
+        'ghco-highlight-active',
+        !!highlightedOwner
+      );
+
+      const labels = document.querySelectorAll('.ghco-label');
+      labels.forEach((accLabel) => {
+        const isMatch = accLabel.dataset.owner === highlightedOwner;
+        accLabel.classList.toggle('ghco-label--highlighted', isMatch);
+      });
+
+      onOwnerClick?.(highlightedOwner, ev);
+    });
+  }
+});
+
+document.addEventListener('mouseover', (ev) => {
+  const label = ev.target?.closest('.ghco-label');
+  if (!label || label.contains(ev.relatedTarget)) return;
+
+  const drawer = label.parentNode.querySelector('.ghco-drawer');
+  if (!drawer) return;
+
+  clearTimeout(label._hideTimeout);
+  drawer.showPopover();
+
+  // Start the opening animation
+  requestAnimationFrame(() => {
+    const labelWidth = label.offsetWidth;
+    const drawerWidth = drawer.offsetWidth;
+    if (drawerWidth < labelWidth) {
+      // Firefox fallback: ensure drawer is at least as wide as label
+      drawer.style.width = `${labelWidth}px`;
+    } else if (drawerWidth > labelWidth) {
+      // If drawer is wider than label, make the overhanging corner round
+      drawer.style.borderTopRightRadius = `${Math.min(
+        drawerWidth - labelWidth,
+        9 // matches .ghco-label border-radius in CSS
+      )}px`;
+    }
+
+    drawer.style.transform = 'scaleY(1)';
+    drawer.style.opacity = '1';
+  });
+});
+
+document.addEventListener('mouseout', (ev) => {
+  const label = ev.target?.closest('.ghco-label');
+  if (!label || label.contains(ev.relatedTarget)) return;
+
+  const drawer = label.parentNode.querySelector('.ghco-drawer');
+  if (!drawer) return;
+
+  // Start the closing animation immediately
+  drawer.style.transform = 'scaleY(0)';
+  drawer.style.opacity = '0';
+
+  // Hide the popover after the animation completes
+  label._hideTimeout = setTimeout(() => {
+    drawer.hidePopover();
+  }, 200); // Match the CSS transition duration
+});

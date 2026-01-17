@@ -362,10 +362,9 @@ const createMergeBoxSectionHeader = (approvalStatus, isMerged) => {
     expandButton.setAttribute('aria-label', 'Code owners');
     expandButton.setAttribute('type', 'button');
     expandButton.setAttribute('aria-expanded', isExpanded.toString());
-    expandButton.classList.add(classNames.headingButton);
-
+    expandButton.classList.add(classNames.headingButton, 'ghco-header-button');
     expandButton.dataset.expandedClassName = classNames.expanded;
-    expandButton.addEventListener('click', onClickHeader);
+
     wrapper.appendChild(expandButton);
 
     const chevronContainer = document.createElement('div');
@@ -499,11 +498,6 @@ const updateMergeBoxSectionWithContent = (
     'div[class*="MergeBoxSectionHeader"]'
   );
   if (existingHeader) {
-    const existingButton = existingHeader.querySelector(
-      'button[aria-label="Code owners"]'
-    );
-    existingButton?.removeEventListener('click', onClickHeader);
-
     const oldApprovalsReceived = Number(
       existingHeader.dataset.approvalCount || 0
     );
@@ -519,12 +513,8 @@ const updateMergeBoxSectionWithContent = (
     section.replaceChild(newHeader, existingHeader);
   }
 
-  // Clean up event listeners before removing old content
   const oldWrapper = section.querySelector('div[class*="__expandableWrapper"]');
   if (oldWrapper) {
-    oldWrapper.querySelectorAll('.ghco-file-count-button').forEach((button) => {
-      button.removeEventListener('click', onClickFileGroupExpander);
-    });
     oldWrapper.remove();
   }
 
@@ -692,7 +682,6 @@ const createMergeBoxOwnerGroup = ({owners, paths, digests, ownershipData}) => {
     'aria-label',
     `Expand ${paths.length} ${fileWord} for this owner group`
   );
-  fileCountButton.addEventListener('click', onClickFileGroupExpander);
 
   const chevronWrapper = document.createElement('span');
   chevronWrapper.classList.add('ghco-chevron-wrapper');
@@ -748,3 +737,38 @@ const createMergeBoxOwnerGroup = ({owners, paths, digests, ownershipData}) => {
   listDiv.appendChild(filesWrapper);
   return listDiv;
 };
+
+// Delegate click listener for merge box interactions
+document.addEventListener('click', (event) => {
+  // Handle main header expand/collapse
+  const headerButton = event.target.closest(
+    'button[aria-label="Code owners"].ghco-header-button'
+  );
+  if (headerButton) {
+    // Manually set currentTarget to the button for the handler
+    const syntheticEvent = {
+      ...event,
+      currentTarget: headerButton,
+      preventDefault: () => event.preventDefault(),
+      stopPropagation: () => event.stopPropagation(),
+    };
+    onClickHeader(syntheticEvent);
+    return;
+  }
+
+  // Handle file group expand/collapse
+  const fileGroupButton = event.target.closest('.ghco-file-count-button');
+  if (fileGroupButton) {
+    // Manually set currentTarget to the button for the handler
+    const syntheticEvent = {
+      ...event,
+      currentTarget: fileGroupButton,
+      preventDefault: () => event.preventDefault(),
+      stopPropagation: () => event.stopPropagation(),
+      altKey: event.altKey,
+      isTrusted: event.isTrusted,
+    };
+    onClickFileGroupExpander(syntheticEvent);
+    return;
+  }
+});
