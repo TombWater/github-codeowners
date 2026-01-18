@@ -139,6 +139,11 @@ The extension works by:
 - **JS/CSS coordination**: Drawer corner rounding value `9` in `labels.js` must match CSS `border-radius: 9px`
 - **Scroll hints**: pure CSS implementation using `background-attachment: local, scroll` (merge-box.css)
 
+**Update Notification:**
+- Checks `chrome.runtime.getManifest().version` against `chrome.storage.local` to show dismissable banner
+- Uses `sessionStorage` for per-PR UI state (expand/collapse), but `codeowners-dismissedVersion` is global
+- Banner links to `CHANGELOG.md` on GitHub
+
 **Pattern Matching:**
 - CODEOWNERS patterns matched using `ignore` library with `.ignores()` method
 - Individual users create "pseudo-teams" for consistent handling

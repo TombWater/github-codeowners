@@ -1,6 +1,7 @@
 import * as github from './github';
 import iconSvg from '../public/icons/icon.svg';
 import chevronUpSvg from './chevron-up.svg';
+import xIconSvg from './x-icon.svg';
 import {getPrOwnershipData} from './ownership';
 import {
   createOwnerLabels,
@@ -24,6 +25,74 @@ const chevronSvgDoc = parser.parseFromString(
   chevronUpSvg.replace(xmlDeclRegex, ''),
   'image/svg+xml'
 );
+
+const xIconSvgDoc = parser.parseFromString(
+  xIconSvg.replace(xmlDeclRegex, ''),
+  'image/svg+xml'
+);
+const DISMISSED_VERSION_KEY = 'ghco-dismissedNewVersionBanner';
+
+const checkAndShowNewVersionBanner = (section) => {
+  const BANNER_CLASS = 'ghco-new-version-banner';
+  if (section.querySelector(`.${BANNER_CLASS}`)) return;
+
+  const currentVersion = chrome.runtime.getManifest().version;
+
+  chrome.storage.local.get([DISMISSED_VERSION_KEY], (result) => {
+    // Stop if storage read failed or if the user navigated away (prevents memory leaks)
+    if (chrome.runtime.lastError || !section.isConnected) return;
+
+    const dismissedVersion = result?.[DISMISSED_VERSION_KEY];
+    if (dismissedVersion !== currentVersion) {
+      const banner = document.createElement('div');
+      banner.className = BANNER_CLASS;
+
+      const content = document.createElement('div');
+      content.className = 'ghco-new-version-banner-content';
+
+      const messageSpan = document.createElement('span');
+      const strongText = document.createElement('strong');
+      strongText.textContent = 'Updated! ';
+      messageSpan.appendChild(strongText);
+      messageSpan.appendChild(
+        document.createTextNode(`GitHub Codeowners ${currentVersion} is here.`)
+      );
+
+      const link = document.createElement('a');
+      link.href =
+        'https://github.com/TombWater/github-codeowners/blob/main/CHANGELOG.md';
+      link.target = '_blank';
+      link.textContent = "See what's new";
+
+      content.appendChild(messageSpan);
+      content.appendChild(link);
+
+      const dismissBtn = document.createElement('button');
+      dismissBtn.className = 'ghco-dismiss-button';
+      dismissBtn.ariaLabel = 'Dismiss';
+      dismissBtn.appendChild(xIconSvgDoc.documentElement.cloneNode(true));
+
+      dismissBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        banner.remove();
+        chrome.storage.local.set({[DISMISSED_VERSION_KEY]: currentVersion});
+      });
+
+      banner.appendChild(content);
+      banner.appendChild(dismissBtn);
+
+      // Insert after the header so it's visible even when collapsed
+      const header = section.querySelector(
+        'div[class*="MergeBoxSectionHeader"]'
+      );
+      if (header) {
+        header.after(banner);
+      } else {
+        section.prepend(banner);
+      }
+    }
+  });
+};
 
 const createOwnerGroupsMap = (diffFilesMap, folderOwners) => {
   const ownerGroupsMap = new Map();
@@ -113,6 +182,8 @@ export const updateMergeBox = async () => {
     // Check if section is in the correct position (merge box structure may have changed)
     ensureCorrectPosition(section, container);
   }
+
+  checkAndShowNewVersionBanner(section);
 
   // Update state early
   section.dataset.state = newState;

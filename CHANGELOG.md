@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.7.0] - Unreleased
 - **Feature**: Clicking an owner label now expands that owner's corresponding files.
+- **Feature**: Added a "What's New" banner that appears in the merge box when the extension is updated, linking to the changelog.
 - **UX**: Added shadow affordances to the merge box file list to indicate when the content is scrollable.
 - **Internal**: Refactored to use global event delegation, improving performance and reliability with dynamic content updates.
 

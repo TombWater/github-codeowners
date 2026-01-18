@@ -180,3 +180,50 @@ div[class*='MergeBoxSectionHeader-module__wrapper']:has(
   border-bottom-right-radius: var(--borderRadius-medium, 6px);
   overflow: hidden; /* Clip children to rounded corners */
 }
+
+/* New Version Banner */
+.ghco-new-version-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--base-size-8, 8px) var(--base-size-16, 16px);
+  background-color: var(--bgColor-accent-muted, var(--color-accent-subtle));
+  border-bottom: 1px solid
+    var(--borderColor-default, var(--color-border-default));
+  font-size: var(--body-font-size-small, 12px);
+  color: var(--fgColor-default, var(--color-fg-default));
+}
+
+.ghco-new-version-banner-content {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-8, 8px);
+}
+
+.ghco-new-version-banner a {
+  color: var(--fgColor-accent, var(--color-accent-fg));
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.ghco-new-version-banner a:hover {
+  text-decoration: underline;
+}
+
+.ghco-dismiss-button {
+  background: none;
+  border: none;
+  padding: var(--base-size-4, 4px);
+  cursor: pointer;
+  color: var(--fgColor-muted, var(--color-fg-muted));
+  border-radius: var(--borderRadius-small, 4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--base-size-8, 8px);
+}
+
+.ghco-dismiss-button:hover {
+  background-color: var(--bgColor-neutral-muted, var(--color-neutral-subtle));
+  color: var(--fgColor-default, var(--color-fg-default));
+}
