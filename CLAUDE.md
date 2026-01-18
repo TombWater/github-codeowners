@@ -25,6 +25,7 @@ The extension works by:
   - ⚠️ **IMPORTANT**: User typically has `watch` running. Do NOT run build commands just to update the extension - changes are already being built automatically. Only run `npm run build` if you need to see compilation errors.
 - **Testing**: Load `build/` directory as unpacked extension in Chrome/Firefox developer mode
 - **Formatting**: Use `npm run format` to fix code formatting. Do not spend time manually formatting code.
+- **Changelog**: ALWAYS update `CHANGELOG.md` under the "Unreleased" section when implementing user-facing changes. Use concise bullet points starting with **Feature**, **Fix**, **UX**, or **Internal**.
 - **No API Keys**: Extension works entirely through DOM scraping, no GitHub API tokens required
 - **Codebase Size**: ~2000 lines total across 7 focused modules
 - **Dependencies**: Uses lodash-es (with patches), ignore library, webpack build system

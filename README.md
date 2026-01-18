@@ -31,6 +31,8 @@ Does not require a GitHub access token
   - ★ **Star**: Your team
   - ✓ **Checkmark**: Approved
 
+See [CHANGELOG.md](CHANGELOG.md) for version history.
+
 ## Install
 
 ### Chrome
