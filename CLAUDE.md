@@ -95,7 +95,7 @@ The extension works by:
 ## Common Development Patterns
 
 - **GitHub DOM changes**: Handle both old and new UI patterns using fallback selectors
-- **Working with DOM samples**: Capture HTML via DevTools, store in `zz-samples/` with descriptive names, and remind the user to delete them before merging
+- **DOM inspection with Playwright MCP**: Use Playwright browser tools to inspect GitHub pages dynamically. User should open a representative PR (works with private repos where CODEOWNERS is present), then use Playwright MCP to navigate, snapshot, and interact with the page as needed. If Playwright MCP doesn't work, tell the user to check that the token is valid and restart VSCode. Do not fallback to other approaches unless the user tells you to.
 - **Logging philosophy**: Keep console quiet in production. Only log:
   - External data sources that are hard to reproduce (CODEOWNERS parsing, team membership)
   - Debug panel operations (guarded by `__DEBUG__` flag, dev builds only)
