@@ -222,6 +222,16 @@ const handleClearSession = () => {
   const key = `${prId}:ghco-codeownersExpanded`;
   sessionStorage.removeItem(key);
   console.log('[GHCO Debug] Cleared expand state from session storage');
+
+  chrome?.storage?.local?.clear(() => {
+    try {
+      if (!chrome.runtime.lastError) {
+        console.log('[GHCO Debug] Cleared extension storage');
+      }
+    } catch (err) {
+      // Extension context invalidated - silently ignore
+    }
+  });
 };
 
 const handleSimulateApproval = async () => {

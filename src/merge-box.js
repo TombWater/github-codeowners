@@ -26,10 +26,6 @@ const chevronSvgDoc = parser.parseFromString(
   'image/svg+xml'
 );
 
-const xIconSvgDoc = parser.parseFromString(
-  xIconSvg.replace(xmlDeclRegex, ''),
-  'image/svg+xml'
-);
 const DISMISSED_VERSION_KEY = 'ghco-dismissedNewVersionBanner';
 
 const ignoreException = (fn) => {
@@ -59,50 +55,27 @@ const checkAndShowNewVersionBanner = (section) => {
     if (chrome.runtime.lastError || !section.isConnected) return;
 
     const dismissedVersion = result?.[DISMISSED_VERSION_KEY];
-    if (dismissedVersion !== currentVersion) {
-      const banner = document.createElement('div');
-      banner.className = BANNER_CLASS;
+    if (dismissedVersion === currentVersion) return;
 
-      const content = document.createElement('div');
-      content.className = 'ghco-new-version-banner-content';
+    const bannerHtml = `
+      <div class="${BANNER_CLASS}">
+        <div class="ghco-new-version-banner-content">
+          <span>
+            <strong>Updated!</strong> GitHub Codeowners ${currentVersion} is here.
+          </span>
+          <a href="https://github.com/TombWater/github-codeowners/blob/main/CHANGELOG.md"
+             target="_blank">See what's new</a>
+        </div>
+        <button class="ghco-dismiss-button" aria-label="Dismiss" data-version="${currentVersion}">
+          ${xIconSvg.replace(xmlDeclRegex, '')}
+        </button>
+      </div>
+    `;
+    const banner = parser.parseFromString(bannerHtml, 'text/html').body
+      .firstElementChild;
 
-      const messageSpan = document.createElement('span');
-      const strongText = document.createElement('strong');
-      strongText.textContent = 'Updated! ';
-      messageSpan.appendChild(strongText);
-      messageSpan.appendChild(
-        document.createTextNode(`GitHub Codeowners ${currentVersion} is here.`)
-      );
-
-      const link = document.createElement('a');
-      link.href =
-        'https://github.com/TombWater/github-codeowners/blob/main/CHANGELOG.md';
-      link.target = '_blank';
-      link.textContent = "See what's new";
-
-      content.appendChild(messageSpan);
-      content.appendChild(link);
-
-      const dismissBtn = document.createElement('button');
-      dismissBtn.className = 'ghco-dismiss-button';
-      dismissBtn.ariaLabel = 'Dismiss';
-      dismissBtn.appendChild(xIconSvgDoc.documentElement.cloneNode(true));
-
-      dismissBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        banner.remove();
-        safeStorageSet({[DISMISSED_VERSION_KEY]: currentVersion});
-      });
-
-      banner.appendChild(content);
-      banner.appendChild(dismissBtn);
-
-      // Insert after the header so it's visible even when collapsed
-      const header = section.querySelector(
-        'div[class*="MergeBoxSectionHeader"]'
-      );
-      header?.after(banner);
-    }
+    // Insert after the header so it's visible even when collapsed
+    section.querySelector('div[class*="MergeBoxSectionHeader"]')?.after(banner);
   });
 };
 
@@ -859,6 +832,19 @@ document.addEventListener('click', (event) => {
   if (fileLink) {
     event.preventDefault();
     window.location.href = fileLink.href;
+    return;
+  }
+
+  // Handle dismiss button for version banner
+  const dismissBtn = event.target.closest('.ghco-dismiss-button');
+  if (dismissBtn) {
+    event.stopPropagation();
+    const banner = dismissBtn.closest('.ghco-new-version-banner');
+    banner?.remove();
+    const version = dismissBtn.dataset.version;
+    if (version) {
+      safeStorageSet({[DISMISSED_VERSION_KEY]: version});
+    }
     return;
   }
 });
