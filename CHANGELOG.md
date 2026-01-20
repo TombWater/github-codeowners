@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+- **Fix**: Merge box file links now correctly go to the specific file by forcing full page navigation
+
 ## [0.7.0] - 2026-01-18
 - **Feature**: Clicking an owner label now expands that owner's corresponding files.
 - **Feature**: Added a "What's New" banner that appears in the merge box when the extension is updated, linking to the changelog.

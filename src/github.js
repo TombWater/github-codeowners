@@ -156,6 +156,20 @@ export const getPrInfo = () => {
   return {page, owner, repo, num, base};
 };
 
+// Get the base URL for the files/changes tab
+export const getFilesUrl = () => {
+  const {owner, repo, num} = getPrInfo();
+
+  const filesUrl = document
+    .querySelector(
+      `a[href$="/pull/${num}/files"], a[href$="/pull/${num}/changes"]`
+    )
+    ?.href?.split('#')[0];
+
+  // Fallback to /files URL if not found
+  return filesUrl || `https://github.com/${owner}/${repo}/pull/${num}/files`;
+};
+
 const getEmbeddedData = (doc, extractor) => {
   const targets = ['react-app.embeddedData', 'react-partial.embeddedData'];
   const selectors = targets.map((t) => `[data-target="${t}"]`);

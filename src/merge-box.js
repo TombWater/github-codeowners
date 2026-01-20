@@ -793,12 +793,11 @@ const createMergeBoxOwnerGroup = ({owners, paths, digests, ownershipData}) => {
   const filesContent = document.createElement('div');
   filesContent.classList.add('ghco-files-content');
 
-  // Get PR info synchronously from the URL for file links
-  const {owner, repo, num} = github.getPrInfo();
+  const filesUrl = github.getFilesUrl();
 
   paths.forEach((path, index) => {
     const fileLink = document.createElement('a');
-    fileLink.href = `https://github.com/${owner}/${repo}/pull/${num}/files#diff-${digests[index]}`;
+    fileLink.href = `${filesUrl}#diff-${digests[index]}`;
     fileLink.textContent = path;
     fileLink.classList.add('ghco-merge-box-file-link');
     filesContent.appendChild(fileLink);
@@ -840,6 +839,14 @@ document.addEventListener('click', (event) => {
       isTrusted: event.isTrusted,
     };
     onClickFileGroupExpander(syntheticEvent);
+    return;
+  }
+
+  // Handle file links - force full page navigation to preserve anchors
+  const fileLink = event.target.closest('.ghco-merge-box-file-link');
+  if (fileLink) {
+    event.preventDefault();
+    window.location.href = fileLink.href;
     return;
   }
 });
