@@ -48,7 +48,11 @@ const observer = new MutationObserver(debounce(mutationCallback, 100));
 observer.observe(document.body, {childList: true, subtree: true});
 
 // Delete the disused access token that may still be in storage from the previous version
-chrome.storage.local.remove('token');
+try {
+  chrome.storage.local.remove('token');
+} catch (e) {
+  // Extension context invalidated - silently ignore
+}
 
 // Initialize debug panel if ?ghco-debug is in URL
 initDebugPanel(updateAll);

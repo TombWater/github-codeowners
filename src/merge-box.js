@@ -32,13 +32,29 @@ const xIconSvgDoc = parser.parseFromString(
 );
 const DISMISSED_VERSION_KEY = 'ghco-dismissedNewVersionBanner';
 
+const ignoreException = (fn) => {
+  try {
+    return fn();
+  } catch (e) {
+    // Extension context invalidated - silently ignore
+  }
+};
+
+const safeExtensionVersion = () =>
+  ignoreException(() => chrome.runtime.getManifest().version);
+const safeStorageGet = (keys, callback) =>
+  ignoreException(() => chrome.storage.local.get(keys, callback));
+const safeStorageSet = (items) =>
+  ignoreException(() => chrome.storage.local.set(items));
+
 const checkAndShowNewVersionBanner = (section) => {
   const BANNER_CLASS = 'ghco-new-version-banner';
   if (section.querySelector(`.${BANNER_CLASS}`)) return;
 
-  const currentVersion = chrome.runtime.getManifest().version;
+  const currentVersion = safeExtensionVersion();
+  if (!currentVersion) return;
 
-  chrome.storage.local.get([DISMISSED_VERSION_KEY], (result) => {
+  safeStorageGet([DISMISSED_VERSION_KEY], (result) => {
     // Stop if storage read failed or if the user navigated away (prevents memory leaks)
     if (chrome.runtime.lastError || !section.isConnected) return;
 
@@ -75,7 +91,7 @@ const checkAndShowNewVersionBanner = (section) => {
       dismissBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         banner.remove();
-        chrome.storage.local.set({[DISMISSED_VERSION_KEY]: currentVersion});
+        safeStorageSet({[DISMISSED_VERSION_KEY]: currentVersion});
       });
 
       banner.appendChild(content);
@@ -85,11 +101,7 @@ const checkAndShowNewVersionBanner = (section) => {
       const header = section.querySelector(
         'div[class*="MergeBoxSectionHeader"]'
       );
-      if (header) {
-        header.after(banner);
-      } else {
-        section.prepend(banner);
-      }
+      header?.after(banner);
     }
   });
 };
