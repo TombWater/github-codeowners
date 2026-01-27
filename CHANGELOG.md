@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- **UX**: De-selecting owner labels now restores expansion based on the "Viewed" checkbox state
 - **Fix**: Merge box file links now correctly go to the specific file by forcing full page navigation
+- **Fix**: Eliminated scroll jumping when clicking owner labels by blocking GitHub's scroll events during expand/collapse operations
 - **Fix**: Prevented "Extension context invalidated" errors that could occur when the extension is reloaded while a GitHub page is open.
 
 ## [0.7.0] - 2026-01-18

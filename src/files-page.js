@@ -71,9 +71,17 @@ const toggleFileHeader = (header, expandOwner) => {
   }
 
   const labels = decoration.querySelectorAll('.ghco-label');
-  const expandFile =
-    !expandOwner ||
-    Array.from(labels).some((label) => label.dataset.owner === expandOwner);
+  const isViewed =
+    // New UI: button with MarkAsViewedButton-module class and aria-pressed="true"
+    header
+      .querySelector('button[class*="MarkAsViewedButton-module"]')
+      ?.getAttribute('aria-pressed') === 'true' ||
+    // Old UI: checkbox with js-reviewed-checkbox class and checked attribute
+    header.querySelector('input.js-reviewed-checkbox')?.checked === true;
+
+  const expandFile = expandOwner
+    ? Array.from(labels).some((label) => label.dataset.owner === expandOwner)
+    : !isViewed;
 
   const button = findExpandButton(header);
   if (!button) return;
@@ -99,7 +107,7 @@ const onOwnerClick = (clickedOwner, event) => {
   const clickedLabel = event?.target;
   const clickedHeader =
     clickedLabel?.closest('.ghco-decoration')?.previousElementSibling;
-  const oldRect = clickedHeader?.getBoundingClientRect();
+  const targetY = clickedHeader?.getBoundingClientRect().top;
 
   const fileHeaders = document.querySelectorAll(fileHeaderSelectors);
 
@@ -107,25 +115,31 @@ const onOwnerClick = (clickedOwner, event) => {
     toggleFileHeader(header, clickedOwner);
   });
 
-  // Restore scroll position of the clicked header
-  // logic: if header moved down (newTop > oldTop), we scroll down to compensate
-  if (clickedHeader && oldRect) {
-    // Wait for frame to handle any immediate layout shifts
-    requestAnimationFrame(() => {
-      // Logic for preserving position:
-      // Current viewport Y + (New Element Y - Old Element Y)
-      const newRect = clickedHeader.getBoundingClientRect();
-      const deltaY = newRect.top - oldRect.top;
-      if (deltaY !== 0) {
-        window.scrollBy({top: deltaY, behavior: 'auto'});
-      }
-    });
+  // If no scroll restoration needed, finish immediately
+  if (!clickedHeader || targetY === undefined) {
+    setProgrammaticExpansion(false);
+    return;
   }
 
-  // Reset flag after animations/updates have likely occurred
-  setTimeout(() => {
-    setProgrammaticExpansion(false);
-  }, 1000);
+  // Continuously restore scroll position until layout stabilizes
+  let framesRemaining = 20; // Monitor for up to ~300ms (20 * 16ms per frame)
+
+  const restoreScroll = () => {
+    const currentY = clickedHeader.getBoundingClientRect().top;
+    const deltaY = currentY - targetY;
+
+    if (Math.abs(deltaY) > 0.5) {
+      window.scrollBy({top: deltaY, behavior: 'instant'});
+    }
+
+    if (--framesRemaining > 0) {
+      requestAnimationFrame(restoreScroll);
+    } else {
+      setProgrammaticExpansion(false);
+    }
+  };
+
+  requestAnimationFrame(restoreScroll);
 };
 
 // Mutation observer to detect file expansion changes
