@@ -117,6 +117,9 @@ let programmaticExpansion = false;
 
 export const setProgrammaticExpansion = (value) => {
   programmaticExpansion = value;
+  if (!value) {
+    updateOpenDrawers();
+  }
 };
 
 export const clearHighlightedOwner = () => {
@@ -127,6 +130,32 @@ export const clearHighlightedOwner = () => {
   const labels = document.querySelectorAll('.ghco-label');
   labels.forEach((label) => {
     label.classList.remove('ghco-label--highlighted');
+  });
+};
+
+const updateDrawerRadius = (drawer, label) => {
+  const labelWidth = label.offsetWidth;
+  const drawerWidth = drawer.offsetWidth;
+
+  if (drawerWidth > labelWidth) {
+    drawer.style.borderTopRightRadius = `${Math.min(
+      drawerWidth - labelWidth,
+      9 // matches .ghco-label border-radius in CSS
+    )}px`;
+  } else {
+    drawer.style.borderTopRightRadius = '0';
+  }
+};
+
+const updateOpenDrawers = () => {
+  const openDrawers = document.querySelectorAll('.ghco-drawer:popover-open');
+  openDrawers.forEach((drawer) => {
+    const label = drawer.parentNode.querySelector('.ghco-label');
+    if (!label) return;
+
+    requestAnimationFrame(() => {
+      updateDrawerRadius(drawer, label);
+    });
   });
 };
 
@@ -182,13 +211,9 @@ document.addEventListener('mouseover', (ev) => {
     if (drawerWidth < labelWidth) {
       // Firefox fallback: ensure drawer is at least as wide as label
       drawer.style.width = `${labelWidth}px`;
-    } else if (drawerWidth > labelWidth) {
-      // If drawer is wider than label, make the overhanging corner round
-      drawer.style.borderTopRightRadius = `${Math.min(
-        drawerWidth - labelWidth,
-        9 // matches .ghco-label border-radius in CSS
-      )}px`;
     }
+
+    updateDrawerRadius(drawer, label);
 
     drawer.style.transform = 'scaleY(1)';
     drawer.style.opacity = '1';
