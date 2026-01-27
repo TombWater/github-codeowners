@@ -231,6 +231,14 @@ export const updatePrFilesPage = async () => {
   // Get diff files map (needed for new UI, old UI uses data-path directly)
   const diffFilesMap = (await github.getDiffFilesMap()) || new Map();
 
+  // Capture scroll position before decorating to restore it after
+  // Find the header closest to the top of the viewport as reference
+  const allHeaders = Array.from(document.querySelectorAll(fileHeaderSelectors));
+  const referenceHeader =
+    allHeaders.find((h) => h.getBoundingClientRect().top >= 0) || // First visible or below
+    allHeaders.findLast((h) => h.getBoundingClientRect().top < 0); // Last above viewport
+  const referenceY = referenceHeader?.getBoundingClientRect().top;
+
   fileHeaders.forEach((node) =>
     decorateFileHeader(node, {
       folderOwners,
@@ -239,6 +247,16 @@ export const updatePrFilesPage = async () => {
       onOwnerClick,
     })
   );
+
+  // Restore scroll position after decorations are added
+  if (referenceHeader && referenceY !== undefined) {
+    requestAnimationFrame(() => {
+      const deltaY = referenceHeader.getBoundingClientRect().top - referenceY;
+      if (Math.abs(deltaY) > 0.5) {
+        window.scrollBy({top: deltaY, behavior: 'instant'});
+      }
+    });
+  }
 };
 
 const decorateFileHeader = (

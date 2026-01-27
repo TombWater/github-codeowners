@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 - **UX**: De-selecting owner labels now restores expansion based on the "Viewed" checkbox state
 - **Fix**: Merge box file links now correctly go to the specific file by forcing full page navigation
+- **Fix**: Eliminated scroll jumping when owner label decorations are added to the files page
 - **Fix**: Eliminated scroll jumping when clicking owner labels by blocking GitHub's scroll events during expand/collapse operations
 - **Fix**: Remove incorrect rounded radius on drawer top after clicking owner labels to expand/collapse files
 - **Fix**: Prevented "Extension context invalidated" errors that could occur when the extension is reloaded while a GitHub page is open.
