@@ -24,6 +24,7 @@ The extension works by:
 - **Live Development**: Use `npm run watch` for automatic rebuilds during development
   - ⚠️ **IMPORTANT**: User typically has `watch` running. Do NOT run build commands just to update the extension - changes are already being built automatically. Only run `npm run build` if you need to see compilation errors.
 - **Testing**: Load `build/` directory as unpacked extension in Chrome/Firefox developer mode
+  - ⚠️ **AFTER MAKING CODE CHANGES**: Always ask the user to reload the extension at `chrome://extensions/` (click reload button) and refresh the GitHub page to see changes take effect
 - **Formatting**: Use `npm run format` to fix code formatting. Do not spend time manually formatting code.
 - **Changelog**: ALWAYS update `CHANGELOG.md` under the "Unreleased" section when implementing user-facing changes. Use concise bullet points starting with **Feature**, **Fix**, **UX**, or **Internal**.
 - **No API Keys**: Extension works entirely through DOM scraping, no GitHub API tokens required
@@ -66,6 +67,10 @@ The extension works by:
    - Reduces listener overhead for large PRs and handles dynamic React updates.
    - Stores callbacks heavily on elements (e.g., `element._onOwnerClick`) for retrieval by the delegate.
    - Uses synthetic events when delegating to existing handlers (e.g. `merge-box.js`).
+
+5. **Defensive cleanup**: Use `querySelectorAll` + `forEach(remove)` instead of single `querySelector` + `remove()` when removing decorations. Guards against bugs that create duplicate elements.
+   - Example: `merge-box.js` line 585-588 removes all `.ghco-merge-box-expandable-wrapper` instances
+   - Pattern: `section.querySelectorAll('.class').forEach(el => el.remove())`
 
 **Data Flow**
 - `getPrOwnershipData()` in `ownership.js` is the single aggregation point - returns: `folderOwners`, `reviewers`, `teamMembers`, `ownerApprovals`, `user`, `userTeams`, `userTeamsMap`, `diffFilesMap`, `prAuthor`

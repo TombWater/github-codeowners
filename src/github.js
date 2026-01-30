@@ -541,17 +541,19 @@ export const getGithubClassNames = (() => {
     if (cache) return cache;
 
     const patterns = {
-      wrapper: /\.(MergeBoxSectionHeader-module__wrapper--[a-zA-Z0-9_-]+)/,
+      wrapper: /\.(MergeBoxSectionHeader-module__wrapper(__|--)[a-zA-Z0-9_-]+)/,
       wrapperCanExpand:
-        /\.(MergeBoxSectionHeader-module__wrapperCanExpand--[a-zA-Z0-9_-]+)/,
-      expanded: /\.(MergeBoxExpandable-module__isExpanded--[a-zA-Z0-9_-]+)/,
+        /\.(MergeBoxSectionHeader-module__wrapperCanExpand(__|--)[a-zA-Z0-9_-]+)/,
+      expanded:
+        /\.(MergeBoxExpandable-module__isExpanded(__|--)[a-zA-Z0-9_-]+)/,
       expandableWrapper:
-        /\.(MergeBoxExpandable-module__expandableWrapper--[a-zA-Z0-9_-]+)/,
+        /\.(MergeBoxExpandable-module__expandableWrapper(__|--)[a-zA-Z0-9_-]+)/,
       expandableContent:
-        /\.(MergeBoxExpandable-module__expandableContent--[a-zA-Z0-9_-]+)/,
-      headingButton: /\.(MergeBoxSectionHeader-module__button--[a-zA-Z0-9_-]+)/,
+        /\.(MergeBoxExpandable-module__expandableContent(__|--)[a-zA-Z0-9_-]+)/,
+      headingButton:
+        /\.(MergeBoxSectionHeader-module__button(__|--)[a-zA-Z0-9_-]+)/,
       headingModule:
-        /\.(MergeBoxSectionHeader-module__MergeBoxSectionHeading--[a-zA-Z0-9_-]+)/,
+        /\.(MergeBoxSectionHeader-module__MergeBoxSectionHeading(__|--)[a-zA-Z0-9_-]+)/,
       headingPrimer: /\.(prc-Heading-Heading-[a-zA-Z0-9_-]+)/,
     };
 

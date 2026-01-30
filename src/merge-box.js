@@ -174,7 +174,9 @@ export const updateMergeBox = async () => {
   section.dataset.state = newState;
 
   // If state hasn't changed and section has content, we're done (fast path!)
-  const hasContent = section.querySelector('div[class*="__expandableWrapper"]');
+  const hasContent = section.querySelector(
+    '.ghco-merge-box-expandable-wrapper'
+  );
   if (oldState === newState && hasContent) {
     return;
   }
@@ -303,7 +305,9 @@ const createHeaderText = (approvalStatus) => {
 
   const heading = document.createElement('h3');
   const classNames = github.getGithubClassNames();
-  heading.classList.add(classNames.headingModule, classNames.headingPrimer);
+  heading.classList.add(
+    ...[classNames.headingModule, classNames.headingPrimer].filter(Boolean)
+  );
   heading.textContent = 'Code owners';
 
   const description = document.createElement('p');
@@ -377,18 +381,18 @@ const onClickHeader = (event) => {
 
   const section = expandButton.closest('section[aria-label="Code owners"]');
   const expandableWrapper = section?.querySelector(
-    'div[class*="__expandableWrapper"]'
+    '.ghco-merge-box-expandable-wrapper'
   );
   const expandableContent = expandableWrapper?.querySelector(
-    'div[class*="__expandableContent"]'
+    'div[class*="MergeBoxExpandable-module__expandableContent"]'
   );
 
   const expandedClassName = expandButton.dataset.expandedClassName;
   if (expandedClassName) {
     expandableContent?.classList.toggle(expandedClassName, isExpanded);
     expandableWrapper?.classList.toggle(expandedClassName, isExpanded);
-    expandableWrapper?.classList.toggle('ghco-expanded', isExpanded);
   }
+  expandableWrapper?.classList.toggle('ghco-expanded', isExpanded);
 };
 
 const createMergeBoxSectionHeader = (approvalStatus, isMerged) => {
@@ -396,9 +400,9 @@ const createMergeBoxSectionHeader = (approvalStatus, isMerged) => {
   const classNames = github.getGithubClassNames();
   const isExpandable = Boolean(approvalStatus);
 
-  header.classList.add(classNames.wrapper);
+  header.classList.add(...[classNames.wrapper].filter(Boolean));
   if (isExpandable) {
-    header.classList.add(classNames.wrapperCanExpand);
+    header.classList.add(...[classNames.wrapperCanExpand].filter(Boolean));
   }
 
   const wrapper = document.createElement('div');
@@ -418,8 +422,10 @@ const createMergeBoxSectionHeader = (approvalStatus, isMerged) => {
     expandButton.setAttribute('aria-label', 'Code owners');
     expandButton.setAttribute('type', 'button');
     expandButton.setAttribute('aria-expanded', isExpanded.toString());
-    expandButton.classList.add(classNames.headingButton, 'ghco-header-button');
-    expandButton.dataset.expandedClassName = classNames.expanded;
+    expandButton.classList.add(
+      ...[classNames.headingButton, 'ghco-header-button'].filter(Boolean)
+    );
+    expandButton.dataset.expandedClassName = classNames.expanded ?? '';
 
     wrapper.appendChild(expandButton);
 
@@ -482,17 +488,23 @@ const createMergeBoxSectionContent = (
   const classNames = github.getGithubClassNames();
   const expandableWrapper = document.createElement('div');
   expandableWrapper.classList.add(
-    classNames.expandableWrapper,
-    'ghco-merge-box-expandable-wrapper'
+    ...[
+      classNames.expandableWrapper,
+      'ghco-merge-box-expandable-wrapper',
+    ].filter(Boolean)
   );
   expandableWrapper.style.visibility = 'visible';
 
   const expandableContent = document.createElement('div');
-  expandableContent.classList.add(classNames.expandableContent);
+  expandableContent.classList.add(
+    ...[classNames.expandableContent].filter(Boolean)
+  );
 
   const isExpanded = getDefaultExpandState(approvalStatus, isMerged);
-  expandableContent.classList.toggle(classNames.expanded, isExpanded);
-  expandableWrapper.classList.toggle(classNames.expanded, isExpanded);
+  if (classNames.expanded) {
+    expandableContent.classList.toggle(classNames.expanded, isExpanded);
+    expandableWrapper.classList.toggle(classNames.expanded, isExpanded);
+  }
   expandableWrapper.classList.toggle('ghco-expanded', isExpanded);
 
   expandableContent.appendChild(ownerGroupsContent);
@@ -569,10 +581,11 @@ const updateMergeBoxSectionWithContent = (
     section.replaceChild(newHeader, existingHeader);
   }
 
-  const oldWrapper = section.querySelector('div[class*="__expandableWrapper"]');
-  if (oldWrapper) {
-    oldWrapper.remove();
-  }
+  // Remove all old wrappers (defensive against any bugs that create multiple)
+  const oldWrappers = section.querySelectorAll(
+    '.ghco-merge-box-expandable-wrapper'
+  );
+  oldWrappers.forEach((wrapper) => wrapper.remove());
 
   const ownerGroupsContent = createMergeBoxOwnerGroupsContent(
     ownerGroupsMap,

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 - **UX**: De-selecting owner labels now restores expansion based on the "Viewed" checkbox state
+- **Fix**: Merge box decoration breaking due to GitHub CSS class format change, causing repeated owner groups and missing styling
 - **Fix**: Merge box file links now correctly go to the specific file by forcing full page navigation
 - **Fix**: Eliminated scroll jumping when owner label decorations are added to the files page
 - **Fix**: Eliminated scroll jumping when clicking owner labels by blocking GitHub's scroll events during expand/collapse operations
