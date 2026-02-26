@@ -170,6 +170,18 @@ export const getFilesUrl = () => {
   return filesUrl || `https://github.com/${owner}/${repo}/pull/${num}/files`;
 };
 
+// Recursively search a JSON object tree for a property by name.
+// Only recurses into plain objects (not arrays), since we're looking for object keys.
+const findNestedProperty = (obj, key) => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return undefined;
+  if (key in obj) return obj[key];
+  for (const val of Object.values(obj)) {
+    const found = findNestedProperty(val, key);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+};
+
 const getEmbeddedData = (doc, extractor) => {
   const targets = ['react-app.embeddedData', 'react-partial.embeddedData'];
   const selectors = targets.map((t) => `[data-target="${t}"]`);
@@ -190,9 +202,9 @@ const getEmbeddedData = (doc, extractor) => {
 };
 
 const parseEmbeddedDiffFiles = (doc) => {
-  const diffSummaries = getEmbeddedData(doc, (payload) => {
-    return payload?.pullRequestsChangesRoute?.diffSummaries;
-  });
+  const diffSummaries = getEmbeddedData(doc, (payload) =>
+    findNestedProperty(payload, 'diffSummaries')
+  );
 
   if (diffSummaries && Array.isArray(diffSummaries)) {
     const diffEntries = diffSummaries
@@ -318,8 +330,8 @@ const fetchAllDiffFiles = cacheResult(
     }
 
     const commits = getEmbeddedData(filesDoc, (payload) => {
-      const baseCommit = payload?.baseOid;
-      const headCommit = payload?.headOid;
+      const baseCommit = findNestedProperty(payload, 'baseOid');
+      const headCommit = findNestedProperty(payload, 'headOid');
       if (baseCommit && headCommit) {
         return {baseRevision: baseCommit, headRevision: headCommit};
       }
@@ -457,7 +469,9 @@ export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
     }
 
     const lines =
-      getEmbeddedData(doc, (payload) => payload?.blob?.rawLines) ?? [];
+      getEmbeddedData(doc, (payload) =>
+        findNestedProperty(payload, 'rawLines')
+      ) ?? [];
     const ownerLines = lines
       .map((line) => line.trim())
       .filter((line) => line.length && !line.startsWith('#'));
