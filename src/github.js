@@ -1,5 +1,5 @@
 import ignore from 'ignore';
-import {memoize, isObject} from 'lodash-es';
+import {memoize} from 'lodash-es';
 
 // Cache just one key-value pair to refresh data when the key changes.
 memoize.Cache = function () {

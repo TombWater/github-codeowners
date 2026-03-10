@@ -227,10 +227,8 @@ const ensureCorrectPosition = (section, container) => {
     }
   }
 
-  const isAfterDiv = previousSection && !previousSection.matches('section');
   const hasNextSibling = Boolean(section.nextElementSibling);
 
-  section.classList.toggle('border-top', isAfterDiv);
   section.classList.toggle('border-bottom', hasNextSibling);
   section.classList.add('color-border-subtle');
 };

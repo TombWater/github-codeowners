@@ -4,9 +4,9 @@
   --ghco-merge-box-transition: 0.15s ease-in-out;
 }
 
-/* Add border to element before standalone section wrapper for merged PRs */
+/* Add border between merged PR success message and our section */
 div[class*='MergeBoxSectionHeader-module__wrapper']:has(
-    + div > section.ghco-standalone-section
+    + section[aria-label='Code owners']
   ) {
   border-bottom: var(--borderWidth-thin, 1px) solid
     var(--borderColor-default, var(--color-border-default));
@@ -188,8 +188,6 @@ div[class*='MergeBoxSectionHeader-module__wrapper']:has(
   justify-content: space-between;
   padding: var(--base-size-8, 8px) var(--base-size-16, 16px);
   background-color: var(--bgColor-accent-muted, var(--color-accent-subtle));
-  border-bottom: 1px solid
-    var(--borderColor-default, var(--color-border-default));
   font-size: var(--body-font-size-small, 12px);
   color: var(--fgColor-default, var(--color-fg-default));
 }
