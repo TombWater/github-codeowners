@@ -58,6 +58,7 @@ const common = (mode = 'production') => ({
     // Define global constants for conditional compilation
     new webpack.DefinePlugin({
       __DEBUG__: JSON.stringify(mode === 'development'),
+      __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
     }),
     // Copy static assets from `public` folder to `build` folder
     new CopyWebpackPlugin({
