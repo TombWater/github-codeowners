@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 - **Fix**: Add missing border between merged PR success message and Code owners section
+- **Fix**: Comment decoration now shows owner (shield) icon for "any reviewer" files instead of non-owner (lightbulb)
 
 ## [0.7.2] - 2026-02-26
 - **Fix**: Fixed CODEOWNERS not being found due to GitHub restructuring embedded data paths. Now uses recursive property search instead of hardcoded paths for resilience against future changes.

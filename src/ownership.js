@@ -66,18 +66,19 @@ export const isOwnerOfFile = (commenterLogin, filePath, ownershipData) => {
   if (!ownershipData || !filePath) return false;
 
   const {userTeamsMap, folderOwners} = ownershipData;
-  const commenterTeams = userTeamsMap?.get(commenterLogin);
-
-  if (!commenterTeams) return false;
 
   // Find the folder owner entry that matches this file
   const fileOwnerEntry = folderOwners.find(({folderMatch}) =>
     folderMatch.ignores(filePath)
   );
 
-  if (!fileOwnerEntry) {
-    return false;
+  // No CODEOWNERS entry or empty owners means "any reviewer" - everyone is an owner
+  if (!fileOwnerEntry || fileOwnerEntry.owners.size === 0) {
+    return true;
   }
+
+  const commenterTeams = userTeamsMap?.get(commenterLogin);
+  if (!commenterTeams) return false;
 
   // Check if commenter's teams overlap with this file's owners
   for (const team of commenterTeams) {
@@ -93,13 +94,16 @@ export const isOwnerOfFile = (commenterLogin, filePath, ownershipData) => {
 export const isOwnerOfAnyFile = (commenterLogin, ownershipData) => {
   if (!ownershipData) return false;
 
-  const {userTeamsMap, folderOwners, diffFilesMap} = ownershipData;
-  const commenterTeams = userTeamsMap?.get(commenterLogin);
+  const {diffFilesMap} = ownershipData;
 
-  if (!commenterTeams) return false;
-
-  // If we don't have the diff files, fall back to checking all folders
+  // If we don't have the diff files, fall back to checking all files via isOwnerOfFile
   if (!diffFilesMap || diffFilesMap.size === 0) {
+    // Without diff files, check if commenter has any team overlap with any folder owner,
+    // but we can't check for unowned files without knowing the actual file paths
+    const {userTeamsMap, folderOwners} = ownershipData;
+    const commenterTeams = userTeamsMap?.get(commenterLogin);
+    if (!commenterTeams) return false;
+
     for (const {owners} of folderOwners) {
       for (const team of commenterTeams) {
         if (owners.has(team)) {
