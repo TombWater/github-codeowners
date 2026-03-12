@@ -2,6 +2,7 @@ import * as github from './github';
 import {
   getPrOwnershipData,
   getUserLogin,
+  fileHasOwners,
   isOwnerOfFile,
   isOwnerOfAnyFile,
 } from './ownership';
@@ -81,7 +82,15 @@ const getCommenterRole = (commenterLogin, ownershipData, filePath = null) => {
     return 'author';
   }
 
-  const isOwner = filePath
+  // If no file in the PR has designated owners, the owner/non-owner distinction is
+  // meaningless — everyone is equally a stakeholder.
+  if (!ownershipData.hasOwnedFiles) {
+    return 'owner';
+  }
+
+  // For files with designated owners, only the direct owner gets the shield.
+  // For unowned files, anyone who owns any file in the PR is treated as a stakeholder.
+  const isOwner = fileHasOwners(filePath, ownershipData)
     ? isOwnerOfFile(commenterLogin, filePath, ownershipData)
     : isOwnerOfAnyFile(commenterLogin, ownershipData);
 

@@ -73,8 +73,8 @@ The extension works by:
    - Pattern: `section.querySelectorAll('.class').forEach(el => el.remove())`
 
 **Data Flow**
-- `getPrOwnershipData()` in `ownership.js` is the single aggregation point - returns: `folderOwners`, `reviewers`, `teamMembers`, `ownerApprovals`, `user`, `userTeams`, `userTeamsMap`, `diffFilesMap`, `prAuthor`
-- Pass ownership data as complete object through call chain (avoid destructure/reconstruct)
+- `getPrOwnershipData()` in `ownership.js` is the single aggregation point - returns: `folderOwners`, `reviewers`, `teamMembers`, `ownerApprovals`, `user`, `userTeams`, `userTeamsMap`, `diffFilesMap`, `ownerGroupsMap`, `hasOwnedFiles`, `prAuthor`
+- Prefer passing bundles of related data rather than individual fields — pass the whole object, not cherry-picked properties. Applies to `ownershipData`, `approvalStatus`, etc.
 - `isOwnerOfAnyFile()` iterates `diffFilesMap.values()` not `.keys()` (keys are hashes, not paths)
 
 **Caching Strategy** (`github.js`)

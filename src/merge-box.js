@@ -79,31 +79,6 @@ const checkAndShowNewVersionBanner = (section) => {
   });
 };
 
-const createOwnerGroupsMap = (diffFilesMap, folderOwners) => {
-  const ownerGroupsMap = new Map();
-
-  for (const [digest, path] of diffFilesMap.entries()) {
-    const {owners} = folderOwners.find(({folderMatch}) =>
-      folderMatch.ignores(path)
-    ) || {owners: new Set()};
-
-    const ownerKey = Array.from(owners).sort().join(',') || '__any__';
-
-    if (!ownerGroupsMap.has(ownerKey)) {
-      ownerGroupsMap.set(ownerKey, {
-        owners: owners.size > 0 ? owners : null, // null means "any reviewer"
-        paths: [],
-        digests: [],
-      });
-    }
-
-    ownerGroupsMap.get(ownerKey).paths.push(path);
-    ownerGroupsMap.get(ownerKey).digests.push(digest);
-  }
-
-  return ownerGroupsMap;
-};
-
 export const updateMergeBox = async () => {
   const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
   if (!mergeBox) {
@@ -182,10 +157,8 @@ export const updateMergeBox = async () => {
   }
 
   // Fetch ownership data and update section content
-  const [ownershipData, diffFilesMap] = await Promise.all([
-    getPrOwnershipData(),
-    github.getDiffFilesMap(),
-  ]);
+  const ownershipData = await getPrOwnershipData();
+  const {diffFilesMap, ownerGroupsMap} = ownershipData || {};
   if (!ownershipData || !diffFilesMap || diffFilesMap.size === 0) {
     const description = section.querySelector('p');
     if (description) {
@@ -196,13 +169,18 @@ export const updateMergeBox = async () => {
     return;
   }
 
-  const {folderOwners} = ownershipData;
-  const ownerGroupsMap = createOwnerGroupsMap(diffFilesMap, folderOwners);
-  updateMergeBoxSectionWithContent(section, {
-    isMerged,
+  const approvalStatus = calculateApprovalStatus(
     ownerGroupsMap,
-    ownershipData,
-  });
+    ownershipData.ownerApprovals,
+    ownerApprovalRequired,
+    isMerged
+  );
+  updateMergeBoxSectionWithContent(
+    section,
+    approvalStatus,
+    ownerGroupsMap,
+    ownershipData
+  );
 };
 
 // Position section correctly in the merge box and set border classes
