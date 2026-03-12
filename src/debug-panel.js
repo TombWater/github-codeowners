@@ -10,6 +10,29 @@ let updateCount = 0;
 let lastUpdateTime = null;
 let currentUrl = window.location.href;
 
+const getVersion = () => {
+  try {
+    return chrome.runtime.getManifest().version;
+  } catch {
+    return '?';
+  }
+};
+
+const formatBuildTime = () => {
+  try {
+    const d = new Date(__BUILD_TIME__);
+    return d.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  } catch {
+    return __BUILD_TIME__;
+  }
+};
+
 // Store simulated approval states
 const simulatedApprovals = new Map(); // owner -> boolean
 
@@ -94,6 +117,7 @@ const createStatsSection = () => {
   const stats = document.createElement('div');
   stats.className = 'ghco-debug-stats';
   stats.innerHTML = `
+    <div>Build: <span id="ghco-build-time">v${getVersion()} @ ${formatBuildTime()}</span></div>
     <div>Updates: <strong id="ghco-update-count">0</strong></div>
     <div>Last: <span id="ghco-last-update">Never</span></div>
     <div>State: <code id="ghco-state">-</code></div>
