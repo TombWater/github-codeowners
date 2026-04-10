@@ -267,7 +267,8 @@ const handleSimulateApproval = async () => {
     return;
   }
 
-  const {folderOwners, reviewers, teamMembers, diffFilesMap} = ownershipData;
+  const {folderOwners, reviewers, teamMembers, diffFilesMap, user} =
+    ownershipData;
 
   // Collect only teams that own files in this PR
   const teamsOwningFiles = new Set();
@@ -280,11 +281,6 @@ const handleSimulateApproval = async () => {
     if (fileOwnership) {
       fileOwnership.owners.forEach((owner) => teamsOwningFiles.add(owner));
     }
-  }
-
-  if (teamsOwningFiles.size === 0) {
-    console.error('[GHCO Debug] No owners found for files in this PR');
-    return;
   }
 
   // Build a structure: team -> Set of members (only for teams that own files)
@@ -306,9 +302,16 @@ const handleSimulateApproval = async () => {
     }
   }
 
+  // Fallback when no specific owners: show logged-in user and existing reviewers
   if (teamToMembers.size === 0) {
-    console.error('[GHCO Debug] No team members found');
-    return;
+    const anyReviewerMembers = new Set([user]);
+    for (const reviewer of reviewers.keys()) {
+      anyReviewerMembers.add(reviewer);
+    }
+    teamToMembers.set('Any reviewer', anyReviewerMembers);
+    for (const member of anyReviewerMembers) {
+      memberToTeams.set(member, ['Any reviewer']);
+    }
   }
 
   // Get current approval state (real + simulated)
