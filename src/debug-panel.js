@@ -2,6 +2,7 @@ import * as github from './github';
 import {getPrOwnershipData} from './ownership';
 import debugPanelCss from './debug-panel.css';
 import {injectStyles} from './inject-styles';
+import iconSvg from '../public/icons/icon.svg';
 
 // Inject CSS into page head for DevTools inspection
 injectStyles(debugPanelCss, 'ghco-debug-panel-styles');
@@ -89,14 +90,29 @@ export const initDebugPanel = (updateAllCallback) => {
 };
 
 const createDebugPanel = (updateAllCallback) => {
+  // Create floating action button (collapsed state)
+  const fab = document.createElement('button');
+  fab.id = 'ghco-debug-fab';
+  fab.title = 'GHCO Debug Panel';
+  fab.innerHTML = iconSvg;
+  document.body.appendChild(fab);
+
+  // Create full panel (expanded state, hidden by default)
   const panel = document.createElement('div');
   panel.id = 'ghco-debug-panel';
+  panel.classList.add('ghco-debug-panel-hidden');
 
   panel.appendChild(createHeader());
   panel.appendChild(createStatsSection());
   panel.appendChild(createButtonsSection(updateAllCallback));
 
   document.body.appendChild(panel);
+
+  // FAB click → show panel, hide FAB
+  fab.onclick = () => {
+    panel.classList.remove('ghco-debug-panel-hidden');
+    fab.classList.add('ghco-debug-fab-hidden');
+  };
 
   // Update stats periodically
   startStatsUpdater();
@@ -106,7 +122,7 @@ const createHeader = () => {
   const header = document.createElement('div');
   header.className = 'ghco-debug-header';
   header.innerHTML = `
-    <span>🔧 GHCO Debug</span>
+    <span class="ghco-debug-header-title">${iconSvg}<span>GHCO Debug</span></span>
     <button id="ghco-debug-close" class="ghco-debug-close">×</button>
   `;
 
@@ -152,7 +168,7 @@ const startStatsUpdater = () => {
     const lastUpdateEl = document.getElementById('ghco-last-update');
     const stateEl = document.getElementById('ghco-state');
 
-    if (!updateCountEl) return; // Panel was closed
+    if (!updateCountEl) return; // Panel not yet in DOM
 
     // Only update DOM if values actually changed
     if (updateCount !== lastDisplayedCount) {
@@ -186,8 +202,9 @@ const attachButtonListeners = (updateAllCallback) => {
     if (!panel) return;
 
     document.getElementById('ghco-debug-close').onclick = () => {
-      panel.remove();
-      window.ghcoDebug = false;
+      panel.classList.add('ghco-debug-panel-hidden');
+      const fab = document.getElementById('ghco-debug-fab');
+      fab?.classList.remove('ghco-debug-fab-hidden');
     };
 
     document.getElementById('ghco-force-update').onclick = async () => {
