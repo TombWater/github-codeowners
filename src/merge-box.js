@@ -206,8 +206,7 @@ export const updateMergeBox = async () => {
 
 // Position section correctly in the merge box and set border classes
 const ensureCorrectPosition = (section, container) => {
-  // Our section goes after either the Reviews section or the merged PR message,
-  // or at the end if neither exists
+  // Preferred anchor: insert after Reviews section or merged PR success message
   const previousSection = container.querySelector(
     [
       'section[aria-label="Reviews"]',
@@ -215,14 +214,24 @@ const ensureCorrectPosition = (section, container) => {
     ].join(', ')
   );
 
-  // Only move if not already in correct position
   if (previousSection) {
     if (previousSection.nextElementSibling !== section) {
       previousSection.after(section);
     }
   } else {
-    if (container.lastElementChild !== section) {
-      container.appendChild(section);
+    // No Reviews section: insert before Checks section if present
+    const checksSection = container.querySelector(
+      'section[aria-label="Checks"]'
+    );
+    if (checksSection) {
+      if (checksSection.previousElementSibling !== section) {
+        checksSection.before(section);
+      }
+    } else {
+      // No Checks section either: append at the end
+      if (container.lastElementChild !== section) {
+        container.appendChild(section);
+      }
     }
   }
 
