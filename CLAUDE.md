@@ -122,6 +122,23 @@ The extension works by:
   - Transform to `{name}[bot]` format for consistency with PR author format
   - Use `github.normalizeAuthorHref()` helper for both author extraction and comment decoration
 
+**Merge Box `approvalStatus` object** — unified "have" and "need" fields computed by `calculateApprovalStatus()`:
+- `groupApprovalsReceived` / `groupApprovalsRequired` — owner groups with/needing approval
+- `reviewsReceived` / `reviewsRequired` / `reviewsApproved` — individual reviewer counts and GitHub's verdict (`bgColor-success-emphasis` present in Reviews section)
+- `ownerApprovalRequired` — GitHub is enforcing code owner sign-off
+- `isMerged` — PR merge state
+- `null` means still loading (shows orange icon)
+
+**Merge Box Header Icon Colors:**
+- Icon color is set via `iconInner.style.color` using GitHub CSS variables (no utility class equivalents exist for these):
+  - `--bgColor-danger-emphasis`: red — owner approval required, not all approved
+  - `--bgColor-success-emphasis`: green — all owner groups approved, or GitHub's Reviews section shows approval satisfied
+  - `--bgColor-draft-emphasis`: gray — non-owner approval not yet satisfied
+  - `--bgColor-done-emphasis`: purple — PR is merged
+- Loading state: no color set, SVG renders its native orange fills
+- White background is a `<circle>` baked into `icon.svg` so the icon looks correct in dark theme; uses `style="fill: #ffffff"` not a `fill` attribute — a `fill` attribute would be stripped by the JS that removes all `[fill]` attributes when applying `currentColor`
+- SVG viewBox must be square — a non-square height clips the circle's bottom arc
+
 **Comment Decoration Selectors:**
 - Draft Write tabs: Old UI `.CommentBox-header .write-tab`, new UI `[class*="prc-TabNav"] button[role="tab"]:first-of-type`
 - Reply buttons: Old UI `.review-thread-review-button`, new UI `button[class*="CompactCommentButton"]`

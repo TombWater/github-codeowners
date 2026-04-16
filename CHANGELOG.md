@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+- **Feature**: Show gray icon when an owner review is not required for various reasons, and show more informative info about required reviews in the merge box header
 - **Fix**: Add missing border between merged PR success message and Code owners section
 - **Fix**: Comment decoration now shows owner (shield) icon when a code owner comments on an unowned file; shows shield for everyone when no PR files have designated owners
 

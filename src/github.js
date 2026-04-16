@@ -83,6 +83,27 @@ export const getIsMerged = () => {
   return isMerged;
 };
 
+export const getReviewsMentionsCodeOwner = () => {
+  const reviewsP = document.querySelector('[aria-label="Reviews"] p');
+  return reviewsP?.textContent.toLowerCase().includes('code owner') ?? false;
+};
+
+export const getReviewsApproved = () =>
+  Boolean(
+    document.querySelector(
+      'section[aria-label="Reviews"] .bgColor-success-emphasis'
+    )
+  );
+
+export const getRequiredReviewCount = () => {
+  const sidebarText = document.querySelector(
+    'form[aria-label="Select reviewers"] p.mt-2'
+  )?.textContent;
+  if (!sidebarText) return null;
+  const match = sidebarText.match(/at least (\d+)/i);
+  return match ? parseInt(match[1], 10) : null;
+};
+
 export const getPrAuthor = cacheResult(prCacheKey, async () => {
   // Try extracting from current page first
   let author = extractAuthorFromDoc(document);

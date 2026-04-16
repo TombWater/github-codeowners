@@ -121,7 +121,22 @@ export const updateMergeBox = async () => {
   const timelineItems = document.querySelectorAll('.TimelineItem');
   const timelineCount = timelineItems.length;
 
-  const newState = [isMerged, timelineCount, ...approvers].join(',');
+  const ownerApprovalRequired =
+    !isMerged && github.getReviewsMentionsCodeOwner();
+
+  const stateParts = [
+    isMerged,
+    ownerApprovalRequired,
+    timelineCount,
+    ...approvers,
+  ];
+  if (__DEBUG__) {
+    const simulated = window.__ghcoDebugPanel?.getSimulatedApprovals?.();
+    if (simulated?.size) {
+      stateParts.push(...Array.from(simulated.entries()).flat());
+    }
+  }
+  const newState = stateParts.join(',');
   const oldState = section?.dataset.state || '';
 
   // Check if merge status changed (requires recreating for correct positioning)
@@ -134,7 +149,7 @@ export const updateMergeBox = async () => {
 
   // Create section if it doesn't exist
   if (!section) {
-    section = createLoadingMergeBoxSection(container, isMerged);
+    section = createLoadingMergeBoxSection(container);
     if (!section) {
       return;
     }
@@ -160,18 +175,24 @@ export const updateMergeBox = async () => {
   const ownershipData = await getPrOwnershipData();
   const {diffFilesMap, ownerGroupsMap} = ownershipData || {};
   if (!ownershipData || !diffFilesMap || diffFilesMap.size === 0) {
-    const description = section.querySelector('p');
-    if (description) {
-      description.textContent = ownershipData
-        ? 'No files to review'
-        : 'No CODEOWNERS file found';
+    const existingHeader = section.querySelector(
+      'div[class*="MergeBoxSectionHeader"]'
+    );
+    if (existingHeader) {
+      const newHeader = createMergeBoxSectionHeader(null);
+      const description = newHeader.querySelector('p');
+      if (description) {
+        description.textContent = ownershipData
+          ? 'No files to review'
+          : 'No CODEOWNERS file found';
+      }
+      section.replaceChild(newHeader, existingHeader);
     }
     return;
   }
 
   const approvalStatus = calculateApprovalStatus(
-    ownerGroupsMap,
-    ownershipData.ownerApprovals,
+    ownershipData,
     ownerApprovalRequired,
     isMerged
   );
@@ -211,12 +232,11 @@ const ensureCorrectPosition = (section, container) => {
   section.classList.add('color-border-subtle');
 };
 
-const createHeaderIcon = (approvalStatus, isMerged) => {
+const createHeaderIcon = (approvalStatus) => {
   const iconWrapper = document.createElement('div');
   iconWrapper.classList.add('mr-2', 'flex-shrink-0');
 
   const iconCircle = document.createElement('div');
-  iconCircle.style.overflow = 'hidden';
   iconCircle.style.borderWidth = '0px';
   iconCircle.style.borderRadius = '50%';
   iconCircle.style.borderStyle = 'solid';
@@ -231,19 +251,24 @@ const createHeaderIcon = (approvalStatus, isMerged) => {
   iconInner.style.alignItems = 'center';
   iconInner.style.justifyContent = 'center';
 
-  if (isMerged) {
-    iconInner.style.backgroundColor = 'var(--bgColor-default)';
-    iconInner.style.color = 'var(--bgColor-done-emphasis)';
+  const GREEN = 'var(--bgColor-success-emphasis)';
+  const RED = 'var(--bgColor-danger-emphasis)';
+  const GRAY = 'var(--bgColor-draft-emphasis)';
+  const PURPLE = 'var(--bgColor-done-emphasis)';
+
+  let iconColor;
+
+  if (!approvalStatus) {
+    // Loading — leave iconColor unset so SVG renders its native orange fills
+  } else if (approvalStatus.isMerged) {
+    iconColor = PURPLE;
+  } else if (approvalStatus.allApprovalsReceived) {
+    // GitHub's Reviews section shows success — all required approvals satisfied
+    iconColor = GREEN;
+  } else if (approvalStatus.ownerApprovalRequired) {
+    iconColor = RED;
   } else {
-    iconInner.classList.add('bgColor-neutral-muted');
-    if (approvalStatus) {
-      const allApproved =
-        approvalStatus.approvalsReceived ===
-        approvalStatus.totalApprovalsNeeded;
-      iconInner.classList.add(
-        allApproved ? 'fgColor-success' : 'fgColor-danger'
-      );
-    }
+    iconColor = GRAY;
   }
 
   const svg = iconSvgDoc.documentElement.cloneNode(true);
@@ -253,9 +278,11 @@ const createHeaderIcon = (approvalStatus, isMerged) => {
   svg.setAttribute('height', '32');
   svg.style.verticalAlign = 'text-bottom';
 
-  if (approvalStatus || isMerged) {
+  // Use currentColor when we have a color to apply; otherwise leave the SVG's
+  // native fills intact (shows orange during loading).
+  if (iconColor) {
+    iconInner.style.color = iconColor;
     svg.setAttribute('fill', 'currentColor');
-    // Remove inline fill attributes so currentColor works
     svg.querySelectorAll('[fill]').forEach((el) => el.removeAttribute('fill'));
   }
 
@@ -291,10 +318,38 @@ const createHeaderText = (approvalStatus) => {
   description.id = APPROVALS_DESCRIPTION_ID;
 
   if (approvalStatus) {
-    const {approvalsReceived, totalApprovalsNeeded, totalFiles} =
-      approvalStatus;
-    const fileText = totalFiles === 1 ? 'file' : 'files';
-    description.textContent = `${approvalsReceived} of ${totalApprovalsNeeded} required approvals received (${totalFiles} ${fileText})`;
+    const {
+      groupApprovalsReceived,
+      groupApprovalsRequired,
+      totalFiles,
+      ownerApprovalRequired,
+      allApprovalsReceived,
+      reviewsRequired,
+      isMerged,
+    } = approvalStatus;
+    const groupText = `${groupApprovalsRequired} owner group${
+      groupApprovalsRequired === 1 ? '' : 's'
+    }`;
+    const fileText = `${totalFiles} file${totalFiles === 1 ? '' : 's'}`;
+
+    let reviewText;
+    if (isMerged) {
+      // no reviewText
+    } else if (allApprovalsReceived) {
+      // GitHub's Reviews section shows success — all required approvals satisfied.
+      // Don't try to qualify the type (owner vs write-access) since the signal is
+      // gone once GitHub marks the requirement as met.
+      reviewText = 'All required approvals received';
+    } else if (ownerApprovalRequired) {
+      reviewText = `${groupApprovalsReceived} of ${groupApprovalsRequired} owner approvals received`;
+    } else if (reviewsRequired > 0) {
+      const approvalWord = reviewsRequired === 1 ? 'approval' : 'approvals';
+      reviewText = `${reviewsRequired} ${approvalWord} required by reviewers with write access`;
+    }
+
+    description.textContent = [`${groupText} (${fileText})`, reviewText]
+      .filter(Boolean)
+      .join(' • ');
   } else {
     description.textContent = 'Loading approval status...';
   }
@@ -314,23 +369,18 @@ const getExpandStateKey = () => {
   return `${prId}:${EXPAND_STATE_KEY}`;
 };
 
-const getDefaultExpandState = (approvalStatus, isMerged) => {
+const getDefaultExpandState = (approvalStatus) => {
   const saved = sessionStorage.getItem(getExpandStateKey());
   if (saved !== null) {
     return saved === 'true';
   }
 
-  // Default: expanded if PR is not merged and there are still approvals required
-  if (isMerged) return false;
-
-  // Check if there are approvals still needed
-  if (approvalStatus) {
-    return (
-      approvalStatus.approvalsReceived < approvalStatus.totalApprovalsNeeded
-    );
-  }
-
-  return false;
+  // Only start expanded when owner approvals are still needed
+  return (
+    approvalStatus?.ownerApprovalRequired &&
+    approvalStatus.groupApprovalsReceived <
+      approvalStatus.groupApprovalsRequired
+  );
 };
 
 const saveExpandState = (isExpanded) => {
@@ -371,7 +421,7 @@ const onClickHeader = (event) => {
   expandableWrapper?.classList.toggle('ghco-expanded', isExpanded);
 };
 
-const createMergeBoxSectionHeader = (approvalStatus, isMerged) => {
+const createMergeBoxSectionHeader = (approvalStatus) => {
   const header = document.createElement('div');
   const classNames = github.getGithubClassNames();
   const isExpandable = Boolean(approvalStatus);
@@ -387,12 +437,12 @@ const createMergeBoxSectionHeader = (approvalStatus, isMerged) => {
   const headerContent = document.createElement('div');
   headerContent.classList.add('d-flex', 'width-full');
 
-  headerContent.appendChild(createHeaderIcon(approvalStatus, isMerged));
+  headerContent.appendChild(createHeaderIcon(approvalStatus));
   headerContent.appendChild(createHeaderText(approvalStatus));
   wrapper.appendChild(headerContent);
 
   if (isExpandable) {
-    const isExpanded = getDefaultExpandState(approvalStatus, isMerged);
+    const isExpanded = getDefaultExpandState(approvalStatus);
 
     const expandButton = document.createElement('button');
     expandButton.setAttribute('aria-label', 'Code owners');
@@ -456,11 +506,7 @@ const createMergeBoxOwnerGroupsContent = (ownerGroupsMap, ownershipData) => {
   return content;
 };
 
-const createMergeBoxSectionContent = (
-  ownerGroupsContent,
-  approvalStatus,
-  isMerged
-) => {
+const createMergeBoxSectionContent = (ownerGroupsContent, approvalStatus) => {
   const classNames = github.getGithubClassNames();
   const expandableWrapper = document.createElement('div');
   expandableWrapper.classList.add(
@@ -476,7 +522,7 @@ const createMergeBoxSectionContent = (
     ...[classNames.expandableContent].filter(Boolean)
   );
 
-  const isExpanded = getDefaultExpandState(approvalStatus, isMerged);
+  const isExpanded = getDefaultExpandState(approvalStatus);
   if (classNames.expanded) {
     expandableContent.classList.toggle(classNames.expanded, isExpanded);
     expandableWrapper.classList.toggle(classNames.expanded, isExpanded);
@@ -490,11 +536,11 @@ const createMergeBoxSectionContent = (
   return expandableWrapper;
 };
 
-const createLoadingMergeBoxSection = (container, isMerged) => {
+const createLoadingMergeBoxSection = (container) => {
   const section = document.createElement('section');
   section.setAttribute('aria-label', 'Code owners');
 
-  const sectionHeader = createMergeBoxSectionHeader(null, isMerged);
+  const sectionHeader = createMergeBoxSectionHeader(null);
   section.appendChild(sectionHeader);
 
   ensureCorrectPosition(section, container);
@@ -502,15 +548,20 @@ const createLoadingMergeBoxSection = (container, isMerged) => {
   return section;
 };
 
-const calculateApprovalStatus = (ownerGroupsMap, ownerApprovals) => {
+const calculateApprovalStatus = (
+  ownershipData,
+  ownerApprovalRequired,
+  isMerged
+) => {
+  const {ownerGroupsMap, ownerApprovals} = ownershipData;
   if (!ownerGroupsMap || !ownerApprovals) return null;
 
-  let approvalsReceived = 0;
-  let totalApprovalsNeeded = 0;
+  let groupApprovalsReceived = 0;
+  let groupApprovalsRequired = 0;
   let totalFiles = 0;
 
   for (const [, group] of ownerGroupsMap.entries()) {
-    totalApprovalsNeeded++;
+    groupApprovalsRequired++;
     totalFiles += group.paths.length;
 
     const hasApproval =
@@ -519,41 +570,48 @@ const calculateApprovalStatus = (ownerGroupsMap, ownerApprovals) => {
         : ownerApprovals.size > 0;
 
     if (hasApproval) {
-      approvalsReceived++;
+      groupApprovalsReceived++;
     }
   }
 
-  return {approvalsReceived, totalApprovalsNeeded, totalFiles};
+  return {
+    groupApprovalsReceived,
+    groupApprovalsRequired,
+    totalFiles,
+    allApprovalsReceived: github.getReviewsApproved(),
+    ownerApprovalRequired,
+    reviewsRequired: github.getRequiredReviewCount(),
+    isMerged,
+  };
 };
 
 const updateMergeBoxSectionWithContent = (
   section,
-  {isMerged, ownerGroupsMap, ownershipData}
+  approvalStatus,
+  ownerGroupsMap,
+  ownershipData
 ) => {
   // Set aria-describedby only after loading to avoid screen readers announcing the brief loading state
   section.setAttribute('aria-describedby', APPROVALS_DESCRIPTION_ID);
-
-  const approvalStatus = calculateApprovalStatus(
-    ownerGroupsMap,
-    ownershipData.ownerApprovals
-  );
 
   const existingHeader = section.querySelector(
     'div[class*="MergeBoxSectionHeader"]'
   );
   if (existingHeader) {
-    const oldApprovalsReceived = Number(
+    const oldGroupApprovalsReceived = Number(
       existingHeader.dataset.approvalCount || 0
     );
     if (
-      oldApprovalsReceived !== approvalStatus.approvalsReceived &&
-      approvalStatus.approvalsReceived === approvalStatus.totalApprovalsNeeded
+      approvalStatus.ownerApprovalRequired &&
+      oldGroupApprovalsReceived !== approvalStatus.groupApprovalsReceived &&
+      approvalStatus.groupApprovalsReceived ===
+        approvalStatus.groupApprovalsRequired
     ) {
       saveExpandState(false);
     }
 
-    const newHeader = createMergeBoxSectionHeader(approvalStatus, isMerged);
-    newHeader.dataset.approvalCount = approvalStatus.approvalsReceived;
+    const newHeader = createMergeBoxSectionHeader(approvalStatus);
+    newHeader.dataset.approvalCount = approvalStatus.groupApprovalsReceived;
     section.replaceChild(newHeader, existingHeader);
   }
 
@@ -570,8 +628,7 @@ const updateMergeBoxSectionWithContent = (
 
   const sectionContent = createMergeBoxSectionContent(
     ownerGroupsContent,
-    approvalStatus,
-    isMerged
+    approvalStatus
   );
   section.appendChild(sectionContent);
 };

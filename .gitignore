@@ -8,6 +8,7 @@
 
 # misc
 .DS_Store
+/.playwright-mcp
 
 npm-debug.log*
 
