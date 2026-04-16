@@ -45,7 +45,9 @@ const mutationCallback = (mutations) => {
 
 // Potentially refresh after every mutation, with debounce
 const observer = new MutationObserver(debounce(mutationCallback, 100));
-observer.observe(document.body, {childList: true, subtree: true});
+// Observe documentElement (not body) so the observer survives Turbo Drive
+// navigation, which replaces document.body entirely on page transitions.
+observer.observe(document.documentElement, {childList: true, subtree: true});
 
 // Delete the disused access token that may still be in storage from the previous version
 try {

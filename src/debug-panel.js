@@ -87,6 +87,13 @@ export const initDebugPanel = (updateAllCallback) => {
 
   // Create panel after a short delay to ensure page is loaded
   setTimeout(() => createDebugPanel(updateAllCallback), 1000);
+
+  // Recreate panel after Turbo navigation replaces document.body
+  document.addEventListener('turbo:load', () => {
+    if (!document.getElementById('ghco-debug-fab')) {
+      createDebugPanel(updateAllCallback);
+    }
+  });
 };
 
 const createDebugPanel = (updateAllCallback) => {

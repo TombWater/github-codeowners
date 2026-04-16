@@ -72,6 +72,11 @@ The extension works by:
    - Example: `merge-box.js` line 585-588 removes all `.ghco-merge-box-expandable-wrapper` instances
    - Pattern: `section.querySelectorAll('.class').forEach(el => el.remove())`
 
+6. **Turbo Drive navigation replaces `document.body`**: GitHub uses Turbo Drive for page navigation — it intercepts link clicks, fetches the new page, and swaps `document.body` entirely (firing `turbo:render` then `turbo:load`). This silently kills any MutationObserver attached to the old body.
+   - **Observer MUST target `document.documentElement`**, not `document.body` — `<html>` is never replaced, so the observer survives navigation
+   - **DOM elements appended to `document.body`** (e.g. the debug FAB/panel) are lost on navigation — recreate them on `turbo:load` by checking `document.getElementById` first
+   - GitHub also uses **Turbo Frames** for partial updates (only a region swaps, body survives) — clicking links within GitHub uses frames (body intact, works fine); it's only browser back/forward buttons that trigger full cache-restore renders (body replaced, was broken)
+
 **Data Flow**
 - `getPrOwnershipData()` in `ownership.js` is the single aggregation point - returns: `folderOwners`, `reviewers`, `teamMembers`, `ownerApprovals`, `user`, `userTeams`, `userTeamsMap`, `diffFilesMap`, `ownerGroupsMap`, `hasOwnedFiles`, `prAuthor`
 - Prefer passing bundles of related data rather than individual fields — pass the whole object, not cherry-picked properties. Applies to `ownershipData`, `approvalStatus`, etc.

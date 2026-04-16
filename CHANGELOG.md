@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+- **Fix**: Decorations now work after using the browser back/forward buttons to navigate to a PR
 - **Fix**: Code owners section now positions above Checks when there is no Reviews section (e.g. PRs targeting unprotected branches)
 - **Feature**: Show gray icon when an owner review is not required for various reasons, and show more informative info about required reviews in the merge box header
 - **UX**: Merge box icon now has a white fill for the ocotocat for better appearance in dark theme
