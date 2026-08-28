@@ -11,6 +11,7 @@
 /.playwright-mcp
 
 npm-debug.log*
+.claude/settings.local.json
 
 # packed files
 /release
