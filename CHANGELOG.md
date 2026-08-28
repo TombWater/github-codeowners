@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+- **UX**: Merge box section arrow now points right when collapsed and down when expanded, matching GitHub's native expandable sections
+
 ## [0.8.0] - 2026-04-16
 - **Fix**: Decorations now work after using the browser back/forward buttons to navigate to a PR
 - **Fix**: Code owners section now positions above Checks when there is no Reviews section (e.g. PRs targeting unprotected branches)

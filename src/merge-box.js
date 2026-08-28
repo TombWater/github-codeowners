@@ -411,7 +411,7 @@ const onClickHeader = (event) => {
     'div[style*="transition"]'
   );
   if (chevronWrapper) {
-    chevronWrapper.style.transform = `rotate(${isExpanded ? 0 : 180}deg)`;
+    chevronWrapper.style.transform = `rotate(${isExpanded ? 180 : 90}deg)`;
   }
 
   const section = expandButton.closest('section[aria-label="Code owners"]');
@@ -469,7 +469,7 @@ const createMergeBoxSectionHeader = (approvalStatus) => {
 
     const chevronWrapper = document.createElement('div');
     chevronWrapper.style.transition = 'transform 0.15s ease-in-out';
-    chevronWrapper.style.transform = `rotate(${isExpanded ? 0 : 180}deg)`;
+    chevronWrapper.style.transform = `rotate(${isExpanded ? 180 : 90}deg)`;
     const svg = chevronSvgDoc.documentElement.cloneNode(true);
     chevronWrapper.appendChild(svg);
 
