@@ -86,7 +86,11 @@ export const initDebugPanel = (updateAllCallback) => {
   console.log('[GHCO Debug] Debug mode enabled');
 
   // Create panel after a short delay to ensure page is loaded
-  setTimeout(() => createDebugPanel(updateAllCallback), 1000);
+  setTimeout(() => {
+    if (!document.getElementById('ghco-debug-fab')) {
+      createDebugPanel(updateAllCallback);
+    }
+  }, 1000);
 
   // Recreate panel after Turbo navigation replaces document.body
   document.addEventListener('turbo:load', () => {
