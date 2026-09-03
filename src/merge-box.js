@@ -127,6 +127,7 @@ export const updateMergeBox = async () => {
   const stateParts = [
     isMerged,
     ownerApprovalRequired,
+    github.getReviewsApproved(),
     timelineCount,
     ...approvers,
   ];
@@ -194,7 +195,8 @@ export const updateMergeBox = async () => {
   const approvalStatus = calculateApprovalStatus(
     ownershipData,
     ownerApprovalRequired,
-    isMerged
+    isMerged,
+    approvers
   );
   updateMergeBoxSectionWithContent(
     section,
@@ -274,6 +276,9 @@ const createHeaderIcon = (approvalStatus) => {
   } else if (approvalStatus.allApprovalsReceived) {
     // GitHub's Reviews section shows success — all required approvals satisfied
     iconColor = GREEN;
+  } else if (approvalStatus.approvalNotRequired) {
+    // Nothing is blocking merge, but nobody has approved — informational, not success
+    iconColor = GRAY;
   } else if (approvalStatus.ownerApprovalRequired) {
     iconColor = RED;
   } else {
@@ -333,6 +338,7 @@ const createHeaderText = (approvalStatus) => {
       totalFiles,
       ownerApprovalRequired,
       allApprovalsReceived,
+      approvalNotRequired,
       reviewsRequired,
       isMerged,
     } = approvalStatus;
@@ -349,6 +355,9 @@ const createHeaderText = (approvalStatus) => {
       // Don't try to qualify the type (owner vs write-access) since the signal is
       // gone once GitHub marks the requirement as met.
       reviewText = 'All required approvals received';
+    } else if (approvalNotRequired) {
+      // Echo GitHub's own phrasing so the two boxes agree rather than appear to conflict
+      reviewText = `${groupApprovalsReceived} of ${groupApprovalsRequired} owner groups approved (not required to merge)`;
     } else if (ownerApprovalRequired) {
       reviewText = `${groupApprovalsReceived} of ${groupApprovalsRequired} owner approvals received`;
     } else if (reviewsRequired > 0) {
@@ -560,7 +569,8 @@ const createLoadingMergeBoxSection = (container) => {
 const calculateApprovalStatus = (
   ownershipData,
   ownerApprovalRequired,
-  isMerged
+  isMerged,
+  approvers
 ) => {
   const {ownerGroupsMap, ownerApprovals} = ownershipData;
   if (!ownerGroupsMap || !ownerApprovals) return null;
@@ -583,11 +593,19 @@ const calculateApprovalStatus = (
     }
   }
 
+  // A green Reviews section means nothing is blocking merge, which covers both
+  // "all approvals received" and "no approval required". Nobody having approved
+  // means it must be the latter — reporting it as approvals received would be a
+  // false all-clear on an unreviewed PR.
+  const reviewsShowSuccess = github.getReviewsApproved();
+  const hasAnyApproval = approvers.length > 0;
+
   return {
     groupApprovalsReceived,
     groupApprovalsRequired,
     totalFiles,
-    allApprovalsReceived: github.getReviewsApproved(),
+    allApprovalsReceived: reviewsShowSuccess && hasAnyApproval,
+    approvalNotRequired: reviewsShowSuccess && !hasAnyApproval && !isMerged,
     ownerApprovalRequired,
     reviewsRequired: github.getRequiredReviewCount(),
     isMerged,

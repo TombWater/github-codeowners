@@ -88,6 +88,9 @@ export const getReviewsMentionsCodeOwner = () => {
   return reviewsP?.textContent.toLowerCase().includes('code owner') ?? false;
 };
 
+// GitHub paints this section green both when required approvals are satisfied
+// and when no approval is required at all, so a true result means "nothing is
+// blocking merge", not "someone approved". Callers must disambiguate.
 export const getReviewsApproved = () =>
   Boolean(
     document.querySelector(
