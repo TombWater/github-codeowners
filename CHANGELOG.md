@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.8.1] - 2026-09-08
 - **Fix**: Merge box no longer claims "All required approvals received" on PRs with no approvals; when approval is not required to merge it now shows a gray icon and "not required to merge"
 - **UX**: Merge box section arrow now points right when collapsed and down when expanded, matching GitHub's native expandable sections
 
