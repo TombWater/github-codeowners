@@ -104,8 +104,9 @@ export const updateMergeBox = async () => {
     );
   }
 
+  // Nothing to anchor to yet — GitHub's merge box is still a bare spinner.
+  // Wait for its first section rather than rendering alongside the spinner.
   if (!container) {
-    console.info('[GHCO] Could not find merge box container');
     return;
   }
 
@@ -121,13 +122,13 @@ export const updateMergeBox = async () => {
   const timelineItems = document.querySelectorAll('.TimelineItem');
   const timelineCount = timelineItems.length;
 
-  const ownerApprovalRequired =
-    !isMerged && github.getReviewsMentionsCodeOwner();
+  const reviewStatus = github.getReviewStatus();
+  const ownerApprovalRequired = !isMerged && reviewStatus.ownerApprovalRequired;
 
   const stateParts = [
     isMerged,
     ownerApprovalRequired,
-    github.getReviewsApproved(),
+    reviewStatus.reviewsBlocking,
     timelineCount,
     ...approvers,
   ];
@@ -196,7 +197,8 @@ export const updateMergeBox = async () => {
     ownershipData,
     ownerApprovalRequired,
     isMerged,
-    approvers
+    approvers,
+    reviewStatus
   );
   updateMergeBoxSectionWithContent(
     section,
@@ -570,7 +572,8 @@ const calculateApprovalStatus = (
   ownershipData,
   ownerApprovalRequired,
   isMerged,
-  approvers
+  approvers,
+  reviewStatus
 ) => {
   const {ownerGroupsMap, ownerApprovals} = ownershipData;
   if (!ownerGroupsMap || !ownerApprovals) return null;
@@ -593,11 +596,11 @@ const calculateApprovalStatus = (
     }
   }
 
-  // A green Reviews section means nothing is blocking merge, which covers both
-  // "all approvals received" and "no approval required". Nobody having approved
-  // means it must be the latter — reporting it as approvals received would be a
-  // false all-clear on an unreviewed PR.
-  const reviewsShowSuccess = github.getReviewsApproved();
+  // No blocking line in the sidebar means nothing is holding the merge on
+  // reviews, which covers both "all approvals received" and "no approval
+  // required". Nobody having approved means it must be the latter — reporting
+  // it as approvals received would be a false all-clear on an unreviewed PR.
+  const reviewsShowSuccess = !reviewStatus.reviewsBlocking;
   const hasAnyApproval = approvers.length > 0;
 
   return {
@@ -607,7 +610,7 @@ const calculateApprovalStatus = (
     allApprovalsReceived: reviewsShowSuccess && hasAnyApproval,
     approvalNotRequired: reviewsShowSuccess && !hasAnyApproval && !isMerged,
     ownerApprovalRequired,
-    reviewsRequired: github.getRequiredReviewCount(),
+    reviewsRequired: reviewStatus.requiredCount,
     isMerged,
   };
 };

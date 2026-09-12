@@ -127,10 +127,22 @@ The extension works by:
   - Transform to `{name}[bot]` format for consistency with PR author format
   - Use `github.normalizeAuthorHref()` helper for both author extraction and comment decoration
 
+**Review state: merge box first, sidebar fallback** ⚠️ **CRITICAL - DO NOT REMOVE the fallback**
+- `getReviewStatusFromDoc()` in `github.js` is the single source for `ownerApprovalRequired`, `reviewsBlocking` and `requiredCount`. Do not add a second reader — extend this one.
+- GitHub renders several merge box variants and only some contain `section[aria-label="Reviews"]`. It is **absent on draft PRs, stacked PRs, and merged PRs** (a stacked PR's conflict section is labelled `"Current stack entry merge conflicts"` — a different component tree; a merged PR renders no sections at all). Merged is harmless — `ownerApprovalRequired` is guarded by `!isMerged` — but draft and stacked are not. 0.8.0 already accommodated its absence for *positioning*; the state readers did not, so the header silently fell back to GitHub's generic "N approvals required by reviewers with write access" on every draft and stacked PR.
+- **The Reviews section is the authority when present** — it states the code owner requirement outright. Only consult the sidebar when it returns `null` (absent). Both helpers return `null` for "no answer available", never `false`.
+- **Why the sidebar can't be the primary source:** its `#codeowner-<org>/<team>` shields prove code owners were *requested as reviewers*, not that branch protection enforces their sign-off — and they disappear once owner teams leave the requested-reviewer list. Verified counter-examples: #11921 and #12157 show "Code owner review required" with no shield anywhere.
+- Sidebar row state is encoded in element ids, so nothing parses display text: `#review-status-<login>` + `.octicon-check`/`.octicon-file-diff`, `#awaiting-review-<name>`, `#codeowner-<org>/<team>` + `.octicon-shield-lock`, and `.reviewers-status-icon.v-hidden` for the PR author's own row.
+- `getReviewersFromDoc()` derives from the same `parseReviewerRows()` traversal, so there is no second row scraper to keep in sync. Scope row queries to the form: `[data-assignee-name]` also matches the Assignees sidebar block.
+- Team rows also carry the CODEOWNERS slug in `data-url` (`/orgs/<org>/teams/<slug>`) — the same token CODEOWNERS uses. Not read today: `reviewers` is keyed by display name, so team rows never match an owner group and approvals resolve through the *individual* approver's team memberships instead (`ownership.js` `userTeamsMap`). Keying teams on the slug would close that gap.
+- The sidebar's blocking line ("At least N approving review is required…" / "Requested changes must be addressed…") is the fallback blocking verdict. Absence means reviews aren't holding the merge — satisfied, or nothing requires them (unprotected base, e.g. #13021). It *is* rendered on drafts (#12039, #12975), so absence is not a draft signal.
+- **Match that line by its text (`BLOCKING_LINE_PATTERN`), not by its `mt-2` class.** `mt-2` is pure Primer spacing with no semantics, and GitHub is migrating this sidebar toward CSS modules; a restyle would silently break it and leave us reporting "nothing blocking" on a PR that needs approvals — the same wrong all-clear that was fixed back in 0.8.1. The form also holds several other paragraphs (error placeholders, empty ones), so the pattern is what distinguishes this one. Verified text- and class-based matching agree across 12 PRs covering every state.
+- **Unverified:** no approved stacked PR was available, so the sidebar fallback's satisfied-state behaviour on a stacked PR is inferred, not observed. If the blocking line doesn't clear there, the header would keep showing "N of N owner approvals received" after approval — stale, but it fails conservatively rather than as a false all-clear.
+
 **Merge Box `approvalStatus` object** — unified "have" and "need" fields computed by `calculateApprovalStatus()`:
 - `groupApprovalsReceived` / `groupApprovalsRequired` — owner groups with/needing approval
-- `reviewsReceived` / `reviewsRequired` / `reviewsApproved` — individual reviewer counts and GitHub's verdict (`bgColor-success-emphasis` present in Reviews section)
-- `ownerApprovalRequired` — GitHub is enforcing code owner sign-off
+- `reviewsReceived` / `reviewsRequired` / `reviewsApproved` — individual reviewer counts and the review verdict (derived from `reviewStatus.reviewsBlocking`)
+- `ownerApprovalRequired` — code owners were requested as reviewers
 - `isMerged` — PR merge state
 - `null` means still loading (shows orange icon)
 

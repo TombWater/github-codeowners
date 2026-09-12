@@ -83,29 +83,102 @@ export const getIsMerged = () => {
   return isMerged;
 };
 
-export const getReviewsMentionsCodeOwner = () => {
-  const reviewsP = document.querySelector('[aria-label="Reviews"] p');
-  return reviewsP?.textContent.toLowerCase().includes('code owner') ?? false;
-};
+// Sidebar reviewers form — the fallback source for review state, used where
+// the merge box Reviews section is missing (draft and stacked PRs). Unlike the
+// merge box it is server-rendered on every PR page. Row state is encoded in
+// element ids, so nothing here parses display text:
+//   #review-status-<login>   + .octicon-check       → approved
+//   #review-status-<login>   + .octicon-file-diff   → changes requested
+//   #awaiting-review-<name>                         → pending
+//   #codeowner-<org>/<team>  + .octicon-shield-lock → reviewer is a code owner
+//   .reviewers-status-icon.v-hidden                 → PR author's row, skip
+const REVIEWERS_FORM = 'form[aria-label="Select reviewers"]';
 
-// GitHub paints this section green both when required approvals are satisfied
-// and when no approval is required at all, so a true result means "nothing is
-// blocking merge", not "someone approved". Callers must disambiguate.
-export const getReviewsApproved = () =>
-  Boolean(
-    document.querySelector(
-      'section[aria-label="Reviews"] .bgColor-success-emphasis'
-    )
+// "At least N approving review is required to merge this pull request." /
+// "Requested changes must be addressed to merge this pull request."
+const BLOCKING_LINE_PATTERN = /required to merge|must be addressed/i;
+
+// One traversal of the reviewer rows. Everything else derives from this.
+const parseReviewerRows = (doc) => {
+  const nodes = doc?.querySelectorAll(
+    `${REVIEWERS_FORM} [data-assignee-name], ${REVIEWERS_FORM} .js-reviewer-team`
   );
 
-export const getRequiredReviewCount = () => {
-  const sidebarText = document.querySelector(
-    'form[aria-label="Select reviewers"] p.mt-2'
-  )?.textContent;
-  if (!sidebarText) return null;
-  const match = sidebarText.match(/at least (\d+)/i);
-  return match ? parseInt(match[1], 10) : null;
+  return Array.from(nodes || []).flatMap((node) => {
+    const row = node.parentElement;
+    const statusIcon = row?.querySelector('.reviewers-status-icon');
+    // A hidden status icon marks the PR author's own row — not a reviewer
+    if (!statusIcon || statusIcon.classList.contains('v-hidden')) return [];
+
+    return [
+      {
+        name: node.dataset.assigneeName || node.textContent.trim(),
+        approved: Boolean(statusIcon.querySelector('.octicon-check')),
+        isCodeOwner: Boolean(row.querySelector('button[id^="codeowner-"]')),
+      },
+    ];
+  });
 };
+
+// The merge box Reviews section answers both questions below outright, and is
+// the authority when present — but it is only rendered on ordinary PRs, so on
+// drafts and stacked PRs these return null, meaning "no answer available"
+// rather than "no". Callers fall back to the sidebar for those.
+const reviewsSection = (doc) =>
+  doc?.querySelector('section[aria-label="Reviews"]') ?? null;
+
+const reviewsSectionRequiresCodeOwner = (doc) => {
+  const reviewsP = reviewsSection(doc)?.querySelector('p');
+  return reviewsP
+    ? reviewsP.textContent.toLowerCase().includes('code owner')
+    : null;
+};
+
+// Green means nothing is blocking merge, covering both "all approvals
+// received" and "no approval required" — callers must disambiguate.
+const reviewsSectionBlocking = (doc) => {
+  const section = reviewsSection(doc);
+  return section ? !section.querySelector('.bgColor-success-emphasis') : null;
+};
+
+export const getReviewStatusFromDoc = (doc) => {
+  const rows = parseReviewerRows(doc);
+
+  // Sidebar fallback for the blocking verdict. GitHub renders this line only
+  // while reviews still hold the merge, in two variants: "At least N approving
+  // review is required…" and "Requested changes must be addressed…". Absence
+  // means reviews aren't holding it — either satisfied, or nothing requires
+  // them (unprotected base).
+  //
+  // Matched on its text rather than its `mt-2` class: that class is pure
+  // Primer spacing with no semantics, so a restyle would silently break this
+  // and leave us reporting "nothing blocking" on a PR that needs approvals.
+  // The form holds several other paragraphs (error placeholders, empty ones),
+  // so the pattern is also what distinguishes this one from those.
+  const blockingLine =
+    Array.from(doc?.querySelectorAll(`${REVIEWERS_FORM} p`) ?? [])
+      // Collapse whitespace so matching survives GitHub rewrapping the text
+      .map((p) => p.textContent.replace(/\s+/g, ' ').trim())
+      .find((text) => BLOCKING_LINE_PATTERN.test(text)) || null;
+
+  const requiredMatch = blockingLine?.match(/at least (\d+)/i);
+
+  return {
+    // Sidebar code owner shields are the weaker signal — they prove code
+    // owners were requested as reviewers, not that branch protection enforces
+    // their sign-off, and they disappear once the owner teams leave the
+    // requested-reviewer list (zattoo/frontend #11921, #12157: Reviews says
+    // "Code owner review required" with no shield in sight). So only consult
+    // them where GitHub doesn't state the requirement itself.
+    ownerApprovalRequired:
+      reviewsSectionRequiresCodeOwner(doc) ??
+      rows.some((row) => row.isCodeOwner),
+    reviewsBlocking: reviewsSectionBlocking(doc) ?? Boolean(blockingLine),
+    requiredCount: requiredMatch ? Number(requiredMatch[1]) : null,
+  };
+};
+
+export const getReviewStatus = () => getReviewStatusFromDoc(document);
 
 export const getPrAuthor = cacheResult(prCacheKey, async () => {
   // Try extracting from current page first
@@ -437,21 +510,11 @@ export const getReviewers = async () => {
   }
 };
 
+// Name → approved, derived from the canonical parse above
 export const getReviewersFromDoc = (doc) => {
-  const reviewerNodes = doc?.querySelectorAll(
-    '[data-assignee-name], .js-reviewer-team'
+  let reviewers = new Map(
+    parseReviewerRows(doc).map((row) => [row.name, row.approved])
   );
-  let reviewers = Array.from(reviewerNodes || []).reduce((acc, node) => {
-    const statusIcon = node.parentElement.querySelector(
-      '.reviewers-status-icon'
-    );
-    if (statusIcon && !statusIcon.classList.contains('v-hidden')) {
-      const name = node.dataset.assigneeName || node.textContent.trim();
-      const approved = Boolean(statusIcon.querySelector('.octicon-check'));
-      acc.set(name, approved);
-    }
-    return acc;
-  }, new Map());
 
   // Apply simulated approvals if in debug mode
   if (__DEBUG__) {

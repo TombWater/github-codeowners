@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+- **Fix**: Merge box now shows the real owner approval progress ("1 of 9 owner approvals received") on draft and stacked PRs, instead of falling back to GitHub's generic "1 approval required by reviewers with write access". GitHub omits the merge box Reviews section entirely on those PRs, which hid the code owner requirement
+
+<!-- SCRATCHPAD — DELETE BEFORE RELEASE
+Pre-merge checks still outstanding for feature/review-status-draft-stacked-prs
+(nothing below has been verified in a browser):
+
+1. Reload the extension at chrome://extensions/, then check:
+   - zattoo/frontend #11921 (ordinary PR; Reviews section says "Code owner
+     review required"). THIS IS THE ONE THAT MATTERS — it exercises the
+     merge-box primary path, and an early draft of this change regressed it
+     to "1 approval required by reviewers with write access".
+     Expect: "1 owner group (1 file) - 0 of 1 owner approvals received", red
+     icon, auto-expanded.
+   - zattoo/frontend #12974 (stacked; the original bug). Expect "9 owner
+     groups (258 files) - 1 of 9 owner approvals received". Weaker signal:
+     this already passed with the broken intermediate build.
+
+2. Find an APPROVED STACKED PR. The sidebar fallback's satisfied-state
+   behaviour there is inferred, never observed — none existed while this was
+   written. Expect the sidebar blocking line to clear, giving "All required
+   approvals received". If it does not clear, the header stays on
+   "N of N owner approvals received" after approval: stale, but fails
+   conservatively rather than as a false all-clear.
+
+3. Version bump is a release step, not part of this change:
+   public/manifest.json is still 0.8.1 and the entry above sits under
+   [Unreleased]. The "What's new" banner won't fire until the manifest moves.
+-->
+
+
 ## [0.8.1] - 2026-09-08
 - **Fix**: Merge box no longer claims "All required approvals received" on PRs with no approvals; when approval is not required to merge it now shows a gray icon and "not required to merge"
 - **UX**: Merge box section arrow now points right when collapsed and down when expanded, matching GitHub's native expandable sections
