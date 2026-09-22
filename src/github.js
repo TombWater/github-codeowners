@@ -136,10 +136,10 @@ const parseReviewerRows = (doc) => {
 // The merge box Reviews section answers both questions below outright, but it
 // is not always rendered — on drafts and closed PRs these return null, meaning
 // "no answer available" rather than "no", and callers fall back to the
-// sidebar. Stacked PRs are not inherently one of these cases: #13105 is a
-// stacked child with a full Reviews section, "Merging is blocked" and a
-// blocking line. Treat a missing section as a property of the PR's state, not
-// of its stack position.
+// sidebar. Stacked PRs are not inherently one of these cases — a stacked
+// child renders a full Reviews section, "Merging is blocked" and a blocking
+// line like any other PR. Treat a missing section as a property of the PR's
+// state, not of its stack position.
 //
 // It is the authority on the *blocking* verdict whenever it is present; it is
 // not the authority on the code owner requirement, which it reports only when
@@ -149,10 +149,9 @@ const reviewsSection = (doc) =>
 
 // Only ever a positive signal. The Reviews paragraph reports one verdict at a
 // time and a requested change outranks the code owner requirement, replacing
-// "Code owner review required" with "N change requested…" (zattoo/frontend
-// #13186) — so a paragraph that doesn't mention code owners has not denied the
-// requirement, it just had something more urgent to say. Returns true or null,
-// never false.
+// "Code owner review required" with "N change requested…" — so a paragraph
+// that doesn't mention code owners has not denied the requirement, it just had
+// something more urgent to say. Returns true or null, never false.
 const reviewsSectionRequiresCodeOwner = (doc) => {
   const reviewsP = reviewsSection(doc)?.querySelector('p');
   return reviewsP?.textContent.toLowerCase().includes('code owner') || null;
@@ -189,10 +188,10 @@ export const getReviewStatusFromDoc = (doc) => {
 
   return {
     // Two independent yeses, neither of which can be trusted to say no.
-    // Reviews goes silent whenever it has a more urgent verdict to report
-    // (#13186), and the sidebar shields disappear once the owner teams leave
-    // the requested-reviewer list (#11921, #12157: Reviews says "Code owner
-    // review required" with no shield in sight). Either one alone is enough.
+    // Reviews goes silent whenever it has a more urgent verdict to report,
+    // and the sidebar shields disappear once the owner teams leave the
+    // requested-reviewer list — leaving "Code owner review required" in the
+    // Reviews section with no shield in sight. Either one alone is enough.
     ownerApprovalRequired:
       reviewsSectionRequiresCodeOwner(doc) ||
       rows.some((row) => row.isCodeOwner),

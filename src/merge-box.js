@@ -627,8 +627,7 @@ const calculateApprovalStatus = (
     // it collected before closing counts as "all required approvals". Without
     // this guard the stripped-down closed merge box — no Reviews section, no
     // blocking line — reads as "nothing is blocking", and one stale approval
-    // paints it green (#12974: green "All required approvals received" with 4
-    // of 9 owner groups approved and 5 owner teams still pending).
+    // paints it green while owner groups are still unapproved.
     allApprovalsReceived: !isClosed && reviewsShowSuccess && hasAnyApproval,
     approvalNotRequired:
       isClosed || (reviewsShowSuccess && !hasAnyApproval && !isMerged),
