@@ -6,11 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-- **Fix**: Merge box now shows the real owner approval progress ("1 of 9 owner groups approved") where GitHub's merge box has no Reviews section, instead of falling back to GitHub's generic "1 approval required by reviewers with write access". Review state now falls back to the reviewers sidebar, which is server-rendered on every PR page
-- **Fix**: Merge box no longer loses the owner approval count and turns gray when a reviewer requests changes. GitHub's Reviews section reports one verdict at a time, and a requested change replaces "Code owner review required", which was read as "no owner approval required"
-- **Fix**: Closed (unmerged) PRs no longer show a green "All required approvals received". A closed PR's merge box has no Reviews section and no blocking line, which read as "nothing is blocking", so a single approval collected before closing painted it green. Closed PRs now show a gray icon and "N of M owner groups approved (closed without merging)"
-- **Fix**: Merge box no longer reports "All required approvals received" when GitHub's reviewers sidebar fails to load. The sidebar intermittently replaces part of its content with "There was an error while loading", and on PRs with no merge box Reviews section the missing blocking line was read as "nothing is holding the merge"
-- **UX**: Owner progress now reads "3 of 4 owner groups approved" everywhere, matching the "4 owner groups" count beside it, instead of recounting the same groups as "3 of 4 owner approvals received"
+- **Fix**: Code owners section now shows the correct approval status on draft PRs, closed PRs, and PRs with changes requested, where it previously showed no approval count or wrongly reported "All required approvals received"
+- **UX**: Owner progress now reads "3 of 4 owner groups approved", matching the owner group count beside it
 
 <!-- SCRATCHPAD — DELETE BEFORE RELEASE
 Still to do on this branch:
