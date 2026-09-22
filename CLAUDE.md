@@ -29,6 +29,12 @@ The extension works by:
 - **Changelog**: ALWAYS update `CHANGELOG.md` under the "Unreleased" section when implementing user-facing changes. Use concise bullet points starting with **Feature**, **Fix**, **UX**, or **Internal**.
   - **Write it for the person reading release notes, not as a log of the work.** One entry per user-visible *symptom*, not per commit — several fixes with different causes but the same visible effect collapse into one bullet. Leave out the mechanism (DOM structures, selectors, internal helpers, data flow); that belongs in the commit message and in this file. Drop fixes a user can't see, such as a guard against a state that only appears when a background fetch fails. Don't list a case that turned out to be mostly working already. Keep the situations a user would recognise having hit, and any literal string they'd have seen on screen.
   - Before finishing a branch, reread the whole "Unreleased" section and consolidate. Appending a bullet per commit as you go is what makes it drift into a commit log.
+- **Keep private references out of the repo** ⚠️ **This repo is public.** Never write the maintainer's employer, its private repo names, team slugs or internal branch names into source, comments, CLAUDE.md, CHANGELOG or commit messages. Real PRs from private repos are the natural thing to reach for when documenting GitHub's DOM, which is exactly how such names leak in — use `@org/team` and `#codeowner-<org>/<team>` placeholders, or describe the shape without an example. Using them in conversation, or in Playwright calls against live PRs, is fine; the rule is about what gets written to disk.
+- **Store screenshots**: must be exactly **1280x800** (Google Play requires that size precisely).
+  1. Rebase `feature/fake-owners` onto current `main` — it carries a fake CODEOWNERS plus touched files for a realistic demo — and open a PR against it
+  2. Set approval states with the debug panel's "Simulate Approval Change"
+  3. Narrow the window to a ~1000x625 box around the target area and capture (manual step)
+  4. Crop in Preview, then **scale to 1280x800** — easy to forget, and the capture is deliberately smaller so the crop is clean
 - **No API Keys**: Extension works entirely through DOM scraping, no GitHub API tokens required
 - **Codebase Size**: ~2000 lines total across 7 focused modules
 - **Dependencies**: Uses lodash-es (with patches), ignore library, webpack build system
@@ -108,6 +114,8 @@ The extension works by:
 
 - **GitHub DOM changes**: Handle both old and new UI patterns using fallback selectors
 - **DOM inspection with Playwright MCP**: Use Playwright browser tools to inspect GitHub pages dynamically. User should open a representative PR (works with private repos where CODEOWNERS is present), then use Playwright MCP to navigate, snapshot, and interact with the page as needed. If Playwright MCP doesn't work, tell the user to check that the token is valid and restart VSCode. Do not fallback to other approaches unless the user tells you to.
+  - Drive the scratch tab with `browser_navigate` rather than picking one of the user's real tabs, which pulls it into a "Playwright" tab group.
+  - A full-page snapshot of a GitHub PR is ~78KB and exceeds the inline limit — scope it with `target`/`depth`, or read specific values with `browser_evaluate`.
 - **Logging philosophy**: Keep console quiet in production. Only log:
   - External data sources that are hard to reproduce (CODEOWNERS parsing, team membership)
   - Debug panel operations (guarded by `__DEBUG__` flag, dev builds only)
@@ -203,6 +211,7 @@ The extension works by:
 **What NOT to document:**
 - Details already clear in code
 - Step-by-step feature explanations (code is source of truth)
+- **Specific PR numbers** — in this file or in `src/**` comments. Describe the DOM shape or behaviour instead ("a stacked child renders a full Reviews section", not "#13105 is a stacked child that…"). A PR's state keeps changing after the citation is written, so it goes stale silently: one PR cited here as the canonical stacked-PR-without-a-Reviews-section was later found to be *closed*, which was the real cause, invalidating the claim built on it. A reader also can't check the reference without leaving the code. Fine in short-lived places — commit messages, and a CHANGELOG scratchpad marked for deletion, where specific PRs are the verification targets.
 
 **⚠️ CRITICAL patterns:**
 1. Mark with **⚠️ CRITICAL - DO NOT REMOVE**
