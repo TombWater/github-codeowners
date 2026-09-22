@@ -83,8 +83,21 @@ export const getIsMerged = () => {
   return isMerged;
 };
 
+// Closed without merging. GitHub strips the merge box down to almost nothing
+// here — no Reviews section, no sidebar blocking line — which is
+// indistinguishable from "nothing is blocking the merge" unless we ask
+// directly. Mirrors the merged selector; no debug simulation, since the debug
+// panel only simulates the merged state and that is checked first.
+export const getIsClosed = () =>
+  Boolean(
+    document.querySelector(
+      '#partial-discussion-header .State--closed, [data-status="pullClosed"]'
+    )
+  ) && !getIsMerged();
+
 // Sidebar reviewers form — the fallback source for review state, used where
-// the merge box Reviews section is missing (draft and stacked PRs). Unlike the
+// the merge box Reviews section is missing (drafts, closed PRs, and some
+// stacked PRs — see the note on reviewsSection below). Unlike the
 // merge box it is server-rendered on every PR page. Row state is encoded in
 // element ids, so nothing here parses display text:
 //   #review-status-<login>   + .octicon-check       → approved
@@ -121,11 +134,16 @@ const parseReviewerRows = (doc) => {
 };
 
 // The merge box Reviews section answers both questions below outright, but it
-// is only rendered on ordinary PRs — on drafts and stacked PRs these return
-// null, meaning "no answer available" rather than "no", and callers fall back
-// to the sidebar. It is the authority on the *blocking* verdict whenever it is
-// present; it is not the authority on the code owner requirement, which it
-// reports only when it has nothing more urgent to say (see below).
+// is not always rendered — on drafts and closed PRs these return null, meaning
+// "no answer available" rather than "no", and callers fall back to the
+// sidebar. Stacked PRs are not inherently one of these cases: #13105 is a
+// stacked child with a full Reviews section, "Merging is blocked" and a
+// blocking line. Treat a missing section as a property of the PR's state, not
+// of its stack position.
+//
+// It is the authority on the *blocking* verdict whenever it is present; it is
+// not the authority on the code owner requirement, which it reports only when
+// it has nothing more urgent to say (see below).
 const reviewsSection = (doc) =>
   doc?.querySelector('section[aria-label="Reviews"]') ?? null;
 

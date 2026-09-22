@@ -122,11 +122,14 @@ export const updateMergeBox = async () => {
   const timelineItems = document.querySelectorAll('.TimelineItem');
   const timelineCount = timelineItems.length;
 
+  const isClosed = github.getIsClosed();
   const reviewStatus = github.getReviewStatus();
-  const ownerApprovalRequired = !isMerged && reviewStatus.ownerApprovalRequired;
+  const ownerApprovalRequired =
+    !isMerged && !isClosed && reviewStatus.ownerApprovalRequired;
 
   const stateParts = [
     isMerged,
+    isClosed,
     ownerApprovalRequired,
     reviewStatus.reviewsBlocking,
     timelineCount,
@@ -198,7 +201,8 @@ export const updateMergeBox = async () => {
     ownerApprovalRequired,
     isMerged,
     approvers,
-    reviewStatus
+    reviewStatus,
+    isClosed
   );
   updateMergeBoxSectionWithContent(
     section,
@@ -275,6 +279,9 @@ const createHeaderIcon = (approvalStatus) => {
     // Loading — leave iconColor unset so SVG renders its native orange fills
   } else if (approvalStatus.isMerged) {
     iconColor = PURPLE;
+  } else if (approvalStatus.isClosed) {
+    // Closed without merging — nothing is required, so nothing is outstanding
+    iconColor = GRAY;
   } else if (approvalStatus.allApprovalsReceived) {
     // GitHub's Reviews section shows success — all required approvals satisfied
     iconColor = GREEN;
@@ -343,15 +350,23 @@ const createHeaderText = (approvalStatus) => {
       approvalNotRequired,
       reviewsRequired,
       isMerged,
+      isClosed,
     } = approvalStatus;
     const groupText = `${groupApprovalsRequired} owner group${
       groupApprovalsRequired === 1 ? '' : 's'
     }`;
+    // Counts owner *groups*, matching the "N owner groups" above it — saying
+    // "owner approvals" here would recount the same groups under a second
+    // noun. The branches below differ only in the qualifier they append.
+    const ownerProgress = `${groupApprovalsReceived} of ${groupApprovalsRequired} owner groups approved`;
     const fileText = `${totalFiles} file${totalFiles === 1 ? '' : 's'}`;
 
     let reviewText;
     if (isMerged) {
       // no reviewText
+    } else if (isClosed) {
+      // Report the progress as it stood, without implying anything is owed
+      reviewText = `${ownerProgress} (closed without merging)`;
     } else if (allApprovalsReceived) {
       // GitHub's Reviews section shows success — all required approvals satisfied.
       // Don't try to qualify the type (owner vs write-access) since the signal is
@@ -359,9 +374,9 @@ const createHeaderText = (approvalStatus) => {
       reviewText = 'All required approvals received';
     } else if (approvalNotRequired) {
       // Echo GitHub's own phrasing so the two boxes agree rather than appear to conflict
-      reviewText = `${groupApprovalsReceived} of ${groupApprovalsRequired} owner groups approved (not required to merge)`;
+      reviewText = `${ownerProgress} (not required to merge)`;
     } else if (ownerApprovalRequired) {
-      reviewText = `${groupApprovalsReceived} of ${groupApprovalsRequired} owner approvals received`;
+      reviewText = ownerProgress;
     } else if (reviewsRequired > 0) {
       const approvalWord = reviewsRequired === 1 ? 'approval' : 'approvals';
       reviewText = `${reviewsRequired} ${approvalWord} required by reviewers with write access`;
@@ -573,7 +588,8 @@ const calculateApprovalStatus = (
   ownerApprovalRequired,
   isMerged,
   approvers,
-  reviewStatus
+  reviewStatus,
+  isClosed
 ) => {
   const {ownerGroupsMap, ownerApprovals} = ownershipData;
   if (!ownerGroupsMap || !ownerApprovals) return null;
@@ -607,11 +623,19 @@ const calculateApprovalStatus = (
     groupApprovalsReceived,
     groupApprovalsRequired,
     totalFiles,
-    allApprovalsReceived: reviewsShowSuccess && hasAnyApproval,
-    approvalNotRequired: reviewsShowSuccess && !hasAnyApproval && !isMerged,
+    // A closed PR cannot merge, so nothing is required of it and no approval
+    // it collected before closing counts as "all required approvals". Without
+    // this guard the stripped-down closed merge box — no Reviews section, no
+    // blocking line — reads as "nothing is blocking", and one stale approval
+    // paints it green (#12974: green "All required approvals received" with 4
+    // of 9 owner groups approved and 5 owner teams still pending).
+    allApprovalsReceived: !isClosed && reviewsShowSuccess && hasAnyApproval,
+    approvalNotRequired:
+      isClosed || (reviewsShowSuccess && !hasAnyApproval && !isMerged),
     ownerApprovalRequired,
     reviewsRequired: reviewStatus.requiredCount,
     isMerged,
+    isClosed,
   };
 };
 
