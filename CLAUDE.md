@@ -27,6 +27,8 @@ The extension works by:
   - ⚠️ **AFTER MAKING CODE CHANGES**: Always ask the user to reload the extension at `chrome://extensions/` (click reload button) and refresh the GitHub page to see changes take effect
 - **Formatting**: Use `npm run format` to fix code formatting. Do not spend time manually formatting code.
 - **Changelog**: ALWAYS update `CHANGELOG.md` under the "Unreleased" section when implementing user-facing changes. Use concise bullet points starting with **Feature**, **Fix**, **UX**, or **Internal**.
+  - **Write it for the person reading release notes, not as a log of the work.** One entry per user-visible *symptom*, not per commit — several fixes with different causes but the same visible effect collapse into one bullet. Leave out the mechanism (DOM structures, selectors, internal helpers, data flow); that belongs in the commit message and in this file. Drop fixes a user can't see, such as a guard against a state that only appears when a background fetch fails. Don't list a case that turned out to be mostly working already. Keep the situations a user would recognise having hit, and any literal string they'd have seen on screen.
+  - Before finishing a branch, reread the whole "Unreleased" section and consolidate. Appending a bullet per commit as you go is what makes it drift into a commit log.
 - **No API Keys**: Extension works entirely through DOM scraping, no GitHub API tokens required
 - **Codebase Size**: ~2000 lines total across 7 focused modules
 - **Dependencies**: Uses lodash-es (with patches), ignore library, webpack build system
