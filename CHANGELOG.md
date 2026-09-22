@@ -14,10 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- SCRATCHPAD — DELETE BEFORE RELEASE
 Pre-merge checks for feature/review-status-draft-stacked-prs.
 
-VERIFIED against the built extension:
+VERIFIED against the built extension (wording below observed, not inferred):
   #13186  ordinary, changes requested, so the Reviews paragraph never
-          mentions code owners. Red, "4 owner groups (26 files) - 3 of 4
+          mentions code owners. Red, "4 owner groups (25 files) - 3 of 4
           owner groups approved", auto-expanded. Before: gray, no count.
+  #12974  CLOSED with unmerged commits (not stacked, as once assumed) —
+          hence the stripped-bare merge box. Gray, "9 owner groups
+          (258 files) - 4 of 9 owner groups approved (closed without
+          merging)". Before the guard: green "All required approvals
+          received" with 5 owner teams pending.
   #11921  ordinary, Reviews says "Code owner review required", and the
           sidebar has NO shields — so this is the case that proves the
           requirement still rides the Reviews paragraph, not the widening.
@@ -29,25 +34,20 @@ VERIFIED against the built extension:
           "Merging is blocked". Stacked PRs are NOT inherently missing the
           Reviews section — the earlier premise was wrong.
 
-STILL TO CHECK (all wording below is post-rename):
-1. #12974 with the closed-PR guard. It is CLOSED with unmerged commits (not
-   stacked, as previously assumed) — that is why its merge box is stripped
-   bare. Expect gray, "9 owner groups (258 files) - 4 of 9 owner groups
-   approved (closed without merging)". Before the guard: green, "All
-   required approvals received", with 5 owner teams still pending.
-2. A DRAFT PR. Drafts are now the main case for the sidebar fallback, and
+STILL TO CHECK:
+1. A DRAFT PR. Drafts are now the main case for the sidebar fallback, and
    none has been checked since the fallback landed. The blocking line is
    rendered on drafts (#12039, #12975 — both since closed), so expect
    red/green as normal, never gray-by-default.
-3. A PR whose base enforces no code owners and whose sidebar shows no
+2. A PR whose base enforces no code owners and whose sidebar shows no
    shields: must stay gray. The only case the sidebar-shield widening could
    regress, and still not observed.
-4. The reviewers sidebar intermittently renders "There was an error while
+3. The reviewers sidebar intermittently renders "There was an error while
    loading. Please reload this page." (seen on #13092 and #13105). That
    silently empties parseReviewerRows() and drops the shield signal. Both
    PRs were carried by their Reviews section, so nothing broke — but the
    fallback path has no guard for it.
-5. Version bump is a release step, not part of this change:
+4. Version bump is a release step, not part of this change:
    public/manifest.json is still 0.8.1 and the entries above sit under
    [Unreleased]. The "What's new" banner won't fire until the manifest moves.
 -->

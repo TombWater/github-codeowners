@@ -83,11 +83,8 @@ export const getIsMerged = () => {
   return isMerged;
 };
 
-// Closed without merging. GitHub strips the merge box down to almost nothing
-// here — no Reviews section, no sidebar blocking line — which is
-// indistinguishable from "nothing is blocking the merge" unless we ask
-// directly. Mirrors the merged selector; no debug simulation, since the debug
-// panel only simulates the merged state and that is checked first.
+// A closed, unmerged PR has no Reviews section and no blocking line, which is
+// indistinguishable from "nothing is blocking" unless we ask outright.
 export const getIsClosed = () =>
   Boolean(
     document.querySelector(
@@ -95,11 +92,9 @@ export const getIsClosed = () =>
     )
   ) && !getIsMerged();
 
-// Sidebar reviewers form — the fallback source for review state, used where
-// the merge box Reviews section is missing (drafts, closed PRs, and some
-// stacked PRs — see the note on reviewsSection below). Unlike the
-// merge box it is server-rendered on every PR page. Row state is encoded in
-// element ids, so nothing here parses display text:
+// Sidebar reviewers form — the fallback wherever the merge box Reviews
+// section is missing, since this one is server-rendered on every PR page.
+// Row state is encoded in element ids, so nothing here parses display text:
 //   #review-status-<login>   + .octicon-check       → approved
 //   #review-status-<login>   + .octicon-file-diff   → changes requested
 //   #awaiting-review-<name>                         → pending
@@ -133,25 +128,17 @@ const parseReviewerRows = (doc) => {
   });
 };
 
-// The merge box Reviews section answers both questions below outright, but it
-// is not always rendered — on drafts and closed PRs these return null, meaning
-// "no answer available" rather than "no", and callers fall back to the
-// sidebar. Stacked PRs are not inherently one of these cases — a stacked
-// child renders a full Reviews section, "Merging is blocked" and a blocking
-// line like any other PR. Treat a missing section as a property of the PR's
-// state, not of its stack position.
-//
-// It is the authority on the *blocking* verdict whenever it is present; it is
-// not the authority on the code owner requirement, which it reports only when
-// it has nothing more urgent to say (see below).
+// Absent on drafts and closed PRs — a property of the PR's state, not of its
+// stack position, since a stacked child renders one like any other. Both
+// helpers below therefore return null for "no answer", and callers fall back
+// to the sidebar. Authoritative on the blocking verdict; not on the code
+// owner requirement (see below).
 const reviewsSection = (doc) =>
   doc?.querySelector('section[aria-label="Reviews"]') ?? null;
 
-// Only ever a positive signal. The Reviews paragraph reports one verdict at a
-// time and a requested change outranks the code owner requirement, replacing
-// "Code owner review required" with "N change requested…" — so a paragraph
-// that doesn't mention code owners has not denied the requirement, it just had
-// something more urgent to say. Returns true or null, never false.
+// True or null, never false. The paragraph reports one verdict at a time and
+// a requested change replaces "Code owner review required", so silence here is
+// not a denial.
 const reviewsSectionRequiresCodeOwner = (doc) => {
   const reviewsP = reviewsSection(doc)?.querySelector('p');
   return reviewsP?.textContent.toLowerCase().includes('code owner') || null;
@@ -167,17 +154,11 @@ const reviewsSectionBlocking = (doc) => {
 export const getReviewStatusFromDoc = (doc) => {
   const rows = parseReviewerRows(doc);
 
-  // Sidebar fallback for the blocking verdict. GitHub renders this line only
-  // while reviews still hold the merge, in two variants: "At least N approving
-  // review is required…" and "Requested changes must be addressed…". Absence
-  // means reviews aren't holding it — either satisfied, or nothing requires
-  // them (unprotected base).
-  //
-  // Matched on its text rather than its `mt-2` class: that class is pure
-  // Primer spacing with no semantics, so a restyle would silently break this
-  // and leave us reporting "nothing blocking" on a PR that needs approvals.
-  // The form holds several other paragraphs (error placeholders, empty ones),
-  // so the pattern is also what distinguishes this one from those.
+  // Rendered only while reviews hold the merge, so absence means they aren't —
+  // satisfied, or nothing requires them. Matched on text rather than its
+  // `mt-2` class: that class is pure Primer spacing, so a restyle would
+  // silently turn this into a false "nothing blocking". The pattern is also
+  // what tells this paragraph from the form's error placeholders.
   const blockingLine =
     Array.from(doc?.querySelectorAll(`${REVIEWERS_FORM} p`) ?? [])
       // Collapse whitespace so matching survives GitHub rewrapping the text
@@ -187,11 +168,9 @@ export const getReviewStatusFromDoc = (doc) => {
   const requiredMatch = blockingLine?.match(/at least (\d+)/i);
 
   return {
-    // Two independent yeses, neither of which can be trusted to say no.
-    // Reviews goes silent whenever it has a more urgent verdict to report,
-    // and the sidebar shields disappear once the owner teams leave the
-    // requested-reviewer list — leaving "Code owner review required" in the
-    // Reviews section with no shield in sight. Either one alone is enough.
+    // Two independent yeses, neither trusted to say no: Reviews goes silent
+    // when it has a more urgent verdict, and the shields vanish once owner
+    // teams leave the requested-reviewer list.
     ownerApprovalRequired:
       reviewsSectionRequiresCodeOwner(doc) ||
       rows.some((row) => row.isCodeOwner),

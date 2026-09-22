@@ -104,8 +104,7 @@ export const updateMergeBox = async () => {
     );
   }
 
-  // Nothing to anchor to yet — GitHub's merge box is still a bare spinner.
-  // Wait for its first section rather than rendering alongside the spinner.
+  // Nothing to anchor to yet — the merge box is still a bare spinner
   if (!container) {
     return;
   }
@@ -355,9 +354,8 @@ const createHeaderText = (approvalStatus) => {
     const groupText = `${groupApprovalsRequired} owner group${
       groupApprovalsRequired === 1 ? '' : 's'
     }`;
-    // Counts owner *groups*, matching the "N owner groups" above it — saying
-    // "owner approvals" here would recount the same groups under a second
-    // noun. The branches below differ only in the qualifier they append.
+    // Counts owner *groups*, matching the "N owner groups" above it; the
+    // branches below differ only in the qualifier they append
     const ownerProgress = `${groupApprovalsReceived} of ${groupApprovalsRequired} owner groups approved`;
     const fileText = `${totalFiles} file${totalFiles === 1 ? '' : 's'}`;
 
@@ -365,7 +363,7 @@ const createHeaderText = (approvalStatus) => {
     if (isMerged) {
       // no reviewText
     } else if (isClosed) {
-      // Report the progress as it stood, without implying anything is owed
+      // Progress as it stood, without implying anything is owed
       reviewText = `${ownerProgress} (closed without merging)`;
     } else if (allApprovalsReceived) {
       // GitHub's Reviews section shows success — all required approvals satisfied.
@@ -612,10 +610,9 @@ const calculateApprovalStatus = (
     }
   }
 
-  // No blocking line in the sidebar means nothing is holding the merge on
-  // reviews, which covers both "all approvals received" and "no approval
-  // required". Nobody having approved means it must be the latter — reporting
-  // it as approvals received would be a false all-clear on an unreviewed PR.
+  // Covers both "all approvals received" and "no approval required"; nobody
+  // having approved means it must be the latter, and calling that success
+  // would be a false all-clear on an unreviewed PR.
   const reviewsShowSuccess = !reviewStatus.reviewsBlocking;
   const hasAnyApproval = approvers.length > 0;
 
@@ -623,11 +620,9 @@ const calculateApprovalStatus = (
     groupApprovalsReceived,
     groupApprovalsRequired,
     totalFiles,
-    // A closed PR cannot merge, so nothing is required of it and no approval
-    // it collected before closing counts as "all required approvals". Without
-    // this guard the stripped-down closed merge box — no Reviews section, no
-    // blocking line — reads as "nothing is blocking", and one stale approval
-    // paints it green while owner groups are still unapproved.
+    // A closed PR can't merge, so nothing is required of it and no approval
+    // it collected beforehand counts as "all required" — without this guard
+    // its stripped-bare merge box reads as "nothing is blocking".
     allApprovalsReceived: !isClosed && reviewsShowSuccess && hasAnyApproval,
     approvalNotRequired:
       isClosed || (reviewsShowSuccess && !hasAnyApproval && !isMerged),
