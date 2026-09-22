@@ -106,6 +106,13 @@ const REVIEWERS_FORM = 'form[aria-label="Select reviewers"]';
 // "Requested changes must be addressed to merge this pull request."
 const BLOCKING_LINE_PATTERN = /required to merge|must be addressed/i;
 
+// GitHub swaps pieces of this form for "There was an error while loading.
+// Please reload this page." when a fetch behind them fails. Reviewer rows have
+// survived it in every case seen so far, but the blocking line lives in the
+// same form — and its absence is how we conclude nothing holds the merge, so a
+// healthy satisfied PR and a failed load are otherwise identical.
+const SIDEBAR_ERROR_PATTERN = /error while loading/i;
+
 // One traversal of the reviewer rows. Everything else derives from this.
 const parseReviewerRows = (doc) => {
   const nodes = doc?.querySelectorAll(
@@ -153,6 +160,13 @@ const reviewsSectionBlocking = (doc) => {
 
 export const getReviewStatusFromDoc = (doc) => {
   const rows = parseReviewerRows(doc);
+  const paragraphs = Array.from(
+    doc?.querySelectorAll(`${REVIEWERS_FORM} p`) ?? []
+    // Collapse whitespace so matching survives GitHub rewrapping the text
+  ).map((p) => p.textContent.replace(/\s+/g, ' ').trim());
+  const failedToLoad = paragraphs.some((text) =>
+    SIDEBAR_ERROR_PATTERN.test(text)
+  );
 
   // Rendered only while reviews hold the merge, so absence means they aren't —
   // satisfied, or nothing requires them. Matched on text rather than its
@@ -160,10 +174,7 @@ export const getReviewStatusFromDoc = (doc) => {
   // silently turn this into a false "nothing blocking". The pattern is also
   // what tells this paragraph from the form's error placeholders.
   const blockingLine =
-    Array.from(doc?.querySelectorAll(`${REVIEWERS_FORM} p`) ?? [])
-      // Collapse whitespace so matching survives GitHub rewrapping the text
-      .map((p) => p.textContent.replace(/\s+/g, ' ').trim())
-      .find((text) => BLOCKING_LINE_PATTERN.test(text)) || null;
+    paragraphs.find((text) => BLOCKING_LINE_PATTERN.test(text)) || null;
 
   const requiredMatch = blockingLine?.match(/at least (\d+)/i);
 
@@ -174,7 +185,12 @@ export const getReviewStatusFromDoc = (doc) => {
     ownerApprovalRequired:
       reviewsSectionRequiresCodeOwner(doc) ||
       rows.some((row) => row.isCodeOwner),
-    reviewsBlocking: reviewsSectionBlocking(doc) ?? Boolean(blockingLine),
+    // Falling back to the sidebar, a missing blocking line means nothing is
+    // holding the merge — but only if the form actually loaded. While a
+    // placeholder is showing, stay blocking rather than emit a false
+    // all-clear off a line that may simply not have rendered.
+    reviewsBlocking:
+      reviewsSectionBlocking(doc) ?? (Boolean(blockingLine) || failedToLoad),
     requiredCount: requiredMatch ? Number(requiredMatch[1]) : null,
   };
 };

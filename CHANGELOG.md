@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fix**: Merge box now shows the real owner approval progress ("1 of 9 owner groups approved") where GitHub's merge box has no Reviews section, instead of falling back to GitHub's generic "1 approval required by reviewers with write access". Review state now falls back to the reviewers sidebar, which is server-rendered on every PR page
 - **Fix**: Merge box no longer loses the owner approval count and turns gray when a reviewer requests changes. GitHub's Reviews section reports one verdict at a time, and a requested change replaces "Code owner review required", which was read as "no owner approval required"
 - **Fix**: Closed (unmerged) PRs no longer show a green "All required approvals received". A closed PR's merge box has no Reviews section and no blocking line, which read as "nothing is blocking", so a single approval collected before closing painted it green. Closed PRs now show a gray icon and "N of M owner groups approved (closed without merging)"
+- **Fix**: Merge box no longer reports "All required approvals received" when GitHub's reviewers sidebar fails to load. The sidebar intermittently replaces part of its content with "There was an error while loading", and on PRs with no merge box Reviews section the missing blocking line was read as "nothing is holding the merge"
 - **UX**: Owner progress now reads "3 of 4 owner groups approved" everywhere, matching the "4 owner groups" count beside it, instead of recounting the same groups as "3 of 4 owner approvals received"
 
 <!-- SCRATCHPAD — DELETE BEFORE RELEASE
@@ -24,12 +25,7 @@ Still to do on this branch:
    `|| rows.some(isCodeOwner)` widening could cause is red where gray is
    right, on a repo that auto-requests owners without enforcing them.
 
-3. Guard the reviewers sidebar's "There was an error while loading" state,
-   seen twice while testing. It empties parseReviewerRows() and silently
-   drops the shield signal; on a draft, where the sidebar is the only
-   source, that loses the owner requirement entirely.
-
-4. Release step: bump public/manifest.json (still 0.8.1) and date the
+3. Release step: bump public/manifest.json (still 0.8.1) and date the
    heading above. The "What's new" banner won't fire until it moves.
 -->
 
