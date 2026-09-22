@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 - **Fix**: Merge box now shows the real owner approval progress ("1 of 9 owner approvals received") on draft and stacked PRs, instead of falling back to GitHub's generic "1 approval required by reviewers with write access". GitHub omits the merge box Reviews section entirely on those PRs, which hid the code owner requirement
+- **Fix**: Merge box no longer loses the owner approval count and turns gray when a reviewer requests changes. GitHub's Reviews section reports one verdict at a time, and a requested change replaces "Code owner review required", which was read as "no owner approval required"
 
 <!-- SCRATCHPAD — DELETE BEFORE RELEASE
 Pre-merge checks still outstanding for feature/review-status-draft-stacked-prs
@@ -22,6 +23,13 @@ Pre-merge checks still outstanding for feature/review-status-draft-stacked-prs
    - zattoo/frontend #12974 (stacked; the original bug). Expect "9 owner
      groups (258 files) - 1 of 9 owner approvals received". Weaker signal:
      this already passed with the broken intermediate build.
+   - zattoo/frontend #13186 (ordinary PR, changes requested, so the Reviews
+     paragraph never mentions code owners). VERIFIED: "4 owner groups
+     (26 files) - 3 of 4 owner approvals received", red icon, auto-expanded.
+     Before the fix: gray icon and "4 owner groups (26 files)", no count.
+   - A PR whose base enforces no code owners and whose sidebar shows no
+     shields: must stay gray. This is the case the sidebar-shield widening
+     could regress, and it is the only one not yet observed.
 
 2. Find an APPROVED STACKED PR. The sidebar fallback's satisfied-state
    behaviour there is inferred, never observed — none existed while this was

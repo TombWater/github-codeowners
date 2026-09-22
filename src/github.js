@@ -120,18 +120,24 @@ const parseReviewerRows = (doc) => {
   });
 };
 
-// The merge box Reviews section answers both questions below outright, and is
-// the authority when present — but it is only rendered on ordinary PRs, so on
-// drafts and stacked PRs these return null, meaning "no answer available"
-// rather than "no". Callers fall back to the sidebar for those.
+// The merge box Reviews section answers both questions below outright, but it
+// is only rendered on ordinary PRs — on drafts and stacked PRs these return
+// null, meaning "no answer available" rather than "no", and callers fall back
+// to the sidebar. It is the authority on the *blocking* verdict whenever it is
+// present; it is not the authority on the code owner requirement, which it
+// reports only when it has nothing more urgent to say (see below).
 const reviewsSection = (doc) =>
   doc?.querySelector('section[aria-label="Reviews"]') ?? null;
 
+// Only ever a positive signal. The Reviews paragraph reports one verdict at a
+// time and a requested change outranks the code owner requirement, replacing
+// "Code owner review required" with "N change requested…" (zattoo/frontend
+// #13186) — so a paragraph that doesn't mention code owners has not denied the
+// requirement, it just had something more urgent to say. Returns true or null,
+// never false.
 const reviewsSectionRequiresCodeOwner = (doc) => {
   const reviewsP = reviewsSection(doc)?.querySelector('p');
-  return reviewsP
-    ? reviewsP.textContent.toLowerCase().includes('code owner')
-    : null;
+  return reviewsP?.textContent.toLowerCase().includes('code owner') || null;
 };
 
 // Green means nothing is blocking merge, covering both "all approvals
@@ -164,14 +170,13 @@ export const getReviewStatusFromDoc = (doc) => {
   const requiredMatch = blockingLine?.match(/at least (\d+)/i);
 
   return {
-    // Sidebar code owner shields are the weaker signal — they prove code
-    // owners were requested as reviewers, not that branch protection enforces
-    // their sign-off, and they disappear once the owner teams leave the
-    // requested-reviewer list (zattoo/frontend #11921, #12157: Reviews says
-    // "Code owner review required" with no shield in sight). So only consult
-    // them where GitHub doesn't state the requirement itself.
+    // Two independent yeses, neither of which can be trusted to say no.
+    // Reviews goes silent whenever it has a more urgent verdict to report
+    // (#13186), and the sidebar shields disappear once the owner teams leave
+    // the requested-reviewer list (#11921, #12157: Reviews says "Code owner
+    // review required" with no shield in sight). Either one alone is enough.
     ownerApprovalRequired:
-      reviewsSectionRequiresCodeOwner(doc) ??
+      reviewsSectionRequiresCodeOwner(doc) ||
       rows.some((row) => row.isCodeOwner),
     reviewsBlocking: reviewsSectionBlocking(doc) ?? Boolean(blockingLine),
     requiredCount: requiredMatch ? Number(requiredMatch[1]) : null,
