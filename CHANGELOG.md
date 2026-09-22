@@ -9,47 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fix**: Merge box now shows the real owner approval progress ("1 of 9 owner groups approved") where GitHub's merge box has no Reviews section, instead of falling back to GitHub's generic "1 approval required by reviewers with write access". Review state now falls back to the reviewers sidebar, which is server-rendered on every PR page
 - **Fix**: Merge box no longer loses the owner approval count and turns gray when a reviewer requests changes. GitHub's Reviews section reports one verdict at a time, and a requested change replaces "Code owner review required", which was read as "no owner approval required"
 - **Fix**: Closed (unmerged) PRs no longer show a green "All required approvals received". A closed PR's merge box has no Reviews section and no blocking line, which read as "nothing is blocking", so a single approval collected before closing painted it green. Closed PRs now show a gray icon and "N of M owner groups approved (closed without merging)"
-- **UX**: Owner progress now reads "3 of 4 owner groups approved" everywhere, matching the "4 owner groups (26 files)" count beside it, instead of recounting the same groups as "3 of 4 owner approvals received"
+- **UX**: Owner progress now reads "3 of 4 owner groups approved" everywhere, matching the "4 owner groups" count beside it, instead of recounting the same groups as "3 of 4 owner approvals received"
 
 <!-- SCRATCHPAD — DELETE BEFORE RELEASE
-Pre-merge checks for feature/review-status-draft-stacked-prs.
+Still to do on this branch:
 
-VERIFIED against the built extension (wording below observed, not inferred):
-  #13186  ordinary, changes requested, so the Reviews paragraph never
-          mentions code owners. Red, "4 owner groups (25 files) - 3 of 4
-          owner groups approved", auto-expanded. Before: gray, no count.
-  #12974  CLOSED with unmerged commits (not stacked, as once assumed) —
-          hence the stripped-bare merge box. Gray, "9 owner groups
-          (258 files) - 4 of 9 owner groups approved (closed without
-          merging)". Before the guard: green "All required approvals
-          received" with 5 owner teams pending.
-  #11921  ordinary, Reviews says "Code owner review required", and the
-          sidebar has NO shields — so this is the case that proves the
-          requirement still rides the Reviews paragraph, not the widening.
-          Red, "1 owner group (1 file) - 0 of 1 owner groups approved".
-  #13021  ordinary, "Code owner review required" + 1 shield. Red, 0 of 3.
-  #13092  stack BASE (-> master), approved. Green, 1 of 1.
-  #13105  stack CHILD (-> feature/...), unapproved. Red, 0 of 1.
-          NOTE: #13105 has a full Reviews section, blocking line and
-          "Merging is blocked". Stacked PRs are NOT inherently missing the
-          Reviews section — the earlier premise was wrong.
+1. Check a DRAFT PR. Drafts are the main consumer of the sidebar fallback
+   and none has been checked under this code — it is the least-tested path
+   here. Expect red/green as normal, never gray-by-default: the blocking
+   line is rendered on drafts, so its absence there means satisfied.
 
-STILL TO CHECK:
-1. A DRAFT PR. Drafts are now the main case for the sidebar fallback, and
-   none has been checked since the fallback landed. The blocking line is
-   rendered on drafts (#12039, #12975 — both since closed), so expect
-   red/green as normal, never gray-by-default.
-2. A PR whose base enforces no code owners and whose sidebar shows no
-   shields: must stay gray. The only case the sidebar-shield widening could
-   regress, and still not observed.
-3. The reviewers sidebar intermittently renders "There was an error while
-   loading. Please reload this page." (seen on #13092 and #13105). That
-   silently empties parseReviewerRows() and drops the shield signal. Both
-   PRs were carried by their Reviews section, so nothing broke — but the
-   fallback path has no guard for it.
-4. Version bump is a release step, not part of this change:
-   public/manifest.json is still 0.8.1 and the entries above sit under
-   [Unreleased]. The "What's new" banner won't fire until the manifest moves.
+2. Check a PR whose base does not enforce code owners and whose sidebar
+   shows no shields — it must stay GRAY. The one regression the
+   `|| rows.some(isCodeOwner)` widening could cause is red where gray is
+   right, on a repo that auto-requests owners without enforcing them.
+
+3. Guard the reviewers sidebar's "There was an error while loading" state,
+   seen twice while testing. It empties parseReviewerRows() and silently
+   drops the shield signal; on a draft, where the sidebar is the only
+   source, that loses the owner requirement entirely.
+
+4. Release step: bump public/manifest.json (still 0.8.1) and date the
+   heading above. The "What's new" banner won't fire until it moves.
 -->
 
 
