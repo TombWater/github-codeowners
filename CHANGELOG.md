@@ -24,9 +24,6 @@ Still to do on this branch:
    shows no shields — it must stay GRAY. The one regression the
    `|| rows.some(isCodeOwner)` widening could cause is red where gray is
    right, on a repo that auto-requests owners without enforcing them.
-
-3. Release step: bump public/manifest.json (still 0.8.1) and date the
-   heading above. The "What's new" banner won't fire until it moves.
 -->
 
 
