@@ -83,29 +83,119 @@ export const getIsMerged = () => {
   return isMerged;
 };
 
-export const getReviewsMentionsCodeOwner = () => {
-  const reviewsP = document.querySelector('[aria-label="Reviews"] p');
-  return reviewsP?.textContent.toLowerCase().includes('code owner') ?? false;
-};
-
-// GitHub paints this section green both when required approvals are satisfied
-// and when no approval is required at all, so a true result means "nothing is
-// blocking merge", not "someone approved". Callers must disambiguate.
-export const getReviewsApproved = () =>
+// A closed, unmerged PR has no Reviews section and no blocking line, which is
+// indistinguishable from "nothing is blocking" unless we ask outright.
+export const getIsClosed = () =>
   Boolean(
     document.querySelector(
-      'section[aria-label="Reviews"] .bgColor-success-emphasis'
+      '#partial-discussion-header .State--closed, [data-status="pullClosed"]'
     )
+  ) && !getIsMerged();
+
+// Sidebar reviewers form — the fallback wherever the merge box Reviews
+// section is missing, since this one is server-rendered on every PR page.
+// Row state is encoded in element ids, so nothing here parses display text:
+//   #review-status-<login>   + .octicon-check       → approved
+//   #review-status-<login>   + .octicon-file-diff   → changes requested
+//   #awaiting-review-<name>                         → pending
+//   #codeowner-<org>/<team>  + .octicon-shield-lock → reviewer is a code owner
+//   .reviewers-status-icon.v-hidden                 → PR author's row, skip
+const REVIEWERS_FORM = 'form[aria-label="Select reviewers"]';
+
+// "At least N approving review is required to merge this pull request." /
+// "Requested changes must be addressed to merge this pull request."
+const BLOCKING_LINE_PATTERN = /required to merge|must be addressed/i;
+
+// GitHub swaps pieces of this form for "There was an error while loading.
+// Please reload this page." when a fetch behind them fails. Reviewer rows have
+// survived it in every case seen so far, but the blocking line lives in the
+// same form — and its absence is how we conclude nothing holds the merge, so a
+// healthy satisfied PR and a failed load are otherwise identical.
+const SIDEBAR_ERROR_PATTERN = /error while loading/i;
+
+// One traversal of the reviewer rows. Everything else derives from this.
+const parseReviewerRows = (doc) => {
+  const nodes = doc?.querySelectorAll(
+    `${REVIEWERS_FORM} [data-assignee-name], ${REVIEWERS_FORM} .js-reviewer-team`
   );
 
-export const getRequiredReviewCount = () => {
-  const sidebarText = document.querySelector(
-    'form[aria-label="Select reviewers"] p.mt-2'
-  )?.textContent;
-  if (!sidebarText) return null;
-  const match = sidebarText.match(/at least (\d+)/i);
-  return match ? parseInt(match[1], 10) : null;
+  return Array.from(nodes || []).flatMap((node) => {
+    const row = node.parentElement;
+    const statusIcon = row?.querySelector('.reviewers-status-icon');
+    // A hidden status icon marks the PR author's own row — not a reviewer
+    if (!statusIcon || statusIcon.classList.contains('v-hidden')) return [];
+
+    return [
+      {
+        name: node.dataset.assigneeName || node.textContent.trim(),
+        approved: Boolean(statusIcon.querySelector('.octicon-check')),
+        isCodeOwner: Boolean(row.querySelector('button[id^="codeowner-"]')),
+      },
+    ];
+  });
 };
+
+// Absent on drafts and closed PRs — a property of the PR's state, not of its
+// stack position, since a stacked child renders one like any other. Both
+// helpers below therefore return null for "no answer", and callers fall back
+// to the sidebar. Authoritative on the blocking verdict; not on the code
+// owner requirement (see below).
+const reviewsSection = (doc) =>
+  doc?.querySelector('section[aria-label="Reviews"]') ?? null;
+
+// True or null, never false. The paragraph reports one verdict at a time and
+// a requested change replaces "Code owner review required", so silence here is
+// not a denial.
+const reviewsSectionRequiresCodeOwner = (doc) => {
+  const reviewsP = reviewsSection(doc)?.querySelector('p');
+  return reviewsP?.textContent.toLowerCase().includes('code owner') || null;
+};
+
+// Green means nothing is blocking merge, covering both "all approvals
+// received" and "no approval required" — callers must disambiguate.
+const reviewsSectionBlocking = (doc) => {
+  const section = reviewsSection(doc);
+  return section ? !section.querySelector('.bgColor-success-emphasis') : null;
+};
+
+export const getReviewStatusFromDoc = (doc) => {
+  const rows = parseReviewerRows(doc);
+  const paragraphs = Array.from(
+    doc?.querySelectorAll(`${REVIEWERS_FORM} p`) ?? []
+    // Collapse whitespace so matching survives GitHub rewrapping the text
+  ).map((p) => p.textContent.replace(/\s+/g, ' ').trim());
+  const failedToLoad = paragraphs.some((text) =>
+    SIDEBAR_ERROR_PATTERN.test(text)
+  );
+
+  // Rendered only while reviews hold the merge, so absence means they aren't —
+  // satisfied, or nothing requires them. Matched on text rather than its
+  // `mt-2` class: that class is pure Primer spacing, so a restyle would
+  // silently turn this into a false "nothing blocking". The pattern is also
+  // what tells this paragraph from the form's error placeholders.
+  const blockingLine =
+    paragraphs.find((text) => BLOCKING_LINE_PATTERN.test(text)) || null;
+
+  const requiredMatch = blockingLine?.match(/at least (\d+)/i);
+
+  return {
+    // Two independent yeses, neither trusted to say no: Reviews goes silent
+    // when it has a more urgent verdict, and the shields vanish once owner
+    // teams leave the requested-reviewer list.
+    ownerApprovalRequired:
+      reviewsSectionRequiresCodeOwner(doc) ||
+      rows.some((row) => row.isCodeOwner),
+    // Falling back to the sidebar, a missing blocking line means nothing is
+    // holding the merge — but only if the form actually loaded. While a
+    // placeholder is showing, stay blocking rather than emit a false
+    // all-clear off a line that may simply not have rendered.
+    reviewsBlocking:
+      reviewsSectionBlocking(doc) ?? (Boolean(blockingLine) || failedToLoad),
+    requiredCount: requiredMatch ? Number(requiredMatch[1]) : null,
+  };
+};
+
+export const getReviewStatus = () => getReviewStatusFromDoc(document);
 
 export const getPrAuthor = cacheResult(prCacheKey, async () => {
   // Try extracting from current page first
@@ -437,21 +527,11 @@ export const getReviewers = async () => {
   }
 };
 
+// Name → approved, derived from the canonical parse above
 export const getReviewersFromDoc = (doc) => {
-  const reviewerNodes = doc?.querySelectorAll(
-    '[data-assignee-name], .js-reviewer-team'
+  let reviewers = new Map(
+    parseReviewerRows(doc).map((row) => [row.name, row.approved])
   );
-  let reviewers = Array.from(reviewerNodes || []).reduce((acc, node) => {
-    const statusIcon = node.parentElement.querySelector(
-      '.reviewers-status-icon'
-    );
-    if (statusIcon && !statusIcon.classList.contains('v-hidden')) {
-      const name = node.dataset.assigneeName || node.textContent.trim();
-      const approved = Boolean(statusIcon.querySelector('.octicon-check'));
-      acc.set(name, approved);
-    }
-    return acc;
-  }, new Map());
 
   // Apply simulated approvals if in debug mode
   if (__DEBUG__) {

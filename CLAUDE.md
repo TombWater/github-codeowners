@@ -27,6 +27,14 @@ The extension works by:
   - ⚠️ **AFTER MAKING CODE CHANGES**: Always ask the user to reload the extension at `chrome://extensions/` (click reload button) and refresh the GitHub page to see changes take effect
 - **Formatting**: Use `npm run format` to fix code formatting. Do not spend time manually formatting code.
 - **Changelog**: ALWAYS update `CHANGELOG.md` under the "Unreleased" section when implementing user-facing changes. Use concise bullet points starting with **Feature**, **Fix**, **UX**, or **Internal**.
+  - **Write it for the person reading release notes, not as a log of the work.** One entry per user-visible *symptom*, not per commit — several fixes with different causes but the same visible effect collapse into one bullet. Leave out the mechanism (DOM structures, selectors, internal helpers, data flow); that belongs in the commit message and in this file. Drop fixes a user can't see, such as a guard against a state that only appears when a background fetch fails. Don't list a case that turned out to be mostly working already. Keep the situations a user would recognise having hit, and any literal string they'd have seen on screen.
+  - Before finishing a branch, reread the whole "Unreleased" section and consolidate. Appending a bullet per commit as you go is what makes it drift into a commit log.
+- **Keep private references out of the repo** ⚠️ **This repo is public.** Never write the maintainer's employer, its private repo names, team slugs or internal branch names into source, comments, CLAUDE.md, CHANGELOG or commit messages. Real PRs from private repos are the natural thing to reach for when documenting GitHub's DOM, which is exactly how such names leak in — use `@org/team` and `#codeowner-<org>/<team>` placeholders, or describe the shape without an example. Using them in conversation, or in Playwright calls against live PRs, is fine; the rule is about what gets written to disk.
+- **Store screenshots**: must be exactly **1280x800** (Google Play requires that size precisely).
+  1. Rebase `feature/fake-owners` onto current `main` — it carries a fake CODEOWNERS plus touched files for a realistic demo — and open a PR against it
+  2. Set approval states with the debug panel's "Simulate Approval Change"
+  3. Narrow the window to a ~1000x625 box around the target area and capture (manual step)
+  4. Crop in Preview, then **scale to 1280x800** — easy to forget, and the capture is deliberately smaller so the crop is clean
 - **No API Keys**: Extension works entirely through DOM scraping, no GitHub API tokens required
 - **Codebase Size**: ~2000 lines total across 7 focused modules
 - **Dependencies**: Uses lodash-es (with patches), ignore library, webpack build system
@@ -106,6 +114,8 @@ The extension works by:
 
 - **GitHub DOM changes**: Handle both old and new UI patterns using fallback selectors
 - **DOM inspection with Playwright MCP**: Use Playwright browser tools to inspect GitHub pages dynamically. User should open a representative PR (works with private repos where CODEOWNERS is present), then use Playwright MCP to navigate, snapshot, and interact with the page as needed. If Playwright MCP doesn't work, tell the user to check that the token is valid and restart VSCode. Do not fallback to other approaches unless the user tells you to.
+  - Drive the scratch tab with `browser_navigate` rather than picking one of the user's real tabs, which pulls it into a "Playwright" tab group.
+  - A full-page snapshot of a GitHub PR is ~78KB and exceeds the inline limit — scope it with `target`/`depth`, or read specific values with `browser_evaluate`.
 - **Logging philosophy**: Keep console quiet in production. Only log:
   - External data sources that are hard to reproduce (CODEOWNERS parsing, team membership)
   - Debug panel operations (guarded by `__DEBUG__` flag, dev builds only)
@@ -127,10 +137,24 @@ The extension works by:
   - Transform to `{name}[bot]` format for consistency with PR author format
   - Use `github.normalizeAuthorHref()` helper for both author extraction and comment decoration
 
+**Review state: merge box first, sidebar fallback** ⚠️ **CRITICAL - DO NOT REMOVE the fallback**
+- `getReviewStatusFromDoc()` in `github.js` is the single source for `ownerApprovalRequired`, `reviewsBlocking` and `requiredCount`. Do not add a second reader — extend this one.
+- GitHub renders several merge box variants and only some contain `section[aria-label="Reviews"]`. It is **absent on closed PRs, merged PRs, and PRs whose base has no branch protection**. ⚠️ **Absence tracks the PR's state and its base's protection, not its stack position or draft status** — stacked children and drafts both render a full Reviews section like any other open PR. Earlier versions of this doc claimed stacked PRs and then drafts lack the section; both were generalisations from too few PRs (the stacked one turned out to be **closed**). 0.8.0 already accommodated its absence for *positioning*; the state readers did not, so the header silently fell back to GitHub's generic "N approvals required by reviewers with write access".
+- **Closed PRs need their own guard** (`getIsClosed()`, `[data-status="pullClosed"]`). A closed PR has no Reviews section *and* no blocking line, so `reviewsBlocking` is false and a single approval collected before closing satisfies `allApprovalsReceived`, showing green "All required approvals received" while most owner groups are still unapproved. A closed PR can't merge, so nothing is required of it: it takes the gray icon via `approvalNotRequired`, and `ownerApprovalRequired` is guarded by `!isClosed` alongside `!isMerged`.
+- **The Reviews section is the authority on the *blocking* verdict when present** (`reviewsSectionBlocking`: `null` only when absent). It is **not** the authority on the code owner requirement. ⚠️ The paragraph reports one verdict at a time and a requested change outranks the requirement: it reads "N change requested, N approving review by reviewers with write access" while shielded owner teams sit unapproved in the sidebar. So `reviewsSectionRequiresCodeOwner` returns `true` or `null`, **never `false`**, and `ownerApprovalRequired` is `reviewsSectionRequiresCodeOwner(doc) || rows.some(isCodeOwner)` — two independent yeses, neither trusted to say no. Do not restore the `??`: it makes the Reviews paragraph's silence a denial and drops the header back to gray with no owner count.
+- **Why the sidebar can't be the sole source:** its `#codeowner-<org>/<team>` shields prove code owners were *requested as reviewers*, not that branch protection enforces their sign-off — and they disappear once owner teams leave the requested-reviewer list, leaving "Code owner review required" in the Reviews section with no shield anywhere.
+- Sidebar row state is encoded in element ids, so nothing parses display text: `#review-status-<login>` + `.octicon-check`/`.octicon-file-diff`, `#awaiting-review-<name>`, `#codeowner-<org>/<team>` + `.octicon-shield-lock`, and `.reviewers-status-icon.v-hidden` for the PR author's own row.
+- `getReviewersFromDoc()` derives from the same `parseReviewerRows()` traversal, so there is no second row scraper to keep in sync. Scope row queries to the form: `[data-assignee-name]` also matches the Assignees sidebar block.
+- Team rows also carry the CODEOWNERS slug in `data-url` (`/orgs/<org>/teams/<slug>`) — the same token CODEOWNERS uses. Not read today: `reviewers` is keyed by display name, so team rows never match an owner group and approvals resolve through the *individual* approver's team memberships instead (`ownership.js` `userTeamsMap`). Keying teams on the slug would close that gap.
+- The sidebar's blocking line ("At least N approving review is required…" / "Requested changes must be addressed…") is the fallback blocking verdict. Absence means reviews aren't holding the merge — satisfied, or nothing requires them (unprotected base). It *is* rendered on drafts, so absence is not a draft signal.
+- **Match that line by its text (`BLOCKING_LINE_PATTERN`), not by its `mt-2` class.** `mt-2` is pure Primer spacing with no semantics, and GitHub is migrating this sidebar toward CSS modules; a restyle would silently break it and leave us reporting "nothing blocking" on a PR that needs approvals — the same wrong all-clear that was fixed back in 0.8.1. The form also holds several other paragraphs (error placeholders, empty ones), so the pattern is what distinguishes this one. Verified text- and class-based matching agree across 12 PRs covering every state.
+- **Unprotected bases are the main consumer of the sidebar fallback** (closed and merged PRs have their own guards). There, a CODEOWNERS file with no enforcement and no shields in the sidebar correctly shows gray "not required to merge" — the case the `|| rows.some(isCodeOwner)` widening could turn red on a repo that auto-requests owners without enforcing them.
+- **The sidebar can partly fail to load**, rendering "There was an error while loading. Please reload this page." in place of a section of the form. It is transient — the same PR shows placeholders on one load and clean content on the next. Reviewer rows have parsed correctly alongside it in every case observed, so this is *not* known to empty `parseReviewerRows()`. The danger is narrower: the blocking line lives in that form, and its absence is how the sidebar fallback concludes nothing holds the merge, so a failed load is indistinguishable from a satisfied PR. `SIDEBAR_ERROR_PATTERN` therefore keeps `reviewsBlocking` true while a placeholder shows — never a false all-clear from a line that may simply not have rendered. Still unguarded: a missing code owner *shield* under the same failure would understate the requirement, which fails toward gray rather than toward a false green.
+
 **Merge Box `approvalStatus` object** — unified "have" and "need" fields computed by `calculateApprovalStatus()`:
 - `groupApprovalsReceived` / `groupApprovalsRequired` — owner groups with/needing approval
-- `reviewsReceived` / `reviewsRequired` / `reviewsApproved` — individual reviewer counts and GitHub's verdict (`bgColor-success-emphasis` present in Reviews section)
-- `ownerApprovalRequired` — GitHub is enforcing code owner sign-off
+- `reviewsReceived` / `reviewsRequired` / `reviewsApproved` — individual reviewer counts and the review verdict (derived from `reviewStatus.reviewsBlocking`)
+- `ownerApprovalRequired` — code owners were requested as reviewers
 - `isMerged` — PR merge state
 - `null` means still loading (shows orange icon)
 
@@ -187,6 +211,7 @@ The extension works by:
 **What NOT to document:**
 - Details already clear in code
 - Step-by-step feature explanations (code is source of truth)
+- **Specific PR numbers** — in this file or in `src/**` comments. Describe the DOM shape or behaviour instead ("a stacked child renders a full Reviews section", not "#13105 is a stacked child that…"). A PR's state keeps changing after the citation is written, so it goes stale silently: one PR cited here as the canonical stacked-PR-without-a-Reviews-section was later found to be *closed*, which was the real cause, invalidating the claim built on it. A reader also can't check the reference without leaving the code. Fine in short-lived places — commit messages, and a CHANGELOG scratchpad marked for deletion, where specific PRs are the verification targets.
 
 **⚠️ CRITICAL patterns:**
 1. Mark with **⚠️ CRITICAL - DO NOT REMOVE**
