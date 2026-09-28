@@ -236,3 +236,4 @@ document.addEventListener('mouseout', (ev) => {
     drawer.hidePopover();
   }, 200); // Match the CSS transition duration
 });
+
