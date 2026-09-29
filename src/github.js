@@ -558,17 +558,27 @@ export const getReviewersFromDoc = (doc) => {
   return reviewers;
 };
 
-export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
-  const {owner, repo, base} = getPrInfo();
-  if (!base) {
-    return [];
-  }
+const CODEOWNERS_PATHS = [
+  '.github/CODEOWNERS',
+  'CODEOWNERS',
+  'docs/CODEOWNERS',
+];
 
-  const paths = ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS'];
-  for (const path of paths) {
-    const url = `https://github.com/${owner}/${repo}/blob/${base}/${path}`;
+// Owner rules from the first CODEOWNERS file that exists at this ref, or null
+// if none of the three locations resolves. The distinction matters: a file
+// that is present but empty is [] and stands, a missing one is worth looking
+// for elsewhere.
+const loadCodeownersFromRef = async (owner, repo, ref, refGone) => {
+  for (const path of CODEOWNERS_PATHS) {
+    const url = `https://github.com/${owner}/${repo}/blob/${ref}/${path}`;
     const doc = await loadPage(url);
     if (!doc) {
+      // A missing ref 404s at every path for the same reason, so once we know
+      // it is gone there is nothing to gain from trying the rest. Awaited only
+      // after a miss: when the file is where we look first, nobody pays for it.
+      if (refGone && (await refGone)) {
+        return null;
+      }
       continue;
     }
 
@@ -590,7 +600,66 @@ export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
     });
     return folders.reverse();
   }
-  return [];
+  return null;
+};
+
+// The repo's default branch, from the page's embedded data. Absent on compare
+// views, whose base is always a branch that still exists.
+const getDefaultBranch = () =>
+  getEmbeddedData(document, (payload) =>
+    findNestedProperty(payload, 'defaultBranch')
+  );
+
+// HEAD, because only the status matters. A network failure answers nothing,
+// so it counts as present: that keeps us on the base branch rather than
+// falling back on a guess.
+const refExists = async (owner, repo, ref) => {
+  try {
+    const response = await fetch(
+      `https://github.com/${owner}/${repo}/tree/${ref}`,
+      {credentials: 'include', method: 'HEAD'}
+    );
+    return response.ok;
+  } catch (e) {
+    return true;
+  }
+};
+
+export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
+  const {owner, repo, base} = getPrInfo();
+  if (!base) {
+    return [];
+  }
+
+  // The base branch is often gone by the time we look: a stacked PR's parent
+  // merges and its branch is deleted, and closed PRs get tidied up the same
+  // way. Every `blob/<base>/CODEOWNERS` then 404s, which is indistinguishable
+  // from a repo that has no CODEOWNERS file at all — so the PR reported "No
+  // CODEOWNERS file found" and lost every decoration. The default branch is
+  // the closest thing still standing, but we only reach for it once the base
+  // ref is confirmed gone, so a branch that deliberately deleted its
+  // CODEOWNERS still reads as having none.
+  const defaultBranch = getDefaultBranch();
+  const fallbackRef =
+    defaultBranch && defaultBranch !== base ? defaultBranch : null;
+
+  // Started alongside the base lookup instead of after it, and only for the
+  // stacked PRs that could use the answer: a PR off the default branch never
+  // makes this request at all, and one that does overlaps it with the 404 it
+  // is there to explain.
+  const refGone = fallbackRef
+    ? refExists(owner, repo, base).then((exists) => !exists)
+    : null;
+
+  const fromBase = await loadCodeownersFromRef(owner, repo, base, refGone);
+  if (fromBase) {
+    return fromBase;
+  }
+  if (!refGone || !(await refGone)) {
+    return [];
+  }
+
+  return (await loadCodeownersFromRef(owner, repo, fallbackRef)) ?? [];
 });
 
 const loadTeamMembers = async (org, teamSlug) => {

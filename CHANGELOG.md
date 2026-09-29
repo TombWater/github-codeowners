@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+- **Fix**: Decorations no longer vanish with "No CODEOWNERS file found" on a PR whose base branch has been deleted, such as a stacked PR after its parent merges
+
 ## [0.8.2] - 2026-09-28
 - **Fix**: Code owners section now shows the correct approval status in situations where it could previously show no owner approval count or wrongly report "All required approvals received"
 - **UX**: Owner progress now reads "3 of 4 owner groups approved", matching the owner group count beside it
