@@ -9,8 +9,11 @@
     "build": "rm -rf build && webpack --mode=production --config config/webpack.config.js",
     "pack": "node pack.js",
     "repack": "npm run build && npm run pack",
-    "format": "prettier --write --ignore-unknown \"{config,public,browser,core}/**/*.{html,css,js,ts,json}\"",
-    "zip": "npm run build && cd build && zip -r - > ../github-codeowners.zip ."
+    "format": "prettier --write --ignore-unknown \"{config,public,browser,core,vscode}/**/*.{html,css,js,ts,json}\"",
+    "zip": "npm run build && cd build && zip -r - > ../github-codeowners.zip .",
+    "vscode:build": "cd vscode && npm run build",
+    "vscode:watch": "cd vscode && npm run watch",
+    "vscode:package": "cd vscode && npm run package"
   },
   "devDependencies": {
     "adm-zip": "^0.5.16",

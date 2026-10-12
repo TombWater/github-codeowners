@@ -1,0 +1,128 @@
+{
+  "name": "github-codeowners-vscode",
+  "displayName": "GitHub Code Owners for Pull Requests",
+  "description": "Add-on for the GitHub Pull Requests extension: shows which code owners must approve each file, and who already did",
+  "version": "0.8.3",
+  "publisher": "TombWater",
+  "private": true,
+  "license": "MIT",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TombWater/github-codeowners"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "views": {
+      "github-pull-request": [
+        {
+          "id": "ghco.codeOwners",
+          "name": "Code Owners"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "ghco.codeOwners",
+        "when": "ghco.state == searching || ghco.state == noPr && github:inReviewMode || !github.vscode-pull-request-github.activated",
+        "contents": "Loading..."
+      },
+      {
+        "view": "ghco.codeOwners",
+        "when": "ghco.state == noPr && !github:inReviewMode && github.vscode-pull-request-github.activated",
+        "contents": "No checked-out pull request.\n\nCheck out a pull request to see its code owners."
+      },
+      {
+        "view": "ghco.codeOwners",
+        "when": "ghco.state == loading",
+        "contents": "Loading..."
+      },
+      {
+        "view": "ghco.codeOwners",
+        "when": "ghco.state == noCodeowners",
+        "contents": "This repository has no CODEOWNERS file on the pull request's base branch."
+      },
+      {
+        "view": "ghco.codeOwners",
+        "when": "ghco.state == error",
+        "contents": "Could not load code owners. See the \"GitHub Code Owners\" output for details.\n[Try Again](command:ghco.refresh)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "ghco.refresh",
+        "title": "Refresh Code Owners",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "ghco.openFile",
+        "title": "Open File",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "ghco.openGroupChanges",
+        "title": "Open Changes in This Group",
+        "icon": "$(diff-multiple)"
+      },
+      {
+        "command": "ghco.openOwnerChanges",
+        "title": "Open All Changes This Owner Can Approve",
+        "icon": "$(diff-multiple)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "ghco.refresh",
+          "when": "view == ghco.codeOwners",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "ghco.openFile",
+          "when": "false"
+        },
+        {
+          "command": "ghco.openGroupChanges",
+          "when": "false"
+        },
+        {
+          "command": "ghco.openOwnerChanges",
+          "when": "false"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "ghco.openFile",
+          "when": "view == ghco.codeOwners && viewItem == ghco.file",
+          "group": "inline"
+        },
+        {
+          "command": "ghco.openGroupChanges",
+          "when": "view == ghco.codeOwners && viewItem == ghco.group",
+          "group": "inline"
+        },
+        {
+          "command": "ghco.openOwnerChanges",
+          "when": "view == ghco.codeOwners && viewItem == ghco.owner",
+          "group": "inline"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "cp ../public/icons/icon_128.png icon.png && webpack --mode=production",
+    "watch": "cp ../public/icons/icon_128.png icon.png && webpack --mode=development --watch",
+    "package": "node check-version.js && npm run build && npx @vscode/vsce package --no-dependencies"
+  }
+}
