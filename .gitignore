@@ -15,3 +15,8 @@ npm-debug.log*
 
 # packed files
 /release
+
+# VSCode extension
+/vscode/dist
+/vscode/*.vsix
+/vscode/icon.png

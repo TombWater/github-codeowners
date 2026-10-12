@@ -43,6 +43,16 @@ Install from [Chrome Store](https://chromewebstore.google.com/detail/GitHub%20Co
 
 Install from [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/github-codeowners/)
 
+## VSCode extension
+
+An add-on for the [GitHub Pull Requests](https://marketplace.visualstudio.com/items?itemName=GitHub.vscode-pull-request-github) extension shows the same code owner information in VSCode:
+
+- Badges on the pull request's changed files: ★ needs your approval, ◐ waiting on other owners, ✓ approved. Hover a file to see its owners and their team members.
+- A "Code Owners" view in the Pull Request panel that groups files by owner, with the same approval summary as the Code owners section on GitHub.
+- Click a team or person to open every file they can approve in one multi-file diff.
+
+It is not on the Visual Studio Marketplace yet. To build and install it, see [vscode/README.md](vscode/README.md).
+
 ## Building
 
 > [!TIP]
@@ -66,6 +76,8 @@ The data collected includes:
 
 > [!NOTE]
 > Any GitHub access token that was previously stored by v0.1.0 of the extension will be deleted from storage.
+
+The VSCode extension reads the same data from the GitHub API, with the GitHub account that you sign in to in VSCode. It sends requests only to GitHub, and keeps the data in memory only.
 
 ---
 
