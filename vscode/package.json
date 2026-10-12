@@ -2,7 +2,7 @@
   "name": "github-codeowners-vscode",
   "displayName": "GitHub Code Owners for Pull Requests",
   "description": "Add-on for the GitHub Pull Requests extension: shows which code owners must approve each file, and who already did",
-  "version": "0.8.3",
+  "version": "0.9.0",
   "publisher": "TombWater",
   "private": true,
   "license": "MIT",
