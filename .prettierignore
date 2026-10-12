@@ -2,3 +2,4 @@
 
 # Ignore artifacts:
 build
+vscode/dist

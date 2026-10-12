@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a browser extension (Chrome/Firefox) that decorates GitHub PR pages with code ownership information. The extension provides three main decorations:
+This repo holds two extensions that share their ownership logic (`core/`):
+- A **browser extension** (Chrome/Firefox) that decorates GitHub PR pages with code ownership information — most of this file.
+- A **VSCode extension** (`vscode/`) for the GitHub Pull Requests extension: owner badges on its changed-file lists and a "Code Owners" view. See "Shared core and VSCode extension" below.
+
+The browser extension provides three main decorations:
 
 1. **File header decoration**: Adds owner labels below each file header on PR files page and compare view showing who must approve each file. Clicking a label expands/collapses that owner's files.
 2. **Merge box decoration**: Creates an expandable "Code owners" section in the PR conversation page that groups files by owner and shows approval status. Clicking an owner group expands/collapses it.
@@ -13,7 +17,7 @@ This is a browser extension (Chrome/Firefox) that decorates GitHub PR pages with
    - 🛡️ **Shield icon** (green): Code owner's comments (for files they own)
    - 💡 **Lightbulb icon** (yellow): Other contributors' comments
 
-The extension works by:
+The browser extension works by:
 1. Fetching and parsing the repository's CODEOWNERS file from the PR's base branch (or compare view base branch)
 2. Matching PR files against CODEOWNERS patterns using the `ignore` library (gitignore-style matching)
 3. Fetching team membership data from GitHub org team pages
@@ -25,18 +29,21 @@ The extension works by:
   - ⚠️ **IMPORTANT**: User typically has `watch` running. Do NOT run build commands just to update the extension - changes are already being built automatically. Only run `npm run build` if you need to see compilation errors.
 - **Testing**: Load `build/` directory as unpacked extension in Chrome/Firefox developer mode
   - ⚠️ **AFTER MAKING CODE CHANGES**: Always ask the user to reload the extension at `chrome://extensions/` (click reload button) and refresh the GitHub page to see changes take effect
+  - VSCode extension: run `npm run vscode:package`, then give the user the `code --install-extension … --force` command and ask them to run **Developer: Reload Window**
 - **Formatting**: Use `npm run format` to fix code formatting. Do not spend time manually formatting code.
 - **Changelog**: ALWAYS update `CHANGELOG.md` under the "Unreleased" section when implementing user-facing changes. Use concise bullet points starting with **Feature**, **Fix**, **UX**, or **Internal**.
   - **Write it for the person reading release notes, not as a log of the work.** One entry per user-visible *symptom*, not per commit — several fixes with different causes but the same visible effect collapse into one bullet. Leave out the mechanism (DOM structures, selectors, internal helpers, data flow); that belongs in the commit message and in this file. Drop fixes a user can't see, such as a guard against a state that only appears when a background fetch fails. Don't list a case that turned out to be mostly working already. Keep the situations a user would recognise having hit, and any literal string they'd have seen on screen.
   - Before finishing a branch, reread the whole "Unreleased" section and consolidate. Appending a bullet per commit as you go is what makes it drift into a commit log.
+  - One changelog for both extensions. Label an entry that applies to only one of them: `**Feature** (VSCode): …`, `**Fix** (Browser): …`. Unlabeled entries apply to both (typically `core/` changes). The browser's update banner links here, so the labels tell its users which entries are theirs.
+- **Releases**: both extensions share **one version number**. A release commit bumps `public/manifest.json` and `vscode/package.json` together and turns "Unreleased" into the version heading. Publish each extension only when it changed — the stores don't need consecutive versions. `npm run vscode:package` refuses to build when the two versions differ (`vscode/check-version.js`).
 - **Keep private references out of the repo** ⚠️ **This repo is public.** Never write the maintainer's employer, its private repo names, team slugs or internal branch names into source, comments, CLAUDE.md, CHANGELOG or commit messages. Real PRs from private repos are the natural thing to reach for when documenting GitHub's DOM, which is exactly how such names leak in — use `@org/team` and `#codeowner-<org>/<team>` placeholders, or describe the shape without an example. Using them in conversation, or in Playwright calls against live PRs, is fine; the rule is about what gets written to disk.
 - **Store screenshots**: must be exactly **1280x800** (Google Play requires that size precisely).
   1. Rebase `feature/fake-owners` onto current `main` — it carries a fake CODEOWNERS plus touched files for a realistic demo — and open a PR against it
   2. Set approval states with the debug panel's "Simulate Approval Change"
   3. Narrow the window to a ~1000x625 box around the target area and capture (manual step)
   4. Crop in Preview, then **scale to 1280x800** — easy to forget, and the capture is deliberately smaller so the crop is clean
-- **No API Keys**: Extension works entirely through DOM scraping, no GitHub API tokens required
-- **Codebase Size**: ~2000 lines total across 7 focused modules
+- **No API Keys**: The browser extension works entirely through DOM scraping, no GitHub API tokens required. The VSCode extension uses the GitHub API with VSCode's built-in GitHub sign-in, so it needs no key either
+- **Codebase Size**: ~4700 lines across ~20 modules (browser `browser/`, shared `core/`, `vscode/src/`)
 - **Dependencies**: Uses lodash-es (with patches), ignore library, webpack build system
 
 ## Architecture
@@ -51,7 +58,7 @@ The extension works by:
 ### Core Architecture
 
 **Module Organization**
-- **`browser/decorator.js`**: Entry point - MutationObserver watches `document.body` with 100ms debounce, coordinates all decorations
+- **`browser/decorator.js`**: Entry point - MutationObserver watches `document.documentElement` (see pattern 6) with 100ms debounce, coordinates all decorations
 - **`browser/files-page.js`**: Decorates file headers on PR files page and compare view
 - **`browser/merge-box.js`**: Creates expandable "Code owners" section in conversation page merge box
 - **`browser/comment-decorator.js`**: Adds role icons (author/owner/other) to comments
@@ -62,7 +69,7 @@ The extension works by:
 
 **Critical Patterns** ⚠️
 
-1. **MutationObserver + Performance**: Observer watches entire `document.body`, fires on every DOM change
+1. **MutationObserver + Performance**: Observer watches the entire document (`document.documentElement`, see pattern 6), fires on every DOM change
    - Check if decoration exists BEFORE fetching data, or you get infinite loops: add element → observer fires → add element → loop
    - Filter undecorated elements first, return early if none found, THEN fetch expensive ownership data
    - Example: `decorateExistingComments()` uses `data-ghcoDecorating` flag, others use `.ghco-processed` class
@@ -77,13 +84,44 @@ The extension works by:
    - Uses synthetic events when delegating to existing handlers (e.g. `merge-box.js`).
 
 5. **Defensive cleanup**: Use `querySelectorAll` + `forEach(remove)` instead of single `querySelector` + `remove()` when removing decorations. Guards against bugs that create duplicate elements.
-   - Example: `merge-box.js` line 585-588 removes all `.ghco-merge-box-expandable-wrapper` instances
+   - Example: `updateMergeBoxSectionWithContent()` in `merge-box.js` removes all `.ghco-merge-box-expandable-wrapper` instances
    - Pattern: `section.querySelectorAll('.class').forEach(el => el.remove())`
 
 6. **Turbo Drive navigation replaces `document.body`**: GitHub uses Turbo Drive for page navigation — it intercepts link clicks, fetches the new page, and swaps `document.body` entirely (firing `turbo:render` then `turbo:load`). This silently kills any MutationObserver attached to the old body.
    - **Observer MUST target `document.documentElement`**, not `document.body` — `<html>` is never replaced, so the observer survives navigation
    - **DOM elements appended to `document.body`** (e.g. the debug FAB/panel) are lost on navigation — recreate them on `turbo:load` by checking `document.getElementById` first
    - GitHub also uses **Turbo Frames** for partial updates (only a region swaps, body survives) — clicking links within GitHub uses frames (body intact, works fine); it's only browser back/forward buttons that trigger full cache-restore renders (body replaced, was broken)
+
+### Shared core and VSCode extension
+
+- **`core/`** holds the DOM-free logic that both extensions use: CODEOWNERS parsing (`codeowners.js`), team/pseudo-team resolution (`teams.js`), owner groups and approval maps (`ownership.js`), and approval status, group priority and the summary text (`approval.js`).
+  - ⚠️ No `document`, `fetch`, `chrome.*` or `__DEBUG__` in `core/`. The VSCode bundle runs in Node and has none of them. Data sources inject their fetchers (e.g. `resolveOwnerTeams(org, folderOwners, fetchMembers)`).
+- **`vscode/`** is a VSCode extension for the GitHub Pull Requests extension (`GitHub.vscode-pull-request-github`). Build with `npm run vscode:build` / `vscode:watch` from the root; F5 in `vscode/` to run.
+  - ⚠️ **Before building any behaviour "like the PR extension's list", read how the PR extension does it** — its bundle at `~/.vscode/extensions/github.vscode-pull-request-github-*/dist/extension.js`, and VSCode's own `workbench.desktop.main.js` for how the workbench treats it. Copy that mechanism. Guessing produced a click-vs-Enter timing heuristic, duplicate diff tabs and a scroll reset; the PR extension's real approach (built-in `vscode.diff` row commands, below) fixed all three at once.
+  - Developer steps for people new to VSCode extensions: `vscode/DEVELOPMENT.md` (the README keeps only a quick start, because it is also the Marketplace page).
+  - Install for testing: `npm run vscode:package`, then `code --install-extension vscode/github-codeowners-vscode-<version>.vsix --force` and **Developer: Reload Window**. Logs: Output → "GitHub Code Owners".
+  - ⚠️ **When a fix doesn't work, add logging before guessing again.** Two guessed fixes for the list's double selection were wrong; a temporary log of tab events, rebuilds and reveals showed the real cause on the first try. Remove the logging before committing.
+  - **Startup order** (`vscode/src/extension.js` `activate`) — each part fixes a problem a simpler setup had:
+    - `activationEvents: ["*"]` and **no `extensionDependencies`**: VSCode lists badges newest provider first, so our decoration provider must register *before* the PR extension's for our badge to sit after its M/A/D letter. A dependency would force the PR extension to activate first. ⚠️ Best effort, not a guarantee: the PR extension also activates on `onWebviewPanel:PullRequestOverview` and `onFileSystem:pr`/`review`, so restoring one of its tabs at startup can start it before us, and VSCode doesn't order startup activations. Nothing can fix that at runtime (a provider can't be unregistered by another extension); `activate` logs it when the PR extension is already active.
+    - Right after registering the provider, start the PR extension ourselves (`extension.activate()`, not awaited). Waiting for its own `onStartupFinished` left the Pull Request panel empty for ~10 s; awaiting it inside `activate` made our startup slow.
+    - The "Code Owners" view has **no `when` clause**, so the panel appears at startup. A `when` tied to `github:inReviewMode` hid the whole panel until the PR extension had resolved its PR.
+    - The PR extension loads the checked-out PR some seconds after activating and fires no event, so look for it every 3 s while the view is visible, and on git state changes. ⚠️ Keep polling after a PR is found: a checkout from the PR list updates its `activePullRequest` after git reports the new branch, so the git event alone sees the old PR. Its `github:inReviewMode` key covers a PR that is still resolving.
+  - **Badges** (`decorations.js`): ★ needs your approval (red), ◐ waiting on other owners, ✓ approved. VSCode right-aligns badges and allows 2 characters, so ✓ and ◐ get a Unicode space in front to match ★'s width (measured in the macOS system font with fontTools), which keeps the PR extension's letter in place. ★ must stay ★ — a different symbol implies a different meaning. ★ is team **membership** (`describeOwner().isYours` in `core/ownership.js`), as on the browser's labels, and stays on the user's own PR; red, "Needs your approval" and "Waiting on you" need `canApprove`, which the PR's author never has.
+  - **Refresh**: approvals happen on GitHub, which sends no event. Refresh when the window regains focus and the data is older than 30 s, else every 5 minutes while the view is visible. Stale data stays on screen until new data arrives (no flicker), and a failed load keeps the last good data.
+  - Say "no CODEOWNERS" only when GitHub confirms all three paths are missing. The PR extension can briefly fail to name the workspace's repository; that is a retry, not an answer.
+  - **Data comes from the GitHub GraphQL API**, not the DOM, with a token from VSCode's built-in `github` auth provider (scopes `repo`, `read:org`). `vscode/src/pr-tracker.js` maps the API data to the same inputs the browser scrapes, then builds `ownershipData` with the same core function.
+  - `reviewsBlocking` comes from `reviewDecision`; `ownerApprovalRequired` from `baseRef.refUpdateRule.requiresCodeOwnerReviews` OR any `reviewRequests.asCodeOwner` — two yeses, neither trusted to say no, as in `getReviewStatusFromDoc()`.
+  - **The PR overview page is a webview owned by the PR extension.** No API lets another extension draw into it. Hooks we use instead:
+    - `FileDecorationProvider` on the PR extension's tree items. Their `resourceUri` is `file:` for the checked-out PR and `pr:` for others, always with a JSON query holding `prNumber` and repo-relative `fileName`. ⚠️ Match on the query, not the scheme: Explorer `file:` URIs have no query, which is what keeps them undecorated.
+    - ⚠️ The Code Owners view shows the **checked-out** PR, not the PR whose overview or diff is focused. It sits in the PR extension's "GitHub Pull Request" container, whose own panes (`prStatus:github`, `github:activePullRequest`) show only the checked-out PR; following the focused overview made ours show a different PR from the panes above it. ⚠️ Deliberately no way to pick another PR: a "Show Code Owners" item on the overview's context menu was removed because it only put our view out of step with those panes. Badges and their hovers already cover PRs that aren't checked out.
+  - The PR extension's API (`getRepositoryDescription`) only gives owner/repo and the checked-out PR number; everything else is fetched.
+  - **File rows run `vscode.diff` (`vscode.open` for added files) on the PR extension's own URIs** (`vscode/src/pr-diff.js`), as its Changes list does. ⚠️ Keep them as those two built-in commands: VSCode passes only `vscode.diff`/`vscode.open` tree commands the list's open event, which is what keeps the focus in the list on a click and moves it to the editor on Enter. Identical URIs also make both lists share one tab and keep its scroll position.
+    - Checked-out PR: left `review:` at the merge base (query `path`, `commit`, `base`, `isOutdated`, `rootPath`), right the local file.
+    - Other PRs: `pr:` URIs (query `baseCommit` = merge base, `headCommit`, `isBase`, `fileName`, `prNumber`, `status` as its numeric `GitChangeType`, `remoteName`); its `pr:` provider loads the PR on demand.
+    - Group and owner rows have an inline `$(diff-multiple)` button, like the PR extension's PR rows; a click on the row itself expands it. The group's button opens the group's own files, the owner's every file it co-owns across groups — that difference is what the two button titles and row hovers explain.
+    - ⚠️ Those buttons open the multi-diff editor with `_workbench.openMultiDiffEditor` and a stable `multiDiffSourceUri` (PR, head commit, group or owner), not `vscode.changes`: the latter gives each editor a random identity, so every click opened another tab. It is internal, so `openChanges()` falls back to `vscode.changes`.
+    - **The list follows the active editor** by `reveal(row, {select: true, focus: false})`, like the PR extension. ⚠️ That moves the selection but not the list's keyboard focus, so any unnecessary re-select shows two highlighted rows. Sync only when the active tab really changes: VSCode fires tab events while a new editor is still opening, with the old tab still active, and re-selecting it undoes a click in the list. ⚠️ No stable `TreeItem.id`s: they let the old keyboard focus survive rebuilds, which made double highlights far more frequent.
+    - ⚠️ Undocumented formats, copied from its `toReviewUri`/`toPRUri`. If diffs come up empty or open a second tab after a PR extension update, compare with those first.
 
 **Data Flow**
 - `getPrOwnershipData()` in `ownership.js` is the single aggregation point. It fetches the inputs and hands them to `buildOwnershipData()` in `core/ownership.js`, which the VSCode extension also uses - returns: `folderOwners`, `reviewers`, `teamMembers`, `ownerApprovals`, `user`, `userTeams`, `userTeamsMap`, `diffFilesMap`, `ownerGroupsMap`, `hasOwnedFiles`, `prAuthor`
@@ -206,6 +244,7 @@ The extension works by:
 ## Maintaining This Document
 
 **When to update:**
+- ⚠️ A lesson learned in a session (a wrong approach, a user correction) goes **here**, not in an assistant's private memory — only files in the repo persist for the next session and for other contributors.
 - Architecture decision changed → Update relevant section
 - Critical bug pattern identified → Add with ⚠️ warning explaining WHY
 
