@@ -1,4 +1,5 @@
 import {getPrOwnershipData} from './ownership';
+import {findFileOwners} from '../core/codeowners';
 import {
   createOwnerLabels,
   clearHighlightedOwner,
@@ -280,11 +281,7 @@ const decorateFileHeader = (
     // File header exists but path not available yet (lazy loading or placeholder)
     return;
   }
-  const {owners} =
-    folderOwners.find(({folderMatch}) =>
-      // ignores() means it matches, as it's meant to match in .gitignore files
-      folderMatch.ignores(path)
-    ) || {};
+  const {owners} = findFileOwners(path, folderOwners) || {};
 
   // Remove any previous owners decoration
   node.parentNode.querySelectorAll('.ghco-decoration').forEach((decoration) => {

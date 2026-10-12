@@ -1,5 +1,10 @@
-import ignore from 'ignore';
 import {memoize} from 'lodash-es';
+import {
+  CODEOWNERS_PATHS,
+  codeownersLines,
+  parseCodeowners,
+} from '../core/codeowners';
+import {resolveOwnerTeams} from '../core/teams';
 
 // Cache just one key-value pair to refresh data when the key changes.
 memoize.Cache = function () {
@@ -604,12 +609,6 @@ const getStreamedRawLines = (doc) => {
   return null;
 };
 
-const CODEOWNERS_PATHS = [
-  '.github/CODEOWNERS',
-  'CODEOWNERS',
-  'docs/CODEOWNERS',
-];
-
 // Owner rules from the first CODEOWNERS file that exists at this ref, or null
 // if none of the three locations resolves. The distinction matters: a file
 // that is present but empty is [] and stands, a missing one is worth looking
@@ -634,19 +633,8 @@ const loadCodeownersFromRef = async (owner, repo, ref, refGone) => {
       ) ??
       getStreamedRawLines(doc) ??
       [];
-    const ownerLines = lines
-      .map((line) => line.trim())
-      .filter((line) => line.length && !line.startsWith('#'));
-    console.log('[GHCO] CODEOWNERS', url, ownerLines);
-
-    const folders = ownerLines.map((line) => {
-      const [folder, ...owners] = line.split(/\s+/);
-      return {
-        folderMatch: ignore().add(folder),
-        owners: new Set(owners),
-      };
-    });
-    return folders.reverse();
+    console.log('[GHCO] CODEOWNERS', url, codeownersLines(lines));
+    return parseCodeowners(lines);
   }
   return null;
 };
@@ -737,34 +725,7 @@ export const getTeamMembers = cacheResult(
       return new Map();
     }
 
-    // Array of all unique owner names mentioned in CODEOWNERS file
-    const allOwners = Array.from(
-      new Set(folderOwners.flatMap(({owners}) => Array.from(owners)))
-    );
-
-    // Filter out names that are not teams in the org owning the PR
-    const prefix = `@${org}/`;
-    const teamNames = allOwners.filter((teamName) =>
-      teamName.startsWith(prefix)
-    );
-
-    // Fetch all org teams in parallel, mapping team names to their members
-    const teamResults = await Promise.all(
-      teamNames.map(async (teamName) => {
-        const teamSlug = teamName.replace(prefix, '');
-        const members = await loadTeamMembers(org, teamSlug);
-        return [teamName, members];
-      })
-    );
-    const orgTeams = new Map(teamResults);
-
-    // Map owner teams to an array of members, or if not a team then a pseudo-team with just the owner
-    const owners = new Map(
-      allOwners.map((teamName) => {
-        const members = orgTeams.get(teamName) || [teamName];
-        return [teamName, members];
-      })
-    );
+    const owners = await resolveOwnerTeams(org, folderOwners, loadTeamMembers);
 
     console.log('[GHCO] Teams', owners);
     return owners;

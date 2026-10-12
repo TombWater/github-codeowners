@@ -1,50 +1,36 @@
+import {
+  anyReviewerApprovers,
+  describeMembers,
+  describeOwner,
+  sortOwners,
+} from '../core/ownership';
+
 let highlightedOwner;
 
-const sortOwnersByUserTeams = (owners, userTeams) => {
-  return Array.from(owners).sort((a, b) => {
-    const aUserOwns = userTeams.has(a);
-    const bUserOwns = userTeams.has(b);
-    if (aUserOwns && !bUserOwns) return -1;
-    if (!aUserOwns && bUserOwns) return 1;
-    return 0;
-  });
-};
-
 export const createOwnerLabels = ({owners, ownershipData, onOwnerClick}) => {
-  const {ownerApprovals, user, userTeams, teamMembers, reviewers} =
-    ownershipData;
+  const {ownerApprovals, teamMembers} = ownershipData;
   const labels = [];
 
   if (owners?.size > 0) {
-    // Sort owners: user's teams first, then others
-    const sortedOwners = sortOwnersByUserTeams(owners, userTeams);
-
-    sortedOwners.forEach((owner) => {
-      const userOwns = userTeams.has(owner);
-      const approved = ownerApprovals.has(owner);
-      const members = teamMembers.get(owner);
+    sortOwners(owners, ownershipData).forEach((owner) => {
+      const {approved, isYours} = describeOwner(owner, ownershipData);
       const label = createLabel(owner, {
-        user,
-        userOwns,
+        userOwns: isYours,
         approved,
-        members,
-        reviewers,
+        members: describeMembers(teamMembers.get(owner), ownershipData),
         onOwnerClick,
       });
       labels.push(label);
     });
   } else {
-    const userOwns = true;
-    const approved = ownerApprovals.size > 0;
-    // Anyone with write access can approve, but just show users (i.e. non-teams) who have already approved
-    const members = Array.from(ownerApprovals).filter(
-      (approver) => !teamMembers.has(approver)
-    );
+    // Anyone with write access can approve, so it counts as the user's
     const label = createLabel('any reviewer', {
-      userOwns,
-      approved,
-      members,
-      reviewers,
+      userOwns: true,
+      approved: ownerApprovals.size > 0,
+      members: describeMembers(
+        anyReviewerApprovers(ownershipData),
+        ownershipData
+      ),
       onOwnerClick,
     });
     labels.push(label);
@@ -53,10 +39,7 @@ export const createOwnerLabels = ({owners, ownershipData, onOwnerClick}) => {
   return labels;
 };
 
-const createLabel = (
-  owner,
-  {user, userOwns, approved, members, reviewers, onOwnerClick}
-) => {
+const createLabel = (owner, {userOwns, approved, members, onOwnerClick}) => {
   const container = document.createElement('span');
   container.classList.add('ghco-label-container');
 
@@ -76,7 +59,7 @@ const createLabel = (
 
   container.appendChild(label);
 
-  const drawer = createDrawer({user, approved, members, reviewers});
+  const drawer = createDrawer({approved, members});
   if (drawer) {
     const anchorName = `--ghco-anchor-${Math.random()
       .toString(36)
@@ -90,12 +73,13 @@ const createLabel = (
   return container;
 };
 
-const createDrawer = ({user, approved, members, reviewers}) => {
+// members: from describeMembers()
+const createDrawer = ({approved, members}) => {
   const drawerContent = members
-    ?.map((member) => {
-      const memberCheckmark = reviewers.get(member) ? '  ✓\t' : '\t';
-      const star = member === user ? ' ★' : '';
-      return `${approved ? memberCheckmark : ''}${member}${star}`;
+    .map((member) => {
+      const memberCheckmark = member.approved ? '  ✓\t' : '\t';
+      const star = member.isYou ? ' ★' : '';
+      return `${approved ? memberCheckmark : ''}${member.login}${star}`;
     })
     .join('\n');
 

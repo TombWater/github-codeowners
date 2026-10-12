@@ -4,6 +4,12 @@ import chevronUpSvg from './chevron-up.svg';
 import xIconSvg from './x-icon.svg';
 import {getPrOwnershipData} from './ownership';
 import {
+  approversOf,
+  calculateApprovalStatus,
+  describeApprovalStatus,
+  sortOwnerGroups,
+} from '../core/approval';
+import {
   createOwnerLabels,
   clearHighlightedOwner,
   setProgrammaticExpansion,
@@ -90,11 +96,7 @@ export const updateMergeBox = async () => {
 
   // Calculate current state (synchronous checks only)
   const isMerged = github.getIsMerged();
-  const reviewers = Array.from(github.getReviewersFromDoc(document).entries());
-  const approvers = reviewers
-    .filter(([, approved]) => approved)
-    .map(([approver]) => approver)
-    .sort();
+  const approvers = approversOf(github.getReviewersFromDoc(document));
 
   // Count timeline items to detect commits, review requests, etc.
   const timelineItems = document.querySelectorAll('.TimelineItem');
@@ -102,13 +104,11 @@ export const updateMergeBox = async () => {
 
   const isClosed = github.getIsClosed();
   const reviewStatus = github.getReviewStatus();
-  const ownerApprovalRequired =
-    !isMerged && !isClosed && reviewStatus.ownerApprovalRequired;
 
   const stateParts = [
     isMerged,
     isClosed,
-    ownerApprovalRequired,
+    reviewStatus.ownerApprovalRequired,
     reviewStatus.reviewsBlocking,
     timelineCount,
     ...approvers,
@@ -172,14 +172,12 @@ export const updateMergeBox = async () => {
     return;
   }
 
-  const approvalStatus = calculateApprovalStatus(
-    ownershipData,
-    ownerApprovalRequired,
-    isMerged,
+  const approvalStatus = calculateApprovalStatus(ownershipData, {
     approvers,
     reviewStatus,
-    isClosed
-  );
+    isMerged,
+    isClosed,
+  });
   updateMergeBoxSectionWithContent(
     section,
     approvalStatus,
@@ -318,49 +316,7 @@ const createHeaderText = (approvalStatus) => {
   description.id = APPROVALS_DESCRIPTION_ID;
 
   if (approvalStatus) {
-    const {
-      groupApprovalsReceived,
-      groupApprovalsRequired,
-      totalFiles,
-      ownerApprovalRequired,
-      allApprovalsReceived,
-      approvalNotRequired,
-      reviewsRequired,
-      isMerged,
-      isClosed,
-    } = approvalStatus;
-    const groupText = `${groupApprovalsRequired} owner group${
-      groupApprovalsRequired === 1 ? '' : 's'
-    }`;
-    // Counts owner *groups*, matching the "N owner groups" above it; the
-    // branches below differ only in the qualifier they append
-    const ownerProgress = `${groupApprovalsReceived} of ${groupApprovalsRequired} owner groups approved`;
-    const fileText = `${totalFiles} file${totalFiles === 1 ? '' : 's'}`;
-
-    let reviewText;
-    if (isMerged) {
-      // no reviewText
-    } else if (isClosed) {
-      // Progress as it stood, without implying anything is owed
-      reviewText = `${ownerProgress} (closed without merging)`;
-    } else if (allApprovalsReceived) {
-      // GitHub's Reviews section shows success — all required approvals satisfied.
-      // Don't try to qualify the type (owner vs write-access) since the signal is
-      // gone once GitHub marks the requirement as met.
-      reviewText = 'All required approvals received';
-    } else if (approvalNotRequired) {
-      // Echo GitHub's own phrasing so the two boxes agree rather than appear to conflict
-      reviewText = `${ownerProgress} (not required to merge)`;
-    } else if (ownerApprovalRequired) {
-      reviewText = ownerProgress;
-    } else if (reviewsRequired > 0) {
-      const approvalWord = reviewsRequired === 1 ? 'approval' : 'approvals';
-      reviewText = `${reviewsRequired} ${approvalWord} required by reviewers with write access`;
-    }
-
-    description.textContent = [`${groupText} (${fileText})`, reviewText]
-      .filter(Boolean)
-      .join(' • ');
+    description.textContent = describeApprovalStatus(approvalStatus);
   } else {
     description.textContent = 'Loading approval status...';
   }
@@ -494,17 +450,9 @@ const createMergeBoxOwnerGroupsContent = (ownerGroupsMap, ownershipData) => {
 
   // Sort groups by relevance to current user:
   // Within each priority, sort by number of files (descending)
-  const sortedGroups = Array.from(ownerGroupsMap.entries()).sort(
-    ([, a], [, b]) => {
-      const aPriority = getMergeBoxOwnerGroupPriority(a, ownershipData);
-      const bPriority = getMergeBoxOwnerGroupPriority(b, ownershipData);
+  const sortedGroups = sortOwnerGroups(ownerGroupsMap, ownershipData);
 
-      if (aPriority !== bPriority) return aPriority - bPriority;
-      return b.paths.length - a.paths.length;
-    }
-  );
-
-  sortedGroups.forEach(([, {owners, paths, digests}], index) => {
+  sortedGroups.forEach(({owners, paths, digests}, index) => {
     try {
       const group = createMergeBoxOwnerGroup({
         owners,
@@ -563,58 +511,6 @@ const createLoadingMergeBoxSection = (container) => {
   return section;
 };
 
-const calculateApprovalStatus = (
-  ownershipData,
-  ownerApprovalRequired,
-  isMerged,
-  approvers,
-  reviewStatus,
-  isClosed
-) => {
-  const {ownerGroupsMap, ownerApprovals} = ownershipData;
-  if (!ownerGroupsMap || !ownerApprovals) return null;
-
-  let groupApprovalsReceived = 0;
-  let groupApprovalsRequired = 0;
-  let totalFiles = 0;
-
-  for (const [, group] of ownerGroupsMap.entries()) {
-    groupApprovalsRequired++;
-    totalFiles += group.paths.length;
-
-    const hasApproval =
-      group.owners && group.owners.size > 0
-        ? Array.from(group.owners).some((owner) => ownerApprovals.has(owner))
-        : ownerApprovals.size > 0;
-
-    if (hasApproval) {
-      groupApprovalsReceived++;
-    }
-  }
-
-  // Covers both "all approvals received" and "no approval required"; nobody
-  // having approved means it must be the latter, and calling that success
-  // would be a false all-clear on an unreviewed PR.
-  const reviewsShowSuccess = !reviewStatus.reviewsBlocking;
-  const hasAnyApproval = approvers.length > 0;
-
-  return {
-    groupApprovalsReceived,
-    groupApprovalsRequired,
-    totalFiles,
-    // A closed PR can't merge, so nothing is required of it and no approval
-    // it collected beforehand counts as "all required" — without this guard
-    // its stripped-bare merge box reads as "nothing is blocking".
-    allApprovalsReceived: !isClosed && reviewsShowSuccess && hasAnyApproval,
-    approvalNotRequired:
-      isClosed || (reviewsShowSuccess && !hasAnyApproval && !isMerged),
-    ownerApprovalRequired,
-    reviewsRequired: reviewStatus.requiredCount,
-    isMerged,
-    isClosed,
-  };
-};
-
 const updateMergeBoxSectionWithContent = (
   section,
   approvalStatus,
@@ -659,40 +555,6 @@ const updateMergeBoxSectionWithContent = (
     approvalStatus
   );
   section.appendChild(sectionContent);
-};
-
-const getMergeBoxOwnerGroupPriority = (group, ownershipData) => {
-  const {userTeams, ownerApprovals, prAuthor, user} = ownershipData;
-
-  // If there are no specific owners, use user's teams since they are "any reviewer" who can approve
-  const owners = Array.from(group.owners || userTeams);
-
-  const approved = group.owners
-    ? // Specific owners: check if any owner approved
-      owners.some((owner) => ownerApprovals.has(owner))
-    : // Any reviewer: check if anyone approved
-      ownerApprovals.size > 0;
-
-  // If the user is the PR author, they can't approve their own PR
-  if (user !== prAuthor) {
-    const userOnlyOwner = owners.every((owner) => userTeams.has(owner));
-    const userOwns = owners.some((owner) => userTeams.has(owner));
-
-    // Priority 0: User is ONLY owner and needs to approve (red ★ - on all labels)
-    if (userOnlyOwner && !approved) return 0;
-
-    // Priority 1: User is one of multiple owners and needs to approve (red ★ - one of several labels)
-    if (userOwns && !approved) return 1;
-
-    // Priority 2: User's teams that are approved (green ✓ ☆)
-    if (userOwns && approved) return 2;
-  }
-
-  // Priority 3: Other teams that need approval (yellow no icon)
-  if (!approved) return 3;
-
-  // Priority 4: Other teams that are approved (green ✓)
-  return 4;
 };
 
 const onClickFileGroupExpander = (event) => {

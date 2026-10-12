@@ -86,7 +86,7 @@ The extension works by:
    - GitHub also uses **Turbo Frames** for partial updates (only a region swaps, body survives) — clicking links within GitHub uses frames (body intact, works fine); it's only browser back/forward buttons that trigger full cache-restore renders (body replaced, was broken)
 
 **Data Flow**
-- `getPrOwnershipData()` in `ownership.js` is the single aggregation point - returns: `folderOwners`, `reviewers`, `teamMembers`, `ownerApprovals`, `user`, `userTeams`, `userTeamsMap`, `diffFilesMap`, `ownerGroupsMap`, `hasOwnedFiles`, `prAuthor`
+- `getPrOwnershipData()` in `ownership.js` is the single aggregation point. It fetches the inputs and hands them to `buildOwnershipData()` in `core/ownership.js`, which the VSCode extension also uses - returns: `folderOwners`, `reviewers`, `teamMembers`, `ownerApprovals`, `user`, `userTeams`, `userTeamsMap`, `diffFilesMap`, `ownerGroupsMap`, `hasOwnedFiles`, `prAuthor`
 - Prefer passing bundles of related data rather than individual fields — pass the whole object, not cherry-picked properties. Applies to `ownershipData`, `approvalStatus`, etc.
 - `isOwnerOfAnyFile()` iterates `diffFilesMap.values()` not `.keys()` (keys are hashes, not paths)
 
