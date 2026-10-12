@@ -20,3 +20,4 @@ npm-debug.log*
 /vscode/dist
 /vscode/*.vsix
 /vscode/icon.png
+/vscode/LICENSE
