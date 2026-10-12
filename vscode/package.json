@@ -121,8 +121,8 @@
     }
   },
   "scripts": {
-    "build": "cp ../public/icons/icon_128.png icon.png && webpack --mode=production",
+    "build": "cp ../public/icons/icon_128.png icon.png && cp ../LICENSE LICENSE && webpack --mode=production",
     "watch": "cp ../public/icons/icon_128.png icon.png && webpack --mode=development --watch",
-    "package": "node check-version.js && npm run build && npx @vscode/vsce package --no-dependencies"
+    "package": "node check-version.js && npm run build && vsce package --no-dependencies --allow-star-activation && node install-hint.js"
   }
 }
