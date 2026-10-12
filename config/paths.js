@@ -3,7 +3,7 @@
 const path = require('path');
 
 const PATHS = {
-  src: path.resolve(__dirname, '../src'),
+  browser: path.resolve(__dirname, '../browser'),
   build: path.resolve(__dirname, '../build'),
 };
 

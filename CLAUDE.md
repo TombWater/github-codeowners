@@ -42,7 +42,7 @@ The extension works by:
 ## Architecture
 
 ### Entry Point and Build
-- **Webpack entry**: `src/decorator.js` (configured in `config/webpack.config.js`)
+- **Webpack entry**: `browser/decorator.js` (configured in `config/webpack.config.js`)
 - **Content script**: Runs on all `https://github.com/*` pages (manifest_version 3)
 - **Build output**: Bundled to `build/content.js` with CSS extracted to `build/content.css`
 - **Extension type**: Browser extension (Chrome/Firefox) that modifies GitHub's DOM
@@ -51,14 +51,14 @@ The extension works by:
 ### Core Architecture
 
 **Module Organization**
-- **`src/decorator.js`**: Entry point - MutationObserver watches `document.body` with 100ms debounce, coordinates all decorations
-- **`src/files-page.js`**: Decorates file headers on PR files page and compare view
-- **`src/merge-box.js`**: Creates expandable "Code owners" section in conversation page merge box
-- **`src/comment-decorator.js`**: Adds role icons (author/owner/other) to comments
-- **`src/labels.js`**: Creates owner labels with approval indicators and hover drawers
-- **`src/ownership.js`**: Aggregates ownership data via `getPrOwnershipData()` - single source for all decorators
-- **`src/github.js`**: Fetches/caches all GitHub data (CODEOWNERS, reviewers, team members, PR info)
-- **`src/debug-panel.js`**: Development-only debug UI with approval/merge simulation
+- **`browser/decorator.js`**: Entry point - MutationObserver watches `document.body` with 100ms debounce, coordinates all decorations
+- **`browser/files-page.js`**: Decorates file headers on PR files page and compare view
+- **`browser/merge-box.js`**: Creates expandable "Code owners" section in conversation page merge box
+- **`browser/comment-decorator.js`**: Adds role icons (author/owner/other) to comments
+- **`browser/labels.js`**: Creates owner labels with approval indicators and hover drawers
+- **`browser/ownership.js`**: Aggregates ownership data via `getPrOwnershipData()` - single source for all decorators
+- **`browser/github.js`**: Fetches/caches all GitHub data (CODEOWNERS, reviewers, team members, PR info)
+- **`browser/debug-panel.js`**: Development-only debug UI with approval/merge simulation
 
 **Critical Patterns** ⚠️
 
@@ -212,7 +212,7 @@ The extension works by:
 **What NOT to document:**
 - Details already clear in code
 - Step-by-step feature explanations (code is source of truth)
-- **Specific PR numbers** — in this file or in `src/**` comments. Describe the DOM shape or behaviour instead ("a stacked child renders a full Reviews section", not "#13105 is a stacked child that…"). A PR's state keeps changing after the citation is written, so it goes stale silently: one PR cited here as the canonical stacked-PR-without-a-Reviews-section was later found to be *closed*, which was the real cause, invalidating the claim built on it. A reader also can't check the reference without leaving the code. Fine in short-lived places — commit messages, and a CHANGELOG scratchpad marked for deletion, where specific PRs are the verification targets.
+- **Specific PR numbers** — in this file or in `browser/**` comments. Describe the DOM shape or behaviour instead ("a stacked child renders a full Reviews section", not "#13105 is a stacked child that…"). A PR's state keeps changing after the citation is written, so it goes stale silently: one PR cited here as the canonical stacked-PR-without-a-Reviews-section was later found to be *closed*, which was the real cause, invalidating the claim built on it. A reader also can't check the reference without leaving the code. Fine in short-lived places — commit messages, and a CHANGELOG scratchpad marked for deletion, where specific PRs are the verification targets.
 
 **⚠️ CRITICAL patterns:**
 1. Mark with **⚠️ CRITICAL - DO NOT REMOVE**

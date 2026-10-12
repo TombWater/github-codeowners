@@ -9,7 +9,7 @@ const PATHS = require('./paths');
 const config = (env, argv) =>
   merge(common(argv.mode), {
     entry: {
-      content: PATHS.src + '/decorator.js',
+      content: PATHS.browser + '/decorator.js',
     },
     devtool: argv.mode === 'production' ? false : 'source-map',
   });
