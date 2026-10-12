@@ -723,29 +723,112 @@ export const getTeamMembers = cacheResult(
   }
 );
 
+// GitHub's CSS module classes come in two formats, and both are in use:
+// `Component-module__name__hash` (or `--hash`), and since October 2026 just
+// `name__hash`. Match a class by its `name` so either format works.
+const moduleClassPattern = (name) =>
+  new RegExp(`^(?:[A-Za-z0-9]+-module__)?${name}(?:__|--)`);
+
+// The element's module class called `name`, in whichever format it has
+export const findModuleClass = (element, name) => {
+  const pattern = moduleClassPattern(name);
+  return Array.from(element?.classList ?? []).find((c) => pattern.test(c));
+};
+
+// A selector for elements with module class `name`, in either format.
+// `prefix` is prepended to each alternative, e.g. 'div' or ':scope > div'.
+export const moduleClassSelector = (name, prefix = '') =>
+  [
+    `${prefix}[class*="-module__${name}__"]`,
+    `${prefix}[class*="-module__${name}--"]`,
+    `${prefix}[class^="${name}__"]`,
+    `${prefix}[class*=" ${name}__"]`,
+  ].join(', ');
+
+const OUR_SECTION = 'section[aria-label="Code owners"]';
+
+// GitHub's own merge box section headings. Their class name keeps the
+// component's name in both formats, unlike generic names such as `wrapper`,
+// so it is the anchor for everything else in the merge box.
+const mergeBoxHeadings = () =>
+  Array.from(
+    document.querySelectorAll(
+      moduleClassSelector('MergeBoxSectionHeading', 'h3')
+    )
+  ).filter((heading) => !heading.closest(OUR_SECTION));
+
+// The element holding the merge box sections (Reviews, Checks, …) and, on a
+// merged PR, the "merged" message, which is a section header with no
+// <section> around it. null while the merge box is still loading.
+export const findMergeBoxContainer = () => {
+  const heading = mergeBoxHeadings()[0];
+  const header = heading?.closest(moduleClassSelector('wrapper', 'div'));
+  const container = (header?.closest('section') || header)?.parentElement;
+  return (
+    container ||
+    document.querySelector(moduleClassSelector('mergeBoxAdjustBorders', 'div'))
+  );
+};
+
+// Class names our "Code owners" section copies so it looks like GitHub's
+// sections. Read from GitHub's live sections first, because the new format's
+// names (`wrapper__…`, `button__…`) are shared by many components and can't
+// be told apart in the stylesheets. The old format's names can, so the
+// stylesheets are the fallback. A name is kept once found; the rest are
+// looked for again on the next call, e.g. when an expandable section shows.
 export const getGithubClassNames = (() => {
-  let cache = null;
+  const cache = {};
 
-  return () => {
-    if (cache) return cache;
+  const legacyPatterns = {
+    wrapper: /\.(MergeBoxSectionHeader-module__wrapper(__|--)[a-zA-Z0-9_-]+)/,
+    wrapperCanExpand:
+      /\.(MergeBoxSectionHeader-module__wrapperCanExpand(__|--)[a-zA-Z0-9_-]+)/,
+    expanded: /\.(MergeBoxExpandable-module__isExpanded(__|--)[a-zA-Z0-9_-]+)/,
+    expandableWrapper:
+      /\.(MergeBoxExpandable-module__expandableWrapper(__|--)[a-zA-Z0-9_-]+)/,
+    expandableContent:
+      /\.(MergeBoxExpandable-module__expandableContent(__|--)[a-zA-Z0-9_-]+)/,
+    headingButton:
+      /\.(MergeBoxSectionHeader-module__button(__|--)[a-zA-Z0-9_-]+)/,
+    headingModule:
+      /\.(MergeBoxSectionHeader-module__MergeBoxSectionHeading(__|--)[a-zA-Z0-9_-]+)/,
+    headingPrimer: /\.(prc-Heading-Heading-[a-zA-Z0-9_-]+)/,
+  };
 
-    const patterns = {
-      wrapper: /\.(MergeBoxSectionHeader-module__wrapper(__|--)[a-zA-Z0-9_-]+)/,
-      wrapperCanExpand:
-        /\.(MergeBoxSectionHeader-module__wrapperCanExpand(__|--)[a-zA-Z0-9_-]+)/,
-      expanded:
-        /\.(MergeBoxExpandable-module__isExpanded(__|--)[a-zA-Z0-9_-]+)/,
-      expandableWrapper:
-        /\.(MergeBoxExpandable-module__expandableWrapper(__|--)[a-zA-Z0-9_-]+)/,
-      expandableContent:
-        /\.(MergeBoxExpandable-module__expandableContent(__|--)[a-zA-Z0-9_-]+)/,
-      headingButton:
-        /\.(MergeBoxSectionHeader-module__button(__|--)[a-zA-Z0-9_-]+)/,
-      headingModule:
-        /\.(MergeBoxSectionHeader-module__MergeBoxSectionHeading(__|--)[a-zA-Z0-9_-]+)/,
-      headingPrimer: /\.(prc-Heading-Heading-[a-zA-Z0-9_-]+)/,
-    };
+  const fromDom = () => {
+    const found = {};
+    for (const heading of mergeBoxHeadings()) {
+      found.headingModule ??= findModuleClass(
+        heading,
+        'MergeBoxSectionHeading'
+      );
+      found.headingPrimer ??= Array.from(heading.classList).find((c) =>
+        c.startsWith('prc-Heading-Heading-')
+      );
+      const header = heading.closest(moduleClassSelector('wrapper', 'div'));
+      found.wrapper ??= findModuleClass(header, 'wrapper');
+      found.wrapperCanExpand ??= findModuleClass(header, 'wrapperCanExpand');
+      found.headingButton ??= findModuleClass(
+        header?.querySelector(':scope > button'),
+        'button'
+      );
+      const expandable = header?.nextElementSibling;
+      found.expandableWrapper ??= findModuleClass(
+        expandable,
+        'expandableWrapper'
+      );
+      found.expanded ??= findModuleClass(expandable, 'isExpanded');
+      found.expandableContent ??= findModuleClass(
+        expandable?.querySelector(
+          moduleClassSelector('expandableContent', 'div')
+        ),
+        'expandableContent'
+      );
+    }
+    return found;
+  };
 
+  const fromStylesheets = (keys) => {
     const selectors = Array.from(document.styleSheets).flatMap((sheet) => {
       try {
         return Array.from(sheet.cssRules || sheet.rules)
@@ -755,15 +838,29 @@ export const getGithubClassNames = (() => {
         return []; // Skip stylesheets that can't be accessed (cross-origin)
       }
     });
-
-    cache = Object.fromEntries(
-      Object.entries(patterns).map(([key, pattern]) => {
+    return Object.fromEntries(
+      keys.map((key) => {
+        const pattern = legacyPatterns[key];
         const selector = selectors.find((s) => pattern.test(s));
-        const match = selector?.match(pattern);
-        return [key, match?.[1]];
+        return [key, selector?.match(pattern)?.[1]];
       })
     );
+  };
 
-    return cache;
+  return () => {
+    const missing = () =>
+      Object.keys(legacyPatterns).filter((key) => !cache[key]);
+    if (missing().length === 0) return cache;
+
+    const dom = fromDom();
+    for (const key of missing()) {
+      if (dom[key]) cache[key] = dom[key];
+    }
+    const sheets = fromStylesheets(missing());
+    for (const key of missing()) {
+      if (sheets[key]) cache[key] = sheets[key];
+    }
+    // A copy, so callers never see a partly filled cache change under them
+    return {...cache};
   };
 })();

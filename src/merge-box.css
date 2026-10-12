@@ -4,16 +4,51 @@
   --ghco-merge-box-transition: 0.15s ease-in-out;
 }
 
-/* Add border between merged PR success message and our section */
+/* Add border between merged PR success message and our section. GitHub's
+   header class is `MergeBoxSectionHeader-module__wrapper…` or `wrapper__…` */
 div[class*='MergeBoxSectionHeader-module__wrapper']:has(
     + section[aria-label='Code owners']
-  ) {
+  ),
+div[class^='wrapper__']:has(+ section[aria-label='Code owners']),
+div[class*=' wrapper__']:has(+ section[aria-label='Code owners']) {
   border-bottom: var(--borderWidth-thin, 1px) solid
     var(--borderColor-default, var(--color-border-default));
   padding-bottom: var(--stack-gap-normal, 16px);
 }
 
 /* Merge box owner groups container */
+
+/* GitHub's section header and its full-size invisible toggle button, for
+   when its classes can't be read (a merged PR has no expandable section).
+   Same rules as GitHub's, so harmless when its classes are there too. */
+.ghco-section-header {
+  position: relative;
+}
+
+.ghco-section-header:has(.ghco-header-button):hover {
+  cursor: pointer;
+  background: var(
+    --control-transparent-bgColor-hover,
+    var(--color-action-list-item-default-hover-bg)
+  );
+}
+
+.ghco-header-button {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Collapse without GitHub's expandable classes, which can only be read from
+   an expandable section of GitHub's own (none on a merged PR) */
+.ghco-merge-box-expandable-wrapper:not(.ghco-expanded) {
+  max-height: 0;
+  overflow: hidden;
+}
 
 /* Override GitHub's 300px max-height limit on the expandable content wrapper when expanded */
 .ghco-merge-box-expandable-wrapper.ghco-expanded,

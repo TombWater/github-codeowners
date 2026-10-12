@@ -75,34 +75,13 @@ const checkAndShowNewVersionBanner = (section) => {
       .firstElementChild;
 
     // Insert after the header so it's visible even when collapsed
-    section.querySelector('div[class*="MergeBoxSectionHeader"]')?.after(banner);
+    section.querySelector('.ghco-section-header')?.after(banner);
   });
 };
 
 export const updateMergeBox = async () => {
-  const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
-  if (!mergeBox) {
-    return;
-  }
-
-  let section = mergeBox.querySelector('section[aria-label="Code owners"]');
-
-  // Find the container by looking for siblings, which have section header wrappers
-  const sectionHeader = mergeBox.querySelector(
-    'div[class*="MergeBoxSectionHeader-module__wrapper"]'
-  );
-
-  // If the section header is inside a section or is the section itself,
-  // we want the section's parent. If it's a naked wrapper, we want its parent.
-  const siblingSection = sectionHeader?.closest('section');
-  let container = (siblingSection || sectionHeader)?.parentElement;
-
-  // Fallback: try to find the container by class name if no siblings found
-  if (!container) {
-    container = mergeBox.querySelector(
-      'div[class*="MergeBox-module__mergeBoxAdjustBorders"]'
-    );
-  }
+  const container = github.findMergeBoxContainer();
+  let section = container?.querySelector('section[aria-label="Code owners"]');
 
   // Nothing to anchor to yet — the merge box is still a bare spinner
   if (!container) {
@@ -179,9 +158,7 @@ export const updateMergeBox = async () => {
   const ownershipData = await getPrOwnershipData();
   const {diffFilesMap, ownerGroupsMap} = ownershipData || {};
   if (!ownershipData || !diffFilesMap || diffFilesMap.size === 0) {
-    const existingHeader = section.querySelector(
-      'div[class*="MergeBoxSectionHeader"]'
-    );
+    const existingHeader = section.querySelector('.ghco-section-header');
     if (existingHeader) {
       const newHeader = createMergeBoxSectionHeader(null);
       const description = newHeader.querySelector('p');
@@ -217,7 +194,8 @@ const ensureCorrectPosition = (section, container) => {
   const previousSection = container.querySelector(
     [
       'section[aria-label="Reviews"]',
-      ':scope > div[class*="MergeBoxSectionHeader-module__wrapper"].flex-column',
+      // The "merged" message: a section header with no <section> around it
+      github.moduleClassSelector('wrapper', ':scope > div'),
     ].join(', ')
   );
 
@@ -443,7 +421,7 @@ const onClickHeader = (event) => {
     '.ghco-merge-box-expandable-wrapper'
   );
   const expandableContent = expandableWrapper?.querySelector(
-    'div[class*="MergeBoxExpandable-module__expandableContent"]'
+    github.moduleClassSelector('expandableContent', 'div')
   );
 
   const expandedClassName = expandButton.dataset.expandedClassName;
@@ -459,7 +437,11 @@ const createMergeBoxSectionHeader = (approvalStatus) => {
   const classNames = github.getGithubClassNames();
   const isExpandable = Boolean(approvalStatus);
 
-  header.classList.add(...[classNames.wrapper].filter(Boolean));
+  // Our own class to find it by: GitHub's class names change format
+  header.classList.add(
+    'ghco-section-header',
+    ...[classNames.wrapper].filter(Boolean)
+  );
   if (isExpandable) {
     header.classList.add(...[classNames.wrapperCanExpand].filter(Boolean));
   }
@@ -642,9 +624,7 @@ const updateMergeBoxSectionWithContent = (
   // Set aria-describedby only after loading to avoid screen readers announcing the brief loading state
   section.setAttribute('aria-describedby', APPROVALS_DESCRIPTION_ID);
 
-  const existingHeader = section.querySelector(
-    'div[class*="MergeBoxSectionHeader"]'
-  );
+  const existingHeader = section.querySelector('.ghco-section-header');
   if (existingHeader) {
     const oldGroupApprovalsReceived = Number(
       existingHeader.dataset.approvalCount || 0

@@ -45,8 +45,11 @@ react-app .ghco-decoration:has(+ div) {
   border-radius: 0;
 }
 
+/* GitHub's classes: `DiffFileHeader-module__diff-file-header…` before,
+   `diff-file-header__…` and `collapsed__…` now */
 react-app
-  div[class*='DiffFileHeader-module__diff-file-header'][class*='DiffFileHeader-module__collapsed'] {
+  div[class*='DiffFileHeader-module__diff-file-header'][class*='DiffFileHeader-module__collapsed'],
+react-app div[class*='diff-file-header__'][class*='collapsed__'] {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }

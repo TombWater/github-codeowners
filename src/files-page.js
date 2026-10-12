@@ -15,14 +15,15 @@ injectStyles(fileLabelsCss, 'ghco-file-labels-styles');
 const fileHeaderSelectors = [
   // Old Files Changed page
   'div.file-header',
-  // New Files Changed page
-  'div[class^="Diff-module__diffHeaderWrapper"]',
+  // New Files Changed page: a data attribute where GitHub sets one, and the
+  // CSS module class in both its formats (see moduleClassSelector)
+  'div[data-diff-header-wrapper]',
+  github.moduleClassSelector('diffHeaderWrapper', 'div'),
 ].join(', ');
 
+// The file name link. Scoped to the header, where it is the only #diff- link.
 const getFileHeaderLink = (node) =>
-  node?.dataset.anchor ||
-  node.querySelector('[class*="DiffFileHeader-module"] a[href*="#diff-"]')
-    ?.href;
+  node?.dataset.anchor || node.querySelector('a[href*="#diff-"]')?.href;
 
 const getFileHeadersForDecoration = () => {
   const fileHeaders = Array.from(
@@ -72,9 +73,12 @@ const toggleFileHeader = (header, expandOwner) => {
 
   const labels = decoration.querySelectorAll('.ghco-label');
   const isViewed =
-    // New UI: button with MarkAsViewedButton-module class and aria-pressed="true"
+    // New UI: a toggle button labelled "Viewed" / "Not Viewed", formerly also
+    // with a MarkAsViewedButton-module class
     header
-      .querySelector('button[class*="MarkAsViewedButton-module"]')
+      .querySelector(
+        'button[class*="MarkAsViewedButton-module"], button[aria-pressed][aria-label$="Viewed"]'
+      )
       ?.getAttribute('aria-pressed') === 'true' ||
     // Old UI: checkbox with js-reviewed-checkbox class and checked attribute
     header.querySelector('input.js-reviewed-checkbox')?.checked === true;

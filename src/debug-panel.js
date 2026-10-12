@@ -236,7 +236,7 @@ const attachButtonListeners = (updateAllCallback) => {
 const handleLogState = () => {
   const section = document.querySelector('section[aria-label="Code owners"]');
   const prInfo = github.getPrInfo();
-  const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
+  const mergeBox = github.findMergeBoxContainer();
 
   console.group('[GHCO Debug] Current State');
   console.log('PR Info:', prInfo);
@@ -505,7 +505,7 @@ const toggleApproval = (owner, approved) => {
 
   // Trigger DOM mutation to cause extension update
   const targetElement =
-    document.querySelector('div[class*="MergeBox-module"]') ||
+    github.findMergeBoxContainer() ||
     document.querySelector('[data-testid="merge-box"]') ||
     document.querySelector('#partial-discussion-header') ||
     document.body;
@@ -543,23 +543,10 @@ const handleSimulateMerge = () => {
     '[GHCO Debug] Simulating PR merge - removing sections and adding merged message'
   );
 
-  // Find the merge box container
-  const mergeBox = document.querySelector('div[class*="MergeBox-module"]');
-  if (!mergeBox) {
-    console.error('[GHCO Debug] Could not find merge box container');
-    return;
-  }
-
-  // Find the bordered container inside (more flexible selector)
-  const borderedContainer = mergeBox.querySelector(
-    'div[class*="MergeBox-module__mergeBoxAdjustBorders"], div.border.rounded-2'
-  );
+  // Find the container of the merge box sections
+  const borderedContainer = github.findMergeBoxContainer();
   if (!borderedContainer) {
-    console.error('[GHCO Debug] Could not find bordered container');
-    console.log(
-      '[GHCO Debug] Merge box HTML:',
-      mergeBox.innerHTML.substring(0, 500)
-    );
+    console.error('[GHCO Debug] Could not find the merge box container');
     return;
   }
 
