@@ -558,6 +558,52 @@ export const getReviewersFromDoc = (doc) => {
   return reviewers;
 };
 
+// Blob pages are now server-rendered by TanStack Router, which streams its
+// query state into inline scripts as a seroval JS literal rather than the JSON
+// `embeddedData` script, e.g. `rawLines:$R[344]=["line", ...]`. The array of
+// strings is JSON apart from seroval's `\xHH` escapes (`<` arrives as `\x3C`),
+// so match the brackets outside strings and rewrite those before parsing.
+const RAW_LINES_PATTERN = /rawLines:(?:\$R\[\d+\]=)?\[/;
+
+const getStreamedRawLines = (doc) => {
+  for (const script of doc.querySelectorAll('script')) {
+    const text = script.textContent;
+    const match = RAW_LINES_PATTERN.exec(text);
+    if (!match) {
+      continue;
+    }
+
+    const start = match.index + match[0].length - 1;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let i = start; i < text.length; i++) {
+      const c = text[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (c === '\\') escaped = true;
+        else if (c === '"') inString = false;
+      } else if (c === '"') {
+        inString = true;
+      } else if (c === '[') {
+        depth++;
+      } else if (c === ']' && --depth === 0) {
+        const literal = text
+          .slice(start, i + 1)
+          .replace(/\\(\\|x([0-9a-fA-F]{2}))/g, (all, _, hex) =>
+            hex ? `\\u00${hex}` : all
+          );
+        try {
+          return JSON.parse(literal);
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+};
+
 const CODEOWNERS_PATHS = [
   '.github/CODEOWNERS',
   'CODEOWNERS',
@@ -585,7 +631,9 @@ const loadCodeownersFromRef = async (owner, repo, ref, refGone) => {
     const lines =
       getEmbeddedData(doc, (payload) =>
         findNestedProperty(payload, 'rawLines')
-      ) ?? [];
+      ) ??
+      getStreamedRawLines(doc) ??
+      [];
     const ownerLines = lines
       .map((line) => line.trim())
       .filter((line) => line.length && !line.startsWith('#'));
