@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 - **Feature** (VSCode, beta): New [VSCode extension](vscode/README.md) that shows code owners and their approvals in the GitHub Pull Requests extension. Not on the Visual Studio Marketplace yet: [install it from a local build](vscode/README.md#install-from-a-local-build)
+- **Feature**: Support for GitHub's new pull request Overview page, with a "Code owners" summary beside Checks, Comments and Approvals
 - **Fix**: Comments after an owner in CODEOWNERS (`/docs/ @org/docs # docs team`) are no longer read as owners
 
 ## [0.8.4] - 2026-10-13

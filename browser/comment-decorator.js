@@ -42,6 +42,17 @@ const getCommentFilePath = (commentElement) => {
     return fileLink.textContent.trim();
   }
 
+  // Overview page - a review thread is an <article> whose header links to its
+  // file, the path wrapped in invisible direction marks
+  const overviewFileLink = commentElement
+    .closest('article:has([data-testid="review-thread"])')
+    ?.querySelector('h2 a');
+  if (overviewFileLink) {
+    return overviewFileLink.textContent
+      .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '')
+      .trim();
+  }
+
   // Check for files view - old UI
   const fileHeader = commentElement
     .closest('.file')
@@ -243,14 +254,33 @@ const decorateExistingComments = async () => {
   }
 };
 
+// The Overview page's editor: a plain tablist whose first tab is Write. It's
+// an editor's only if the nearest block holding a textarea holds just this
+// tablist and that one textarea.
+const isEditorWriteTab = (tab) => {
+  const editor = tab.closest(':has(textarea)');
+  return (
+    editor?.querySelectorAll('[role="tablist"]').length === 1 &&
+    editor.querySelectorAll('textarea').length === 1
+  );
+};
+
 const decorateDraftWriteTabs = async () => {
   const writeTabSelectors = [
     '.CommentBox-header .write-tab:not(:has(.ghco-comment-role-icon))', // Old UI
     '[class*="prc-TabNav"] button[role="tab"]:first-of-type:not(:has(.ghco-comment-role-icon))', // New UI - Write is always first
   ];
-  const undecorated = document.querySelectorAll(writeTabSelectors.join(', '));
+  const overviewWriteTabs = Array.from(
+    document.querySelectorAll(
+      '[role="tablist"] > button[role="tab"]:first-child:not(:has(.ghco-comment-role-icon))'
+    )
+  ).filter(isEditorWriteTab);
+  const undecorated = new Set([
+    ...document.querySelectorAll(writeTabSelectors.join(', ')),
+    ...overviewWriteTabs,
+  ]);
 
-  if (undecorated.length === 0) {
+  if (undecorated.size === 0) {
     return;
   }
 
@@ -282,6 +312,7 @@ const decorateReplyButtons = async () => {
   const replyButtonSelectors = [
     '.review-thread-reply-button:not(.ghco-processed)', // Old UI
     'button[class*="CompactCommentButton"]:not(.ghco-processed)', // New UI
+    'button[class*="CompactCommentInputContainer"]:not(.ghco-processed)', // Overview page
   ];
   const replyButtons = document.querySelectorAll(
     replyButtonSelectors.join(', ')
@@ -355,7 +386,10 @@ const updateDraftPlaceholderText = async () => {
     // Check if it's a reply context
     const isReply =
       element.closest('.review-thread-reply') !== null ||
-      element.closest('[data-marker-navigation-thread-reply="true"]') !== null;
+      element.closest('[data-marker-navigation-thread-reply="true"]') !==
+        null ||
+      // Overview page: the composer sits in the thread's <article>
+      element.closest('article:has([data-testid="review-thread"])') !== null;
     const action = isReply ? 'Reply' : 'Comment';
     const role = getCommenterRole(currentUser, ownershipData, filePath);
     return `${action} as ${role}...`;

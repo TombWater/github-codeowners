@@ -46,8 +46,19 @@ const prCommitsCacheKey = () => {
   if (!num) return '';
   const commitsTab = document.querySelector(`a[href$="/pull/${num}/commits"]`);
   const count =
-    commitsTab?.querySelector('.Counter')?.textContent?.trim() || '';
+    commitsTab
+      ?.querySelector('.Counter, [data-component="CounterLabel"]')
+      ?.textContent?.trim() || '';
   return `${owner}/${repo}/${num}::commits=${count}`;
+};
+// Cache per URL + 30s windows + reviewer states: catches a review the sidebar
+// shows at once, and within 30s what it doesn't (a new push, a changed rule)
+const reviewersCacheKey = () => {
+  const rows = parseReviewerRows(document).map(
+    (row) => `${row.name}:${row.approved}`
+  );
+  // urlPeriodicCacheKey() brings the URL and the 30s window
+  return `${urlPeriodicCacheKey()}::reviewers=${rows.join(',')}`;
 };
 
 // Swap the arguments to memoize to make it easier to see the cache key
@@ -118,8 +129,49 @@ const BLOCKING_LINE_PATTERN = /required to merge|must be addressed/i;
 // healthy satisfied PR and a failed load are otherwise identical.
 const SIDEBAR_ERROR_PATTERN = /error while loading/i;
 
+// The Overview page's sidebar replaces that form with a React list. Each row's
+// identity link names the reviewer (/<login> or /orgs/<org>/teams/<name>), and
+// its own indicators carry the state: .octicon-check → approved,
+// .octicon-shield → code owner. A member who reviewed on behalf of a team is a
+// row of its own, nested under the team's. The approvals popover repeats these
+// rows outside the section, so stay inside it.
+const OVERVIEW_REVIEWERS = 'section[aria-label="Reviewers"]';
+
+const parseOverviewReviewerRows = (doc) =>
+  Array.from(
+    doc?.querySelectorAll(`${OVERVIEW_REVIEWERS} a[data-hovercard-type]`) ?? []
+  ).flatMap((link) => {
+    const row = link.closest(moduleClassSelector('reviewerRow'));
+    if (!row) return [];
+    const isTeam = link.dataset.hovercardType === 'team';
+    return [
+      {
+        // Teams by display name, like the classic form's rows
+        name: isTeam
+          ? link.textContent.trim()
+          : normalizeAuthorHref(link.getAttribute('href')),
+        approved: Boolean(row.querySelector('.octicon-check')),
+        isCodeOwner: Boolean(row.querySelector('.octicon-shield')),
+      },
+    ];
+  });
+
+// The Overview page, GitHub's opt-in replacement for the conversation page
+// (November 2026). It has neither the classic sidebar form nor the merge box
+// sections, at the same /pull/<num> URL. Any one of its sidebar items or
+// summary cells will do, so one renamed attribute doesn't hide it.
+const MINI_STATUS_CELL = '[data-testid="mini-status"]';
+export const isOverviewPage = (doc = document) =>
+  Boolean(
+    doc.querySelector(
+      `[data-overview-sidebar-item], section[aria-label="Merge status"], ${MINI_STATUS_CELL}`
+    )
+  );
+
 // One traversal of the reviewer rows. Everything else derives from this.
 const parseReviewerRows = (doc) => {
+  if (doc && isOverviewPage(doc)) return parseOverviewReviewerRows(doc);
+
   const nodes = doc?.querySelectorAll(
     `${REVIEWERS_FORM} [data-assignee-name], ${REVIEWERS_FORM} .js-reviewer-team`
   );
@@ -200,7 +252,75 @@ export const getReviewStatusFromDoc = (doc) => {
   };
 };
 
-export const getReviewStatus = () => getReviewStatusFromDoc(document);
+// The JSON GitHub's own merge box loads. The Overview page renders no merge box
+// text to read, but this states the branch's review rule outright, from
+// rulesets and classic branch protection alike: whether code owners must
+// approve, how many approvals, and whether the rule currently fails.
+const fetchMergeBoxData = cacheResult(reviewersCacheKey, async () => {
+  const url = prConversationUrl();
+  if (!url) return null;
+  try {
+    const response = await fetch(`${url}/page_data/merge_box`, {
+      credentials: 'include',
+      // Without this header the endpoint answers 406
+      headers: {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    });
+    return response.ok ? await response.json() : null;
+  } catch (e) {
+    return null;
+  }
+});
+
+export const getReviewStatusFromMergeBoxData = (data, rows = []) => {
+  const conditions = data?.mergeRequirements?.conditions;
+  if (!conditions) {
+    // Failed to load: never an all-clear, and a shield is still a yes
+    return {
+      ownerApprovalRequired: rows.some((row) => row.isCodeOwner),
+      reviewsBlocking: true,
+      requiredCount: null,
+    };
+  }
+  // No review rule at all means nothing requires reviews (an unprotected
+  // base), and a merged or closed PR lists no conditions
+  const reviewRule = conditions
+    .flatMap((condition) => condition.ruleRollups ?? [])
+    .find((rule) => rule.ruleType === 'PULL_REQUEST');
+  return {
+    ownerApprovalRequired: Boolean(reviewRule?.metadata?.requiresCodeowners),
+    reviewsBlocking: reviewRule?.result === 'FAILED',
+    requiredCount: reviewRule?.metadata?.requiredReviewers ?? null,
+  };
+};
+
+// Name → approved from that JSON, for wherever no reviewer rows can be read:
+// the Overview's sidebar fills in late (or may change shape), and a fetched
+// conversation page may not be the classic one we ask for. Teams by display
+// name, like the sidebar rows.
+const getReviewersFromMergeBoxData = (data) =>
+  new Map(
+    [
+      ...(data?.pullRequest?.pendingReviewRequests ?? []).map(({reviewer}) => [
+        reviewer.type === 'TEAM' ? reviewer.name : reviewer.login,
+        false,
+      ]),
+      ...(data?.pullRequest?.latestOpinionatedReviews ?? []).map((review) => [
+        review.author?.login,
+        review.state === 'APPROVED',
+      ]),
+    ].filter(([name]) => name)
+  );
+
+export const getReviewStatus = async () =>
+  isOverviewPage()
+    ? getReviewStatusFromMergeBoxData(
+        await fetchMergeBoxData(),
+        parseReviewerRows(document)
+      )
+    : getReviewStatusFromDoc(document);
 
 export const getPrAuthor = cacheResult(prCacheKey, async () => {
   // Try extracting from current page first
@@ -208,17 +328,8 @@ export const getPrAuthor = cacheResult(prCacheKey, async () => {
   if (author) return author;
 
   // Fallback: If no author found (old files page), fetch from conversation page
-  const {owner, repo, num} = getPrInfo();
-  if (num) {
-    const conversationUrl = `https://github.com/${owner}/${repo}/pull/${num}`;
-    const doc = await loadPage(conversationUrl);
-    if (doc) {
-      author = extractAuthorFromDoc(doc);
-      if (author) return author;
-    }
-  }
-
-  return null;
+  const doc = await loadConversationPage();
+  return doc ? extractAuthorFromDoc(doc) : null;
 });
 
 const extractAuthorFromDoc = (doc) => {
@@ -515,9 +626,12 @@ const prConversationUrl = () => {
   return num ? `https://github.com/${owner}/${repo}/pull/${num}` : null;
 };
 
+// The classic page even for users who opted into the Overview, whose sidebar
+// fills in from a later fetch and so is empty in the fetched HTML. The
+// parameter applies to this request only and leaves the preference alone.
 const loadConversationPage = cacheResult(urlPeriodicCacheKey, () => {
   const url = prConversationUrl();
-  return url ? loadPage(url) : null;
+  return url ? loadPage(`${url}?overview=false`) : null;
 });
 
 export const getReviewers = async () => {
@@ -525,18 +639,29 @@ export const getReviewers = async () => {
   if (!url) {
     return new Map(); // No reviewers on compare pages
   }
-  if (window.location.pathname === new URL(url).pathname) {
-    return getReviewersFromDoc(document);
-  } else {
-    return getReviewersFromDoc(await loadConversationPage());
+  const doc =
+    window.location.pathname === new URL(url).pathname
+      ? document
+      : await loadConversationPage();
+  // No rows and no classic form: the rows aren't there to read, rather than
+  // nobody having been asked to review
+  const rows = parseReviewerRows(doc);
+  if (rows.length === 0 && !doc?.querySelector(REVIEWERS_FORM)) {
+    return withSimulatedApprovals(
+      getReviewersFromMergeBoxData(await fetchMergeBoxData())
+    );
   }
+  return getReviewersFromDoc(doc);
 };
 
 // Name → approved, derived from the canonical parse above
-export const getReviewersFromDoc = (doc) => {
-  let reviewers = new Map(
-    parseReviewerRows(doc).map((row) => [row.name, row.approved])
+export const getReviewersFromDoc = (doc) =>
+  withSimulatedApprovals(
+    new Map(parseReviewerRows(doc).map((row) => [row.name, row.approved]))
   );
+
+const withSimulatedApprovals = (reviewersMap) => {
+  let reviewers = reviewersMap;
 
   // Apply simulated approvals if in debug mode
   if (__DEBUG__) {
@@ -778,6 +903,45 @@ export const findMergeBoxContainer = () => {
     document.querySelector(moduleClassSelector('mergeBoxAdjustBorders', 'div'))
   );
 };
+
+// On a merged or closed PR, the Overview has no summary grid, and our section
+// stands alone just above the description, below the notice that takes the
+// grid's place. Present even when the PR has no description.
+export const findOverviewAnchor = () =>
+  isOverviewPage()
+    ? document.querySelector('section[aria-label="Description"]')
+    : null;
+
+// The Checks/Comments/Approvals summary of an open PR on the Overview page,
+// which gets a Code owners cell of ours: by its label, or as the parent of
+// its cells
+export const findOverviewMergeStatus = () =>
+  isOverviewPage()
+    ? document.querySelector('section[aria-label="Merge status"]') ??
+      document.querySelector(MINI_STATUS_CELL)?.parentElement ??
+      null
+    : null;
+
+// The block around that grid that draws its rounded border, and that our
+// overlay goes after: the grid's ancestor that is a child of the column of
+// sections the description is in, however deep GitHub nests it
+export const findOverviewMergeStatusBox = () => {
+  const mergeStatus = findOverviewMergeStatus();
+  const column = findOverviewAnchor()?.parentElement;
+  let box = mergeStatus;
+  while (column && box?.parentElement && box.parentElement !== column) {
+    box = box.parentElement;
+  }
+  return column && box?.parentElement === column
+    ? box
+    : mergeStatus?.parentElement?.parentElement ?? null;
+};
+
+// The element our section goes into on the Overview page
+export const findOverviewContainer = () =>
+  findOverviewMergeStatusBox()?.parentElement ??
+  findOverviewAnchor()?.parentElement ??
+  null;
 
 // Class names our "Code owners" section copies so it looks like GitHub's
 // sections. Read from GitHub's live sections first, because the new format's

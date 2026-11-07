@@ -243,6 +243,9 @@ const handleLogState = () => {
   console.log('Section exists:', !!section);
   console.log('Section state:', section?.dataset?.state);
   console.log('Merge box exists:', !!mergeBox);
+  console.log('Overview page:', github.isOverviewPage());
+  console.log('Overview summary grid:', github.findOverviewMergeStatus());
+  console.log('Overview container:', github.findOverviewContainer());
   console.log('Update count:', updateCount);
   console.log('Last update:', lastUpdateTime);
   console.groupEnd();
@@ -269,9 +272,8 @@ const handleLogOwnership = async () => {
 };
 
 const handleClearSession = () => {
-  const prId = document.querySelector('#partial-discussion-header')?.dataset
-    ?.gid;
-  const key = `${prId}:ghco-codeownersExpanded`;
+  const {owner, repo, num} = github.getPrInfo();
+  const key = `${owner}/${repo}/${num}:ghco-codeownersExpanded`;
   sessionStorage.removeItem(key);
   console.log('[GHCO Debug] Cleared expand state from session storage');
 
@@ -542,6 +544,20 @@ const handleSimulateMerge = () => {
   console.log(
     '[GHCO Debug] Simulating PR merge - removing sections and adding merged message'
   );
+
+  // Overview page: a merged PR has a notice where an open one has the
+  // summary grid, so dropping the grid's box gets our section its merged
+  // layout, a card above the description
+  if (github.isOverviewPage()) {
+    const box = github.findOverviewMergeStatusBox();
+    if (!box) {
+      console.error('[GHCO Debug] Could not find the Overview summary grid');
+      return;
+    }
+    box.remove();
+    console.log('[GHCO Debug] Simulated merge on the Overview page');
+    return;
+  }
 
   // Find the container of the merge box sections
   const borderedContainer = github.findMergeBoxContainer();
