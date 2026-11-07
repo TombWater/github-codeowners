@@ -4,6 +4,8 @@ GitHub Codeowners Browser Extension
 
 <img src="screenshot-mergebox-light.png" alt="dark screenshot" width="350"/>
 <img src="screenshot-mergebox-dark.png" alt="dark screenshot" width="350"/>
+<img src="screenshot-overview-light.png" alt="dark screenshot" width="350"/>
+<img src="screenshot-overview-dark.png" alt="dark screenshot" width="350"/>
 <img src="screenshot-fileheader-light.png" alt="light screenshot" width="350"/>
 <img src="screenshot-fileheader-dark.png" alt="light screenshot" width="350"/>
 
@@ -13,7 +15,7 @@ Decorate GitHub PR pages with code ownership and approval status \
 Does not require a GitHub access token
 
 **Decorations:**
-- Code owners section on the PR conversation page showing *owner labels* for who needs to approve groups of files
+- Code owners section on the PR conversation/overview page showing *owner labels* for who needs to approve groups of files
 - *Owner labels* in file headers on the files tab and compare view
 - Icons indicating role of commenters
   - <img src="public/icons/pencil-paper.svg" alt="📄" width="16"/> PR author
