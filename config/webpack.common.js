@@ -5,7 +5,7 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 const PATHS = require('./paths');
 
-// used in the module rules and in the stats exlude list
+// left out of the stats list: the icons copied from `public`
 const IMAGE_TYPES = /\.(png|jpe?g|gif|svg)$/i;
 
 // To re-use webpack configuration across templates,
@@ -38,20 +38,6 @@ const common = (mode = 'production') => ({
         test: /\.svg$/,
         type: 'asset/source',
       },
-      // Check for images imported in .js files and
-      {
-        test: IMAGE_TYPES,
-        exclude: /\.svg$/,
-        use: [
-          {
-            loader: 'file-loader',
-            options: {
-              outputPath: 'images',
-              name: '[name].[ext]',
-            },
-          },
-        ],
-      },
     ],
   },
   plugins: [
@@ -72,7 +58,6 @@ const common = (mode = 'production') => ({
         },
       ],
     }),
-    // MiniCssExtractPlugin removed - CSS now injected inline for DevTools inspection
   ],
 });
 

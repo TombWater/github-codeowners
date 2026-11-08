@@ -52,7 +52,7 @@ The browser extension works by:
 ### Entry Point and Build
 - **Webpack entry**: `browser/decorator.js` (configured in `config/webpack.config.js`)
 - **Content script**: Runs on all `https://github.com/*` pages (manifest_version 3)
-- **Build output**: Bundled to `build/content.js` with CSS extracted to `build/content.css`
+- **Build output**: Bundled to `build/content.js`. CSS and SVG files are imported as strings (`asset/source`); `inject-styles.js` adds the CSS as `<style>` elements, so they can be edited in DevTools
 - **Extension type**: Browser extension (Chrome/Firefox) that modifies GitHub's DOM
 - **No permissions needed**: Uses content script with host permissions for github.com
 
