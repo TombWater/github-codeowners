@@ -9,15 +9,14 @@
     "pack": "node pack.js",
     "repack": "npm run build && npm run pack",
     "format": "prettier --write --ignore-unknown \"{config,public,browser,core,vscode}/**/*.{html,css,js,ts,json}\"",
-    "zip": "npm run build && cd build && zip -r - > ../github-codeowners.zip .",
+    "zip": "npm run repack",
     "vscode:build": "cd vscode && npm run build",
     "vscode:watch": "cd vscode && npm run watch",
     "vscode:package": "cd vscode && npm run package"
   },
   "devDependencies": {
     "@vscode/vsce": "^4.0.0",
-    "adm-zip": "^0.5.16",
-    "copy-webpack-plugin": "^10.2.4",
+    "copy-webpack-plugin": "^14.0.0",
     "css-loader": "^6.11.0",
     "file-loader": "^6.2.0",
     "mini-css-extract-plugin": "^2.9.1",
