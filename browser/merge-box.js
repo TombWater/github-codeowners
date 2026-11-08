@@ -1,5 +1,4 @@
-import {debounce} from 'lodash-es';
-
+import {debounce} from './utils';
 import * as github from './github';
 import iconSvg from '../public/icons/icon.svg';
 import chevronUpSvg from './chevron-up.svg';

@@ -1,23 +1,10 @@
-import {memoize} from 'lodash-es';
 import {
   CODEOWNERS_PATHS,
   codeownersLines,
   parseCodeowners,
 } from '../core/codeowners';
 import {resolveOwnerTeams} from '../core/teams';
-
-// Cache just one key-value pair to refresh data when the key changes.
-memoize.Cache = function () {
-  let key, value;
-  const cache = {
-    clear: () => (key = value = undefined),
-    delete: (k) => key === k && ((key = value = undefined), true),
-    has: (k) => key === k,
-    get: (k) => (key === k ? value : undefined),
-    set: (k, v) => ((key = k), (value = v), cache),
-  };
-  return cache;
-};
+import {cacheResult} from './utils';
 
 const urlTimelineCacheKey = () => {
   // Include timeline count to detect updates on conversation page
@@ -60,9 +47,6 @@ const reviewersCacheKey = () => {
   // urlPeriodicCacheKey() brings the URL and the 30s window
   return `${urlPeriodicCacheKey()}::reviewers=${rows.join(',')}`;
 };
-
-// Swap the arguments to memoize to make it easier to see the cache key
-const cacheResult = (cacheKey, fn) => memoize(fn, cacheKey);
 
 const loadPage = async (url) => {
   const response = await fetch(url, {credentials: 'include'});

@@ -45,7 +45,7 @@ The browser extension works by:
   5. ⚠️ Rebuild the release branch (`npm run build`) afterwards: `build/` still holds the fake-data build
 - **No API Keys**: The browser extension works entirely through DOM scraping, no GitHub API tokens required. The VSCode extension uses the GitHub API with VSCode's built-in GitHub sign-in, so it needs no key either
 - **Codebase Size**: ~4700 lines across ~20 modules (browser `browser/`, shared `core/`, `vscode/src/`)
-- **Dependencies**: Uses lodash-es (with patches), ignore library, webpack build system
+- **Dependencies**: Uses the ignore library and the webpack build system. `debounce` and the one-entry `cacheResult` are our own (`browser/utils.js`): lodash needed a patch, because GitHub's CSP blocks its `Function('return this')`
 
 ## Architecture
 

@@ -1,5 +1,4 @@
-import {debounce} from 'lodash-es';
-
+import {debounce} from './utils';
 import {updatePrFilesPage} from './files-page';
 import {updateMergeBox} from './merge-box';
 import {updateCommentDecorations} from './comment-decorator';
