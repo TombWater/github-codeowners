@@ -298,7 +298,15 @@ const getReviewersFromMergeBoxData = (data) =>
     ].filter(([name]) => name)
   );
 
-export const getReviewStatus = async () =>
+// Fake data for screenshots: code owner review required and still blocking,
+// whatever the PR's own (unprotected) base says
+export const getReviewStatus = async () => ({
+  ownerApprovalRequired: true,
+  reviewsBlocking: true,
+  requiredCount: 1,
+});
+
+export const getRealReviewStatus = async () =>
   isOverviewPage()
     ? getReviewStatusFromMergeBoxData(
         await fetchMergeBoxData(),
@@ -578,6 +586,15 @@ const fetchAllDiffFiles = cacheResult(
 );
 
 export const getDiffFilesMap = cacheResult(urlTimelineCacheKey, async () => {
+  // Fake data for diverse team ownership showcase
+  return new Map([
+    ['diff-abc123', 'browser/ownership.js'],
+    ['diff-def456', 'browser/github.js'],
+    ['diff-ghi789', 'config/webpack.config.js'],
+    ['diff-jkl012', 'public/manifest.json'],
+    ['diff-mno345', 'README.md'],
+  ]);
+
   // Try to get files from current page first
   let diffFilesMap = parseDiffFilesFromDoc(document);
 
@@ -619,6 +636,9 @@ const loadConversationPage = cacheResult(urlPeriodicCacheKey, () => {
 });
 
 export const getReviewers = async () => {
+  // Fake data for screenshots: only Athena (ops) approved, plus the debug
+  // panel's simulated approvals
+  return withSimulatedApprovals(new Map([['Athena', true]]));
   const url = prConversationUrl();
   if (!url) {
     return new Map(); // No reviewers on compare pages
@@ -640,6 +660,9 @@ export const getReviewers = async () => {
 
 // Name → approved, derived from the canonical parse above
 export const getReviewersFromDoc = (doc) =>
+  withSimulatedApprovals(new Map([['Athena', true]]));
+
+export const getRealReviewersFromDoc = (doc) =>
   withSimulatedApprovals(
     new Map(parseReviewerRows(doc).map((row) => [row.name, row.approved]))
   );
@@ -771,6 +794,13 @@ const refExists = async (owner, repo, ref) => {
 };
 
 export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
+  // Fake CODEOWNERS for org teams, through the real parser
+  return parseCodeowners([
+    '* @org/admins',
+    'browser/** @org/admins @org/engineers',
+    'config/** @org/admins @org/engineers @org/ops',
+  ]);
+
   const {owner, repo, base} = getPrInfo();
   if (!base) {
     return [];
@@ -829,6 +859,13 @@ const loadTeamMembers = async (org, teamSlug) => {
 export const getTeamMembers = cacheResult(
   repoCacheKey,
   async (folderOwners) => {
+    // Fake data for org teams
+    return new Map([
+      ['@org/admins', ['Admin', 'Zeus']],
+      ['@org/engineers', ['TombWater', 'Apollo']],
+      ['@org/ops', ['Hermes', 'Athena']],
+    ]);
+
     const {owner: org} = getPrInfo();
     if (!org || !folderOwners || !Array.isArray(folderOwners)) {
       return new Map();

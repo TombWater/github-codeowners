@@ -193,6 +193,139 @@ const updateOverviewCellCount = (mergeStatus) => {
   }
 };
 
+// Fake data for screenshots: GitHub's own cells to go with our fake owners
+// (only Athena approved, code owner review still required), in place of the
+// screenshot PR's empty ones
+const FAKE_GITHUB_CELLS = {
+  checks: {
+    segments: [
+      [10, 'success'],
+      [2, 'neutral'],
+    ],
+  },
+  comments: {segments: [[4, 'success']]},
+  approvals: {
+    summary: '1 still required',
+    segments: [
+      [1, 'success'],
+      [1, 'attention'],
+      [1, 'neutral'],
+    ],
+  },
+};
+
+const fakeGithubCells = (mergeStatus) => {
+  // Only in place of an unavailable bar: on a PR whose cell has data, React
+  // can keep the element it showed while loading for the real bar, ours too
+  mergeStatus.querySelectorAll('.ghco-fake-bar').forEach((bar) => {
+    if (
+      !bar.parentElement.matches(
+        '[data-testid="multicolor-progress-unavailable"]'
+      )
+    ) {
+      bar.remove();
+    }
+  });
+  mergeStatus
+    .querySelectorAll(`:scope > section:not(.${OVERVIEW_CELL})`)
+    .forEach((cell) => {
+      const name = cell.querySelector('strong')?.textContent.trim();
+      const fake = FAKE_GITHUB_CELLS[name?.toLowerCase()];
+      const progress = cell.querySelector(
+        '[data-testid="multicolor-progress-unavailable"]'
+      );
+      if (!fake || !progress || progress.querySelector('.ghco-fake-bar')) {
+        return;
+      }
+      [...progress.children].forEach((child) => {
+        child.style.display = 'none';
+      });
+      const bar = document.createElement('div');
+      bar.classList.add('ghco-mini-status-bar', 'ghco-fake-bar');
+      fake.segments.forEach(([count, tone]) => {
+        const segment = document.createElement('span');
+        segment.classList.add('ghco-segment', `ghco-segment--${tone}`);
+        segment.style.flexGrow = count;
+        bar.appendChild(segment);
+      });
+      progress.appendChild(bar);
+
+      const label = cell.querySelector(
+        github.moduleClassSelector('MiniStatusLabel', 'span')
+      );
+      if (fake.summary && label) {
+        const summary = document.createElement('span');
+        summary.classList.add(
+          'ghco-mini-status-summary',
+          ...[githubCellClass(mergeStatus, 'MiniStatusSummary')].filter(Boolean)
+        );
+        summary.textContent = fake.summary;
+        label.after(summary);
+      }
+    });
+};
+
+// Fake data for screenshots: the do-not-merge draft PR shown as open and
+// waiting for approval, as an open PR's header and recommended action are
+const OPEN_PR_PATH =
+  'M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z';
+const CLOCK_PATH =
+  'M8.5 4.75v2.992l2.028.812a.75.75 0 0 1-.557 1.392l-2.5-1A.751.751 0 0 1 7 8.25v-3.5a.75.75 0 0 1 1.5 0Z';
+
+const setText = (element, text) => {
+  const node = [...(element?.childNodes ?? [])].find(
+    (child) => child.nodeType === Node.TEXT_NODE && child.textContent.trim()
+  );
+  if (node) node.textContent = text;
+};
+
+const fakeReadyForReview = () => {
+  const label = document.querySelector('[data-status="draft"]');
+  if (label) {
+    label.setAttribute('data-status', 'pullOpened');
+    const icon = label.querySelector('svg.octicon-git-pull-request-draft');
+    icon?.classList.replace(
+      'octicon-git-pull-request-draft',
+      'octicon-git-pull-request'
+    );
+    icon?.querySelector('path')?.setAttribute('d', OPEN_PR_PATH);
+    setText(label, 'Open');
+  }
+
+  const item = document.querySelector(
+    'section[aria-label="Recommended action"] li[data-item-id="draft-pr"]'
+  );
+  if (!item) return;
+  item.setAttribute('data-item-id', 'approval-required');
+  const statusIcon = item.querySelector('[class*="statusIcon__"]');
+  if (statusIcon) {
+    statusIcon.style.backgroundColor = 'var(--bgColor-attention-muted)';
+  }
+  const glyph = item.querySelector('[class*="glyph__"]');
+  if (glyph) {
+    glyph.style.backgroundColor = 'var(--bgColor-attention-emphasis)';
+  }
+  const glyphIcon = glyph?.querySelector('svg');
+  if (glyphIcon) {
+    glyphIcon.setAttribute('width', '24');
+    glyphIcon.setAttribute('height', '24');
+    glyphIcon.classList.remove('octicon-git-pull-request-draft');
+    glyphIcon.querySelector('path')?.setAttribute('d', CLOCK_PATH);
+  }
+  setText(
+    item.querySelector('[data-testid="for-you-item-title"]'),
+    'Approval required'
+  );
+  setText(
+    item.querySelector('[data-testid="for-you-item-subtext"]'),
+    'Request another approving review before this can merge.'
+  );
+  setText(
+    item.querySelector('.prc-Button-Label-FWkx3, [data-component="text"]'),
+    'Enable auto-merge (squash)'
+  );
+};
+
 // Keep our cell in GitHub's summary grid in step with the section. React
 // re-renders the grid, so this also puts the cell back when it's dropped.
 export const syncOverviewCell = (section) => {
@@ -202,6 +335,8 @@ export const syncOverviewCell = (section) => {
     cells.forEach((cell) => cell.remove());
     return;
   }
+  fakeGithubCells(mergeStatus);
+  fakeReadyForReview();
 
   const cell = createOverviewCell(mergeStatus, section);
   const signature = cell.innerHTML + cell.title;
