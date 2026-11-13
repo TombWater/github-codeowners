@@ -3,3 +3,7 @@
 # Ignore artifacts:
 build
 vscode/dist
+
+# Run by the Playwright MCP as `(<file>)(page)`, where a trailing semicolon
+# is a syntax error
+config/store-screenshots.js

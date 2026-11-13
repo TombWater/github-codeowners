@@ -286,12 +286,15 @@ const decorateFileHeader = (
       'public/manifest.json',
       'README.md',
     ];
-    // Deterministically pick a file by the header's position on the page
+    // The header's own file when it's one of them, so its labels go with
+    // the name it shows; else one picked by the header's position
     const allHeaders = Array.from(
       document.querySelectorAll(fileHeaderSelectors)
     );
     const fileIndex = allHeaders.indexOf(node) % fakeFiles.length;
-    path = fakeFiles[fileIndex] || 'README.md';
+    path =
+      fakeFiles.find((file) => node.textContent.includes(file)) ??
+      (fakeFiles[fileIndex] || 'README.md');
   }
 
   if (!path) {
