@@ -1,0 +1,343 @@
+/* Overview page: our cell in GitHub's summary grid and the section it opens,
+   or a card on merged and closed PRs */
+
+/* Overview page: there is no merge box to sit in, so our section is a card
+   of its own, styled without GitHub's merge box classes */
+.ghco-overview-card {
+  border: var(--borderWidth-thin, 1px) solid
+    var(--borderColor-default, var(--color-border-default));
+  border-radius: var(--borderRadius-medium, 6px);
+  overflow: hidden;
+}
+
+.ghco-overview-card .ghco-section-header {
+  padding: var(--base-size-16, 16px);
+}
+
+.ghco-overview-card .ghco-section-header h3 {
+  margin: 0;
+  font-size: var(--text-body-size-large, 16px);
+  font-weight: var(--base-text-weight-semibold, 600);
+}
+
+.ghco-overview-card .ghco-merge-box-expandable-wrapper.ghco-expanded {
+  border-top: var(--borderWidth-thin, 1px) solid
+    var(--borderColor-muted, var(--color-border-muted));
+}
+
+/* Overview page, open PR: our cell in GitHub's Checks/Comments/Approvals
+   grid, found as our cell's parent rather than by GitHub's label. GitHub
+   stacks the grid into one column below 768px; above, it gets a column per
+   cell, ours included (--ghco-cells, counted by syncOverviewCell()). */
+@container (width >= 768px) {
+  *:has(> section.ghco-mini-status) {
+    grid-template-columns: repeat(var(--ghco-cells, 4), minmax(0, 1fr));
+  }
+
+  /* GitHub draws the line between its drawer and the other cells at fixed
+     thirds of the grid. In quarters, with ours: Checks is the first column,
+     Approvals the one before ours, and under ours goes a line of its own. */
+  *:has(> section.ghco-mini-status) ~ section[aria-label='Checks']::before {
+    inset-inline: calc(100% / var(--ghco-cells, 4)) 0;
+  }
+
+  *:has(> section.ghco-mini-status) ~ section[aria-label='Approvals']::before {
+    inset-inline: 0 calc(200% / var(--ghco-cells, 4));
+  }
+
+  *:has(> section.ghco-mini-status) ~ section[aria-label='Approvals']::after {
+    content: '';
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: calc(100% - 100% / var(--ghco-cells, 4)) 0;
+    block-size: 0;
+    border-block-start: var(--borderWidth-thin, 1px) solid
+      var(--borderColor-default, var(--color-border-default));
+  }
+}
+
+*:has(> section.ghco-mini-status) {
+  anchor-name: --ghco-merge-status;
+}
+
+/* GitHub's Approvals overlay aligns its right edge with the Approvals cell,
+   taken to be the grid's last, and so does the line along its top: it
+   spans all but that cell's width. With ours after it, the overlay goes back
+   to the grid's left edge, which is its portal root's (as GitHub's Checks
+   overlay, at --left: 0; the grid can't be its CSS anchor), and its line in
+   quarters, as on the drawers above. Stacked, GitHub's overhang is 0 and so
+   is ours (the min()s), as the line has nothing to separate. */
+html:has(.ghco-mini-status)
+  [data-component='AnchoredOverlay'][aria-label='Approvals'] {
+  left: 0 !important;
+}
+
+html:has(.ghco-mini-status)
+  [data-component='AnchoredOverlay'][aria-label='Approvals']::before {
+  inline-size: min(
+    100% * (var(--ghco-cells, 4) - 2) / var(--ghco-cells, 4),
+    var(--popover-overhang-width, 0px) * 1000
+  ) !important;
+}
+
+html:has(.ghco-mini-status)
+  [data-component='AnchoredOverlay'][aria-label='Approvals']::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  inline-size: min(
+    100% / var(--ghco-cells, 4),
+    var(--popover-overhang-width, 0px) * 1000
+  );
+  block-size: 0;
+  border-block-start: var(--borderWidth-thin, 1px) solid
+    var(--borderColor-default, var(--color-border-default));
+}
+
+.ghco-mini-status {
+  position: relative;
+  /* Drawn last even when React re-inserts one of its own cells after ours,
+     as it does with Approvals while loading */
+  order: 1;
+}
+
+/* Open, our cell becomes a tab of the section below it, as GitHub's cells
+   do: square where it meets the section, which GitHub's MiniStatusConnected
+   does only for the overlay. Specific enough to beat GitHub's rounding of
+   the grid's last cell. */
+section[aria-label].ghco-mini-status.ghco-open {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+/* Pinned, white: GitHub's MiniStatusExpanded, or this if it wasn't found */
+.ghco-mini-status.ghco-expanded:not([class*='MiniStatusExpanded']) {
+  background-color: var(--bgColor-default, var(--color-canvas-default));
+}
+
+/* Something hangs below every cell while ours is open */
+*:has(> section.ghco-mini-status.ghco-open) > section {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+/* The overlay continues the grid's bordered box below it. The box is marked
+   by updateOverviewOpen(), which finds it at any depth. */
+div[data-ghco-open] {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+/* Only if GitHub's cell classes couldn't be read */
+.ghco-mini-status:not([class*='MiniStatus']) {
+  padding: var(--base-size-6, 6px) var(--base-size-16, 16px)
+    var(--base-size-16, 16px);
+  border-inline-start: var(--borderWidth-thin, 1px) solid
+    var(--borderColor-default, var(--color-border-default));
+}
+
+.ghco-mini-status:has(.ghco-mini-status-button):hover {
+  background: var(
+    --control-transparent-bgColor-hover,
+    var(--color-action-list-item-default-hover-bg)
+  );
+}
+
+/* Transparent rather than opacity 0, which would hide its focus outline too */
+.ghco-mini-status-button {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  appearance: none;
+  background-color: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.ghco-mini-status-button:focus-visible {
+  outline: var(--focus-outline, 2px solid var(--color-accent-fg));
+  outline-offset: var(--focus-outline-offset, -2px);
+}
+
+/* The label row has GitHub's classes (MiniStatusLabelRow, MiniStatusLabel,
+   MiniStatusLabelText, MiniStatusSummary, NavigationIcon and
+   MiniStatusLabelRowIcon). These rules stand in for whichever weren't found. */
+.ghco-mini-status-label:not([class*='MiniStatusLabelRow']) {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-6, 6px);
+  min-width: 0;
+  min-height: 26px;
+  white-space: nowrap;
+}
+
+.ghco-mini-status-label strong:not([class*='MiniStatusLabelText']) {
+  font-size: 13px;
+}
+
+.ghco-mini-status-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ghco-mini-status-summary:not([class*='MiniStatusSummary']) {
+  font-size: var(--text-body-size-small, 12px);
+  color: var(--fgColor-muted, var(--color-fg-muted));
+}
+
+.ghco-mini-status-chevron:not([class*='NavigationIcon']) {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+
+/* Muted while collapsed, full colour while locked open */
+.ghco-mini-status-chevron:not([class*='MiniStatusLabelRowIcon']):not(
+    .ghco-locked
+  ) {
+  color: var(--fgColor-muted, var(--color-fg-muted));
+}
+
+.ghco-mini-status-bar {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--borderRadius-full, 100vh);
+  background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+}
+
+/* GitHub's loading skeleton: a muted block with a wave across it */
+.ghco-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--borderRadius-small, 3px);
+  background-color: var(--bgColor-neutral-muted, var(--color-neutral-subtle));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ghco-skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--bgColor-neutral-muted, var(--color-neutral-subtle)),
+      transparent
+    );
+    transform: translateX(-100%);
+    animation: ghco-skeleton-wave 1.5s linear infinite;
+  }
+}
+
+@keyframes ghco-skeleton-wave {
+  0% {
+    transform: translateX(-100%);
+  }
+  50%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* GitHub's "unavailable" bar, as on its Comments cell with no comments */
+.ghco-mini-status-bar--unavailable {
+  box-sizing: border-box;
+  border: var(--borderWidth-thin, 1px) solid
+    var(--borderColor-muted, var(--color-border-muted));
+  background: repeating-linear-gradient(
+      135deg,
+      transparent 0 2px,
+      var(--bgColor-default, var(--color-canvas-default)) 2px 4px
+    ),
+    var(--bgColor-neutral-muted, var(--color-neutral-muted));
+}
+
+.ghco-segment {
+  flex-basis: 0;
+  min-width: 4px;
+}
+
+.ghco-segment--success {
+  background-color: var(--bgColor-success-emphasis);
+}
+
+.ghco-segment--attention {
+  background-color: var(--bgColor-attention-emphasis);
+}
+
+.ghco-segment--neutral {
+  background-color: var(--bgColor-neutral-emphasis);
+}
+
+/* The section is what our cell opens, its own header hidden as it would only
+   repeat the cell, and its content always expanded: the section as a whole
+   opens and closes. Pinned, it is a drawer in the grid's box, as GitHub's
+   are; hovered, it is an overlay below the box, full width like GitHub's.
+   Either way a line separates it from the other cells, from the grid's left
+   edge to our cell (--ghco-overhang, set by updateOverviewOpen()). */
+.ghco-overview-panel {
+  position: relative;
+  background-color: var(--bgColor-default, var(--color-canvas-default));
+  --ghco-merge-box-bg: var(--bgColor-default, var(--color-canvas-default));
+}
+
+.ghco-overview-panel::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: 1;
+  inline-size: var(--ghco-overhang, 0px);
+  block-size: 0;
+  border-block-start: var(--borderWidth-thin, 1px) solid
+    var(--borderColor-default, var(--color-border-default));
+}
+
+/* Same layer as GitHub's overlays (their portal root is 10) */
+.ghco-overview-panel.ghco-overlay {
+  position: absolute;
+  position-anchor: --ghco-merge-status;
+  top: anchor(bottom);
+  left: calc(anchor(left) - var(--borderWidth-thin, 1px));
+  width: calc(anchor-size(width) + 2 * var(--borderWidth-thin, 1px));
+  z-index: 10;
+  overflow: hidden;
+  border: var(--borderWidth-thin, 1px) solid
+    var(--borderColor-default, var(--color-border-default));
+  border-top: none;
+  border-radius: 0 0 var(--borderRadius-medium, 6px)
+    var(--borderRadius-medium, 6px);
+  box-shadow: var(--shadow-resting-medium, 0 3px 6px rgba(0, 0, 0, 0.12));
+  animation: ghco-overlay-appear 200ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+@keyframes ghco-overlay-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+/* "What's new" below the owner groups, not between them and the cell */
+.ghco-overview-panel.ghco-open {
+  display: flex;
+  flex-direction: column;
+}
+
+.ghco-overview-panel .ghco-new-version-banner {
+  order: 1;
+  border-top: var(--borderWidth-thin, 1px) solid
+    var(--borderColor-muted, var(--color-border-muted));
+}
+
+.ghco-overview-panel:not(.ghco-open),
+.ghco-overview-panel > .ghco-section-header {
+  display: none;
+}
+
+section.ghco-overview-panel .ghco-merge-box-expandable-wrapper {
+  max-height: none;
+  overflow: visible;
+}

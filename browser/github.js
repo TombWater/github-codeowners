@@ -853,6 +853,46 @@ export const findModuleClass = (element, name) => {
   return Array.from(element?.classList ?? []).find((c) => pattern.test(c));
 };
 
+// A module class called `name` from GitHub's stylesheets, for state classes
+// (expanded, connected, …) that no element may have at the moment. Only for
+// distinctive names: generic ones are shared by many components. Cached;
+// what wasn't found is looked for again once the page's stylesheets change.
+export const findStylesheetModuleClass = (() => {
+  const cache = new Map();
+  let sheetCount = -1;
+  const selectorsOf = (rules) =>
+    Array.from(rules ?? []).flatMap((rule) =>
+      rule.selectorText ? [rule.selectorText] : selectorsOf(rule.cssRules)
+    );
+
+  return (name) => {
+    if (document.styleSheets.length !== sheetCount) {
+      sheetCount = document.styleSheets.length;
+      for (const [key, value] of cache) {
+        if (!value) cache.delete(key);
+      }
+    }
+    if (!cache.has(name)) {
+      const pattern = new RegExp(
+        `\\.((?:[A-Za-z0-9]+-module__)?${name}(?:__|--)[\\w-]+)`
+      );
+      let found = null;
+      for (const sheet of document.styleSheets) {
+        let selectors;
+        try {
+          selectors = selectorsOf(sheet.cssRules);
+        } catch (e) {
+          continue; // Cross-origin stylesheets can't be read
+        }
+        found = selectors.map((s) => s.match(pattern)?.[1]).find(Boolean);
+        if (found) break;
+      }
+      cache.set(name, found ?? null);
+    }
+    return cache.get(name) ?? undefined;
+  };
+})();
+
 // A selector for elements with module class `name`, in either format.
 // `prefix` is prepended to each alternative, e.g. 'div' or ':scope > div'.
 export const moduleClassSelector = (name, prefix = '') =>

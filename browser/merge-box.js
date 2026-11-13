@@ -1,10 +1,7 @@
-import {debounce} from './utils';
 import * as github from './github';
 import iconSvg from '../public/icons/icon.svg';
 import chevronUpSvg from './chevron-up.svg';
 import xIconSvg from './x-icon.svg';
-import lockSvg from './lock.svg';
-import unlockSvg from './unlock.svg';
 import {getPrOwnershipData} from './ownership';
 import {
   approversOf,
@@ -20,6 +17,13 @@ import {
 
 import mergeBoxCss from './merge-box.css';
 import {injectStyles} from './inject-styles';
+import {
+  handleOverviewCellClick,
+  observeOverviewBox,
+  placeOverviewSection,
+  syncOverviewCell,
+  updateOverviewOpen,
+} from './overview';
 
 // Inject CSS into page head for DevTools inspection
 injectStyles(mergeBoxCss, 'ghco-merge-box-styles');
@@ -32,14 +36,6 @@ const iconSvgDoc = parser.parseFromString(
 );
 const chevronSvgDoc = parser.parseFromString(
   chevronUpSvg.replace(xmlDeclRegex, ''),
-  'image/svg+xml'
-);
-const lockSvgDoc = parser.parseFromString(
-  lockSvg.replace(xmlDeclRegex, ''),
-  'image/svg+xml'
-);
-const unlockSvgDoc = parser.parseFromString(
-  unlockSvg.replace(xmlDeclRegex, ''),
   'image/svg+xml'
 );
 
@@ -100,9 +96,8 @@ const checkAndShowNewVersionBanner = (section) => {
 };
 
 export const updateMergeBox = async () => {
-  // Clears what an open overlay leaves on the page (<html> class, box mark)
-  // once its section is gone, e.g. after navigating to the files page, where
-  // that class would still restack GitHub's own overlays
+  observeOverviewBox();
+  // Clears the box mark an open overlay leaves once its section is gone
   updateOverviewOpen();
 
   const container =
@@ -219,41 +214,9 @@ export const updateMergeBox = async () => {
   syncOverviewCell(section);
 };
 
-const OVERHANG_LINE = 'ghco-overview-overhang';
-const removeOverhangLines = () =>
-  document.querySelectorAll(`.${OVERHANG_LINE}`).forEach((el) => el.remove());
-
 // Position section correctly in the merge box and set border classes
 const ensureCorrectPosition = (section, container) => {
-  // Overview page, open PR: our cell goes in GitHub's summary grid, and this
-  // section, without its header, is the overlay the cell opens below itself.
-  // Outside the grid's bordered box, which would clip it.
-  const borderedBox = github.findOverviewMergeStatusBox();
-  if (borderedBox) {
-    if (borderedBox.nextElementSibling !== section) {
-      borderedBox.after(section);
-    }
-    section.classList.add('ghco-overview-panel');
-    section.classList.remove('ghco-overview-card');
-    // The overlay's line where it hangs under other cells, right after it
-    if (!section.nextElementSibling?.classList.contains(OVERHANG_LINE)) {
-      removeOverhangLines();
-      const line = document.createElement('div');
-      line.classList.add(OVERHANG_LINE);
-      section.after(line);
-    }
-    return;
-  }
-  removeOverhangLines();
-
-  // Overview page, merged or closed PR: no summary grid, so a card of our own
-  const overviewAnchor = github.findOverviewAnchor();
-  if (overviewAnchor) {
-    if (overviewAnchor.previousElementSibling !== section) {
-      overviewAnchor.before(section);
-    }
-    section.classList.add('ghco-overview-card');
-    section.classList.remove('ghco-overview-panel');
+  if (placeOverviewSection(section)) {
     return;
   }
 
@@ -292,218 +255,6 @@ const ensureCorrectPosition = (section, container) => {
   section.classList.toggle('border-bottom', hasNextSibling);
   section.classList.add('color-border-subtle');
 };
-
-const OVERVIEW_CELL = 'ghco-mini-status';
-
-// The cell's short summary; the section's full line becomes its tooltip.
-// None while loading or without CODEOWNERS or files, as on GitHub's own cells
-// with nothing to show.
-const describeOverviewCell = (approvalStatus) => {
-  if (!approvalStatus) return '';
-  const {
-    groupApprovalsReceived: received,
-    groupApprovalsRequired: required,
-    ownerApprovalRequired,
-    allApprovalsReceived,
-  } = approvalStatus;
-  // Same wording as GitHub's Approvals cell beside it
-  if (ownerApprovalRequired && !allApprovalsReceived && received < required) {
-    return `${required - received} still required`;
-  }
-  return `${received} of ${required} approved`;
-};
-
-// Approved owner groups, then the rest: waiting (yellow) while owner approval
-// holds the merge, otherwise just not approved (gray)
-const createOverviewCellBar = (approvalStatus) => {
-  const bar = document.createElement('div');
-  bar.classList.add('ghco-mini-status-bar');
-  // Hatched, like GitHub's Comments cell with no comments: while loading,
-  // and for good without CODEOWNERS or files
-  if (!approvalStatus) {
-    bar.classList.add('ghco-mini-status-bar--unavailable');
-    return bar;
-  }
-
-  const {groupApprovalsReceived, groupApprovalsRequired} = approvalStatus;
-  const waiting =
-    approvalStatus.ownerApprovalRequired &&
-    !approvalStatus.allApprovalsReceived;
-  [
-    [groupApprovalsReceived, 'success'],
-    [
-      groupApprovalsRequired - groupApprovalsReceived,
-      waiting ? 'attention' : 'neutral',
-    ],
-  ]
-    .filter(([count]) => count > 0)
-    .forEach(([count, tone]) => {
-      const segment = document.createElement('span');
-      segment.classList.add('ghco-segment', `ghco-segment--${tone}`);
-      segment.style.flexGrow = count;
-      bar.appendChild(segment);
-    });
-  return bar;
-};
-
-const createOverviewCell = (mergeStatus, section) => {
-  const status = section.ghcoApprovalStatus;
-  const description =
-    section.querySelector(`#${APPROVALS_DESCRIPTION_ID}`)?.textContent ?? '';
-  const headerButton = section.querySelector('.ghco-header-button');
-
-  const cell = document.createElement('section');
-  cell.setAttribute('aria-label', 'Code owners approvals');
-  cell.title = description;
-  // GitHub's cell classes, read from its own cells, for padding and borders
-  const githubCell = mergeStatus.querySelector(
-    `:scope > section:not(.${OVERVIEW_CELL})`
-  );
-  const githubInteractiveCell = mergeStatus.querySelector(
-    github.moduleClassSelector('MiniStatusInteractive', ':scope > section')
-  );
-  cell.classList.add(
-    OVERVIEW_CELL,
-    ...[
-      github.findModuleClass(githubCell, 'MiniStatus'),
-      github.findModuleClass(githubCell, 'MiniStatusRefresh'),
-      headerButton &&
-        github.findModuleClass(githubInteractiveCell, 'MiniStatusInteractive'),
-    ].filter(Boolean)
-  );
-
-  // Locks the overlay open, by clicking the section's hidden header
-  const isLocked = headerButton?.getAttribute('aria-expanded') === 'true';
-  if (headerButton) {
-    const isExpanded = isLocked;
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.classList.add('ghco-mini-status-button');
-    button.setAttribute('aria-expanded', isExpanded.toString());
-    button.setAttribute(
-      'aria-label',
-      `${isExpanded ? 'Collapse' : 'Expand'} code owners`
-    );
-    cell.appendChild(button);
-  }
-
-  const label = document.createElement('div');
-  label.classList.add('ghco-mini-status-label');
-  const title = document.createElement('strong');
-  title.textContent = 'Code owners';
-  const summary = document.createElement('span');
-  summary.classList.add('ghco-mini-status-summary');
-  summary.textContent = describeOverviewCell(status);
-  label.append(title, summary);
-  // GitHub's lock icons: unlocked shows on hover, locked shows always
-  if (headerButton) {
-    const lock = (isLocked ? lockSvgDoc : unlockSvgDoc).documentElement;
-    const icon = lock.cloneNode(true);
-    icon.classList.add('ghco-mini-status-lock');
-    icon.classList.toggle('ghco-locked', isLocked);
-    label.appendChild(icon);
-  }
-  cell.appendChild(label);
-  cell.appendChild(createOverviewCellBar(status));
-  return cell;
-};
-
-// A column per cell in the grid's wide layout, ours included, so a cell
-// GitHub adds doesn't push ours onto a row of its own
-const updateOverviewCellCount = (mergeStatus) => {
-  const count = String(mergeStatus.querySelectorAll(':scope > section').length);
-  if (mergeStatus.style.getPropertyValue('--ghco-cells') !== count) {
-    mergeStatus.style.setProperty('--ghco-cells', count);
-  }
-};
-
-// Keep our cell in GitHub's summary grid in step with the section. React
-// re-renders the grid, so this also puts the cell back when it's dropped.
-const syncOverviewCell = (section) => {
-  const mergeStatus = github.findOverviewMergeStatus();
-  const cells = document.querySelectorAll(`.${OVERVIEW_CELL}`);
-  if (!mergeStatus || !section.isConnected) {
-    cells.forEach((cell) => cell.remove());
-    return;
-  }
-
-  const cell = createOverviewCell(mergeStatus, section);
-  const signature = cell.innerHTML + cell.title;
-  const current = cells.length === 1 ? cells[0] : null;
-  if (
-    current?.parentElement === mergeStatus &&
-    current.dataset.signature === signature
-  ) {
-    // Back to the end if React put one of its cells after ours
-    if (mergeStatus.lastElementChild !== current) {
-      mergeStatus.appendChild(current);
-    }
-    updateOverviewCellCount(mergeStatus);
-    return;
-  }
-  cells.forEach((old) => old.remove());
-  cell.dataset.signature = signature;
-  mergeStatus.appendChild(cell);
-  updateOverviewCellCount(mergeStatus);
-  updateOverviewOpen();
-};
-
-// Like GitHub's cells beside it, ours opens its overlay while hovered, and a
-// click pins it open (the section's expand state) until clicked again
-let overviewHovered = false;
-let overviewHoverTimer;
-
-const updateOverviewOpen = () => {
-  const section = document.querySelector('section.ghco-overview-panel');
-  if (!section) {
-    overviewHovered = false;
-  }
-  const cell = document.querySelector(`.${OVERVIEW_CELL}`);
-  const pinned =
-    section
-      ?.querySelector('.ghco-header-button')
-      ?.getAttribute('aria-expanded') === 'true';
-  // Nothing to open while loading or without CODEOWNERS: the hatched cell
-  // ignores hover, as GitHub's Comments cell does with no comments
-  const hasContent = Boolean(cell?.querySelector('.ghco-mini-status-button'));
-  const isOpen = Boolean(section && hasContent && (pinned || overviewHovered));
-  section?.classList.toggle('ghco-open', isOpen);
-  cell?.classList.toggle('ghco-open', isOpen);
-  // For the z-order between GitHub's overlays, which live outside the page
-  document.documentElement.classList.toggle('ghco-overview-open', isOpen);
-  // The grid's box squares the corners the overlay meets: the right one, and
-  // stacked into one column (GitHub's container query), where the overlay
-  // spans the box, both. CSS can't tell the box which layout its grid has.
-  const mergeStatus = cell?.parentElement;
-  const isStacked =
-    mergeStatus &&
-    getComputedStyle(mergeStatus).gridTemplateColumns.trim().split(/\s+/)
-      .length === 1;
-  const box = isOpen ? github.findOverviewMergeStatusBox() : null;
-  document.querySelectorAll('[data-ghco-open]').forEach((el) => {
-    if (el !== box) delete el.dataset.ghcoOpen;
-  });
-  if (box) box.dataset.ghcoOpen = isStacked ? 'stacked' : 'open';
-};
-
-window.addEventListener('resize', debounce(updateOverviewOpen, 100));
-
-// Close only after a moment, so the pointer can cross from the cell into the
-// overlay without it closing on the way
-document.addEventListener('pointerover', (event) => {
-  const hovered = Boolean(
-    event.target.closest?.(`.${OVERVIEW_CELL}, .ghco-overview-panel`)
-  );
-  clearTimeout(overviewHoverTimer);
-  if (hovered === overviewHovered) return;
-  overviewHoverTimer = setTimeout(
-    () => {
-      overviewHovered = hovered;
-      updateOverviewOpen();
-    },
-    hovered ? 0 : 150
-  );
-});
 
 const createHeaderIcon = (approvalStatus) => {
   const iconWrapper = document.createElement('div');
@@ -593,7 +344,11 @@ const createHeaderText = (approvalStatus) => {
   heading.textContent = 'Code owners';
 
   const description = document.createElement('p');
-  description.classList.add('fgColor-muted', 'mb-0');
+  description.classList.add(
+    'fgColor-muted',
+    'mb-0',
+    'ghco-section-description'
+  );
   description.id = APPROVALS_DESCRIPTION_ID;
 
   if (approvalStatus) {
@@ -1048,13 +803,7 @@ document.addEventListener('click', (event) => {
     return;
   }
 
-  // Our cell in the Overview page's summary grid: toggle the section below it
-  const cellButton = event.target.closest('.ghco-mini-status-button');
-  if (cellButton) {
-    const section = document.querySelector('section[aria-label="Code owners"]');
-    section?.querySelector('.ghco-header-button')?.click();
-    if (section) syncOverviewCell(section);
-    updateOverviewOpen();
+  if (handleOverviewCellClick(event)) {
     return;
   }
 

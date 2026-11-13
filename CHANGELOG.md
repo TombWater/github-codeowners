@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+- **UX** (Browser): Overview page "Code owners" summary adapted to GitHub's evolving Overview page
+
 ## [0.9.0] - 2026-11-07
 - **Feature** (VSCode, beta): New [VSCode extension](vscode/README.md) that shows code owners and their approvals in the GitHub Pull Requests extension. Not on the Visual Studio Marketplace yet: [install it from a local build](vscode/README.md#install-from-a-local-build)
 - **Feature**: Support for GitHub's new pull request Overview page, with a "Code owners" summary beside Checks, Comments and Approvals
