@@ -260,8 +260,21 @@ const fetchMergeBoxData = cacheResult(reviewersCacheKey, async () => {
 
 export const getReviewStatusFromMergeBoxData = (data, rows = []) => {
   const conditions = data?.mergeRequirements?.conditions;
-  if (!conditions) {
-    // Failed to load: never an all-clear, and a shield is still a yes
+  const reviewRule = conditions
+    ?.flatMap((condition) => condition.ruleRollups ?? [])
+    .find((rule) => rule.ruleType === 'PULL_REQUEST');
+  // While a PR has a merge conflict, GitHub lists no rule rollups at all, as
+  // for an unprotected base, so the rules are unknown rather than absent
+  const rulesUnknown =
+    !reviewRule &&
+    conditions?.some(
+      (condition) =>
+        condition.type === 'PULL_REQUEST_MERGE_CONFLICT_STATE' &&
+        condition.result === 'FAILED'
+    );
+  if (!conditions || rulesUnknown) {
+    // Failed to load, or the rules hidden by a merge conflict: never an
+    // all-clear, and a shield is still a yes
     return {
       ownerApprovalRequired: rows.some((row) => row.isCodeOwner),
       reviewsBlocking: true,
@@ -270,9 +283,6 @@ export const getReviewStatusFromMergeBoxData = (data, rows = []) => {
   }
   // No review rule at all means nothing requires reviews (an unprotected
   // base), and a merged or closed PR lists no conditions
-  const reviewRule = conditions
-    .flatMap((condition) => condition.ruleRollups ?? [])
-    .find((rule) => rule.ruleType === 'PULL_REQUEST');
   return {
     ownerApprovalRequired: Boolean(reviewRule?.metadata?.requiresCodeowners),
     reviewsBlocking: reviewRule?.result === 'FAILED',
