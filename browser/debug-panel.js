@@ -70,10 +70,6 @@ export const incrementUpdateCount = () => {
 
   // Check if URL changed (navigation to different PR)
   checkUrlChange();
-
-  console.log(
-    `[GHCO Debug] Update #${updateCount} triggered at ${lastUpdateTime.toISOString()}`
-  );
 };
 
 export const initDebugPanel = (updateAllCallback) => {

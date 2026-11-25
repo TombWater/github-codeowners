@@ -7,6 +7,11 @@ import * as debugPanel from './debug-panel';
 let incrementUpdateCount = () => {};
 let initDebugPanel = () => {};
 
+// Which build this page runs, for the smoke test (test/smoke.js) to tell a
+// stale extension from a fresh one. On <html>, which navigation never
+// replaces.
+document.documentElement.dataset.ghcoBuild = __BUILD_TIME__;
+
 // Only use debug panel in development builds
 if (__DEBUG__) {
   incrementUpdateCount = debugPanel.incrementUpdateCount;
