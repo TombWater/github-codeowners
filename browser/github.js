@@ -796,11 +796,20 @@ export const getFolderOwners = cacheResult(prBaseCacheKey, async () => {
   return (await loadCodeownersFromRef(owner, repo, fallbackRef)) ?? [];
 });
 
+// The orgs whose team pages didn't load, in this tab (see getTeamMembers)
+const TEAMS_UNAVAILABLE_KEY = 'ghco-teamsUnavailable';
+
+// A team's members, or null when its page didn't load
 const loadTeamMembers = async (org, teamSlug) => {
   const teamMembers = [];
   for (let page = 1, hasNext = true; hasNext; page++) {
     const url = `https://github.com/orgs/${org}/teams/${teamSlug}?page=${page}`;
     const doc = await loadPage(url);
+    // A first page that didn't load isn't an empty team: no access, or the
+    // team is gone. A later one did load the first, so it keeps its members.
+    if (!doc && page === 1) {
+      return null;
+    }
     const memberNodes = doc?.querySelectorAll('.member-list-item');
     const members = Array.from(memberNodes || []).map(
       (member) => member.dataset.bulkActionsId
@@ -821,7 +830,31 @@ export const getTeamMembers = cacheResult(
       return new Map();
     }
 
-    const owners = await resolveOwnerTeams(org, folderOwners, loadTeamMembers);
+    // Team pages are shown only to the org's members. When none of an org's
+    // teams load, later page loads in this tab skip them, each of which
+    // would be another 404; a new tab tries again. One failing team alone
+    // may just be gone from the org.
+    const unavailable = JSON.parse(
+      sessionStorage.getItem(TEAMS_UNAVAILABLE_KEY) ?? '[]'
+    );
+    let triedAny = false;
+    let loadedAny = false;
+    // loadTeamMembers unless the org is on the unavailable list, noting whether
+    // any team was tried and any loaded
+    const fetchMembers = async (teamSlug) => {
+      if (unavailable.includes(org)) return [];
+      triedAny = true;
+      const members = await loadTeamMembers(org, teamSlug);
+      if (members) loadedAny = true;
+      return members ?? [];
+    };
+    const owners = await resolveOwnerTeams(org, folderOwners, fetchMembers);
+    if (triedAny && !loadedAny) {
+      sessionStorage.setItem(
+        TEAMS_UNAVAILABLE_KEY,
+        JSON.stringify([...unavailable, org])
+      );
+    }
 
     console.log('[GHCO] Teams', owners);
     return owners;

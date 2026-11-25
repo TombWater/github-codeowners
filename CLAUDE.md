@@ -144,6 +144,7 @@ The browser extension works by:
 - `prCommitsCacheKey()`: Cache per PR + commit count (for expensive file list fetches)
 - `reviewersCacheKey()`: Cache per URL + 30s windows + sidebar reviewer states (for the Overview page's `page_data/merge_box` fetch)
 - `embeddedDataCacheKey()`: the embedded page data's script element, by identity (for the base branch from that data, when the header's link is missing)
+- Team pages (`getTeamMembers()`) are shown only to the org's members: when *every* team of an org fails to load, the tab skips them on later page loads (page `sessionStorage` `ghco-teamsUnavailable`, a JSON list of orgs), and a new tab tries again. Not `chrome.storage.session`: Firefox content scripts can't reach it, and Chrome's only after a background script opens it. One failing team isn't enough: it may just be gone from the org
 - Every cache goes through `cacheResult(cacheKey, fn)` (`utils.js`) with a named key here; don't hand-roll one
 - Cache keys must be synchronous - `getPrInfo()` is safe (it's synchronous)
 

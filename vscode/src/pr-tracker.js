@@ -69,7 +69,10 @@ const loadOwnershipData = async (owner, repo, number) => {
 
   const teamMembers = await teamsCache(
     `${owner}/${repo}@${pr.baseRefName}`,
-    () => resolveOwnerTeams(owner, folderOwners, api.getTeamMembers)
+    () =>
+      resolveOwnerTeams(owner, folderOwners, (slug) =>
+        api.getTeamMembers(owner, slug)
+      )
   );
 
   // Login → approved, like the sidebar rows: requested users are pending
