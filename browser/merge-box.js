@@ -839,13 +839,18 @@ document.addEventListener('click', (event) => {
     return;
   }
 
-  // Handle dismiss button for version banner
-  const dismissBtn = event.target.closest('.ghco-dismiss-button');
-  if (dismissBtn) {
+  // Handle dismiss button for version banner. Its "See what's new" link
+  // dismisses it too, after the click: a link removed during its own click
+  // doesn't open.
+  const dismiss = event.target.closest(
+    '.ghco-dismiss-button, .ghco-new-version-banner a'
+  );
+  if (dismiss) {
     event.stopPropagation();
-    const banner = dismissBtn.closest('.ghco-new-version-banner');
-    banner?.remove();
-    const version = dismissBtn.dataset.version;
+    const banner = dismiss.closest('.ghco-new-version-banner');
+    const version = banner?.querySelector('.ghco-dismiss-button')?.dataset
+      .version;
+    setTimeout(() => banner?.remove());
     if (version) {
       safeStorageSet({[DISMISSED_VERSION_KEY]: version});
     }

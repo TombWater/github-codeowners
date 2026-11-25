@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 - **UX** (Browser): The Overview page's Code owners cell's tooltip and hover match GitHub's
+- **UX** (Browser): "See what's new" also dismisses the update banner
 
 ## [0.9.2] - 2026-11-25
 - **Fix** (Browser): The Code owners section shows again on the Overview page of merged and closed PRs
