@@ -60,12 +60,14 @@ It is a beta, not on the Visual Studio Marketplace yet. To try it, [install it f
 > [!TIP]
 > If you don't already have Node.js and npm, you'll need to [install](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) them first.
 
+Releases are built with Node.js 24:
+
 ```
-npm install
+npm ci
 npm run build
 ```
 
-The extension will be in the `build/` directory.
+The extension will be in the `build/` directory. `npm ci` installs the exact dependency versions in `package-lock.json`, so the build matches the released one.
 
 ## Privacy
 
