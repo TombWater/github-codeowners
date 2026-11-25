@@ -36,6 +36,38 @@ div[class*=' wrapper__']:has(+ section[aria-label='Code owners']) {
   );
 }
 
+/* Loading: a sheen across the orange icon, with the timing of GitHub's
+   skeleton wave */
+@media (prefers-reduced-motion: no-preference) {
+  .ghco-loading .ghco-header-icon {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ghco-loading .ghco-header-icon::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        105deg,
+        transparent 40%,
+        rgb(255 255 255 / 0.65) 50%,
+        transparent 60%
+      )
+      0 0 / 300% 100%;
+    animation: ghco-shimmer 1.5s linear infinite;
+  }
+}
+
+@keyframes ghco-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
 .ghco-header-button {
   position: absolute;
   inset: 0;
@@ -72,7 +104,8 @@ div[class*=' wrapper__']:has(+ section[aria-label='Code owners']) {
   display: flex;
   flex-direction: column;
   gap: var(--control-small-gap, 4px);
-  max-height: 315px;
+  /* As tall as GitHub's Checks list, on the classic page and the Overview */
+  max-height: var(--expandable-max-height, 300px);
   overflow-y: auto;
   padding: var(--base-size-6, 6px) var(--base-size-12, 12px) 0;
 

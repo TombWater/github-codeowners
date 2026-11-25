@@ -185,6 +185,8 @@ export const updateMergeBox = async () => {
     const existingHeader = section.querySelector('.ghco-section-header');
     if (existingHeader) {
       const newHeader = createMergeBoxSectionHeader(null);
+      // Done loading, with nothing to show
+      newHeader.classList.remove('ghco-loading');
       const description = newHeader.querySelector('p');
       if (description) {
         description.textContent = ownershipData
@@ -261,6 +263,7 @@ const createHeaderIcon = (approvalStatus) => {
   iconWrapper.classList.add('mr-2', 'flex-shrink-0');
 
   const iconCircle = document.createElement('div');
+  iconCircle.classList.add('ghco-header-icon');
   iconCircle.style.borderWidth = '0px';
   iconCircle.style.borderRadius = '50%';
   iconCircle.style.borderStyle = 'solid';
@@ -456,6 +459,8 @@ const createMergeBoxSectionHeader = (approvalStatus) => {
   );
   if (isExpandable) {
     header.classList.add(...[classNames.wrapperCanExpand].filter(Boolean));
+  } else {
+    header.classList.add('ghco-loading');
   }
 
   const wrapper = document.createElement('div');
@@ -483,9 +488,12 @@ const createMergeBoxSectionHeader = (approvalStatus) => {
     wrapper.appendChild(expandButton);
 
     const chevronContainer = document.createElement('div');
-    chevronContainer.className = 'fgColor-muted pr-2 pt-2';
+    // As GitHub's: no padding, the icon at the top, so both line up
+    chevronContainer.className = 'fgColor-muted';
 
     const chevronWrapper = document.createElement('div');
+    // As tall as the icon: a line box would push it 2.5px down
+    chevronWrapper.style.display = 'flex';
     chevronWrapper.style.transition = 'transform 0.15s ease-in-out';
     chevronWrapper.style.transform = `rotate(${isExpanded ? 180 : 90}deg)`;
     const svg = chevronSvgDoc.documentElement.cloneNode(true);

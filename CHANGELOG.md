@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fix** (Browser): The Code owners section no longer shows "No files to review", or opens empty, in some edge cases
 - **Fix** (Browser): Pull requests from forks take their code owners from the branch they target, not from the repository's default branch
 - **Fix**: A CODEOWNERS rule like `docs/*` no longer claims files in folders below `docs/`, as on GitHub
+- **UX** (Browser): The Code owners section looks more like GitHub's own merge box sections
 
 ## [0.9.1] - 2026-11-13
 - **UX** (Browser): Overview page "Code owners" summary adapted to GitHub's evolving Overview page
