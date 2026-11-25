@@ -38,6 +38,9 @@ const prCommitsCacheKey = () => {
       ?.textContent?.trim() || '';
   return `${owner}/${repo}/${num}::commits=${count}`;
 };
+// The embedded page data's script element, compared by identity: a new page
+// replaces it, and with it the data parsed from it
+const embeddedDataCacheKey = () => document.querySelector(EMBEDDED_DATA);
 // Cache per URL + 30s windows + reviewer states: catches a review the sidebar
 // shows at once, and within 30s what it doesn't (a new push, a changed rule)
 const reviewersCacheKey = () => {
@@ -358,7 +361,7 @@ export const getPrInfo = () => {
   if (compareMatch) {
     const [, owner, repo, range] = compareMatch;
     // Extract base branch from range (e.g., "master...feature/branch" -> "master")
-    const base = range.split('...')[0];
+    const base = withoutRefOwner(decodeURIComponent(range.split('...')[0]));
     return {page: 'compare', owner, repo, num: null, base};
   }
 
@@ -375,10 +378,29 @@ export const getPrInfo = () => {
     '#partial-discussion-header .commit-ref',
     'div[class*="PageHeader-Description"] a[class*="BranchName-BranchName"]',
   ];
-  const base = document.querySelector(baseSelectors.join(', '))?.textContent;
+  const base =
+    withoutRefOwner(
+      document.querySelector(baseSelectors.join(', '))?.textContent
+    ) || getEmbeddedBaseBranch();
 
   return {page, owner, repo, num, base};
 };
+
+// A fork's PR names its base with the owner in front ("cli:trunk"), on the
+// Overview, the classic page and the files page alike. Branch names can't
+// contain ":", so everything up to one is the owner.
+const withoutRefOwner = (ref) => ref?.trim().replace(/^[^:]*:/, '') || null;
+
+// The base branch from GitHub's embedded page data, for when the header's
+// branch link is missing or restyled. Parsing that JSON is costly and
+// getPrInfo() runs on every page update, so it's kept until the data's
+// script element changes, which a new page replaces.
+const getEmbeddedBaseBranch = cacheResult(embeddedDataCacheKey, () => {
+  const base = getEmbeddedData(document, (payload) =>
+    findNestedProperty(payload, 'baseBranch')
+  );
+  return typeof base === 'string' ? withoutRefOwner(base) : null;
+});
 
 // Get the base URL for the files/changes tab
 export const getFilesUrl = () => {
@@ -406,10 +428,12 @@ const findNestedProperty = (obj, key) => {
   return undefined;
 };
 
+const EMBEDDED_DATA = ['react-app.embeddedData', 'react-partial.embeddedData']
+  .map((t) => `[data-target="${t}"]`)
+  .join(', ');
+
 const getEmbeddedData = (doc, extractor) => {
-  const targets = ['react-app.embeddedData', 'react-partial.embeddedData'];
-  const selectors = targets.map((t) => `[data-target="${t}"]`);
-  const scripts = Array.from(doc.querySelectorAll(selectors.join(', ')));
+  const scripts = Array.from(doc.querySelectorAll(EMBEDDED_DATA));
 
   for (const script of scripts) {
     try {

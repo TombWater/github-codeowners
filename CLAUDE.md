@@ -133,6 +133,8 @@ The browser extension works by:
 - `prBaseCacheKey()`: Cache CODEOWNERS per base branch (works for PRs and compare view)
 - `prCommitsCacheKey()`: Cache per PR + commit count (for expensive file list fetches)
 - `reviewersCacheKey()`: Cache per URL + 30s windows + sidebar reviewer states (for the Overview page's `page_data/merge_box` fetch)
+- `embeddedDataCacheKey()`: the embedded page data's script element, by identity (for the base branch from that data, when the header's link is missing)
+- Every cache goes through `cacheResult(cacheKey, fn)` (`utils.js`) with a named key here; don't hand-roll one
 - Cache keys must be synchronous - `getPrInfo()` is safe (it's synchronous)
 
 **Merge Box Smart Updates**
@@ -170,6 +172,7 @@ The browser extension works by:
   - Used in `parseDiffFilesFromDoc()` for new Files UI and `getFolderOwners()` for CODEOWNERS content
 - Timeline avatar (`.TimelineItem-avatar[href^="/"]`) reliable for PR author on conversation page (works for merged PRs)
 - Header selectors show merger for merged PRs, not original author - don't use for merged state
+- **Base branch** (`getPrInfo()`): the header's `PageHeader-Description` branch link, on the Overview, classic and files pages alike (`#partial-discussion-header` is gone from the classic page too). ⚠️ On a fork's PR it reads `owner:branch` (`cli:trunk`), so `withoutRefOwner()` strips up to the `:` (branch names can't contain one). Without that, the CODEOWNERS fetch 404s, and the default-branch fallback hides it by loading the *default* branch's owners. Fallback: `baseBranch` in the embedded page data, present on all three pages.
 - Skip sticky headers (`.sticky-file-header`) - they lack path data
 - **Bot username handling**: GitHub bots use `/apps/{name}` hrefs (e.g., `/apps/dependabot`)
   - Transform to `{name}[bot]` format for consistency with PR author format

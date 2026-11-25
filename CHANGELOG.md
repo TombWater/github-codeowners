@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 - **Fix** (Browser): The Code owners section shows again on the Overview page of merged and closed PRs
 - **Fix** (Browser): On the Overview page, a pull request with a merge conflict no longer shows code owner approval as "not required to merge"
+- **Fix** (Browser): Pull requests from forks take their code owners from the branch they target, not from the repository's default branch
 
 ## [0.9.1] - 2026-11-13
 - **UX** (Browser): Overview page "Code owners" summary adapted to GitHub's evolving Overview page
