@@ -92,7 +92,7 @@ The browser extension works by:
 
 ### Shared core and VSCode extension
 
-- **`core/`** holds the DOM-free logic that both extensions use: CODEOWNERS parsing (`codeowners.js`), team/pseudo-team resolution (`teams.js`), owner groups and approval maps (`ownership.js`), and approval status, group priority and the summary text (`approval.js`).
+- **`core/`** holds the DOM-free logic that both extensions use: CODEOWNERS parsing (`codeowners.js`; gitignore matching through `ignore`, except that `docs/*` doesn't reach into subfolders, as GitHub documents), team/pseudo-team resolution (`teams.js`), owner groups and approval maps (`ownership.js`), and approval status, group priority and the summary text (`approval.js`).
   - ⚠️ No `document`, `fetch`, `chrome.*` or `__DEBUG__` in `core/`. The VSCode bundle runs in Node and has none of them. Data sources inject their fetchers (e.g. `resolveOwnerTeams(org, folderOwners, fetchMembers)`).
 - **`vscode/`** is a VSCode extension for the GitHub Pull Requests extension (`GitHub.vscode-pull-request-github`). Build with `npm run vscode:build` / `vscode:watch` from the root; F5 in `vscode/` to run.
   - ⚠️ **Before building any behaviour "like the PR extension's list", read how the PR extension does it** — its bundle at `~/.vscode/extensions/github.vscode-pull-request-github-*/dist/extension.js`, and VSCode's own `workbench.desktop.main.js` for how the workbench treats it. Copy that mechanism. Guessing produced a click-vs-Enter timing heuristic, duplicate diff tabs and a scroll reset; the PR extension's real approach (built-in `vscode.diff` row commands, below) fixed all three at once.
