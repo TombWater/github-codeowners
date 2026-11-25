@@ -22,7 +22,11 @@ const updateAll = async () => {
   ]);
 };
 
-// Filter out mutations from debug panel to prevent infinite loop
+const debouncedUpdateAll = debounce(updateAll, 100);
+
+// Filter out mutations from debug panel to prevent infinite loop. Filter every
+// batch before debouncing: a debounce passes on only the last batch, so the
+// panel's ticker could hide a page change that came just before it.
 const mutationCallback = (mutations) => {
   // Ignore mutations inside the debug panel
   const hasRelevantMutation = mutations.some((mutation) => {
@@ -38,15 +42,17 @@ const mutationCallback = (mutations) => {
   });
 
   if (hasRelevantMutation) {
-    updateAll();
+    debouncedUpdateAll();
   }
 };
 
 // Potentially refresh after every mutation, with debounce
-const observer = new MutationObserver(debounce(mutationCallback, 100));
+const observer = new MutationObserver(mutationCallback);
 // Observe documentElement (not body) so the observer survives Turbo Drive
 // navigation, which replaces document.body entirely on page transitions.
 observer.observe(document.documentElement, {childList: true, subtree: true});
+// The script runs at document_idle, when the page may already be quiet
+debouncedUpdateAll();
 
 // Delete the disused access token that may still be in storage from the previous version
 try {

@@ -71,6 +71,7 @@ The browser extension works by:
    - Check if decoration exists BEFORE fetching data, or you get infinite loops: add element → observer fires → add element → loop
    - Filter undecorated elements first, return early if none found, THEN fetch expensive ownership data
    - Example: `decorateExistingComments()` uses `data-ghcoDecorating` flag, others use `.ghco-processed` class
+   - ⚠️ Filter each mutation batch *before* the debounce, and debounce only `updateAll`: a debounce passes on only the last call's arguments, so the debug panel's 500 ms ticker hid a page change that came just before it, and dev builds left quiet pages undecorated. One update also runs at startup: the script loads at `document_idle`, when the page may already be quiet.
 
 2. **State management**: Never derive state from DOM text (e.g., parsing "2 of 3 approvals"). Always pass state as parameters from source data. Text is display only, not source of truth.
 
