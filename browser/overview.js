@@ -525,18 +525,30 @@ export const placeOverviewSection = (section) => {
   if (github.findOverviewMergeStatusBox()) {
     placeOverviewPanel(section);
     section.classList.add('ghco-overview-panel');
-    section.classList.remove('ghco-overview-card');
+    section.classList.remove('ghco-overview-card', 'ghco-overview-for-you');
     return true;
   }
 
-  // Merged or closed PR: no summary grid, so a card of our own
+  // Merged or closed PR: no summary grid, so a part of the box at the top,
+  // below GitHub's merged or closed notice
+  const forYou = github.findOverviewForYou();
+  if (forYou) {
+    if (forYou.lastElementChild !== section) {
+      forYou.append(section);
+    }
+    section.classList.add('ghco-overview-for-you');
+    section.classList.remove('ghco-overview-panel', 'ghco-overview-card');
+    return true;
+  }
+
+  // GitHub's earlier layout, with no box: a card of our own
   const overviewAnchor = github.findOverviewAnchor();
   if (overviewAnchor) {
     if (overviewAnchor.previousElementSibling !== section) {
       overviewAnchor.before(section);
     }
     section.classList.add('ghco-overview-card');
-    section.classList.remove('ghco-overview-panel');
+    section.classList.remove('ghco-overview-panel', 'ghco-overview-for-you');
     return true;
   }
 

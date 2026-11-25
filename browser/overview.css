@@ -20,9 +20,28 @@
   font-weight: var(--base-text-weight-semibold, 600);
 }
 
-.ghco-overview-card .ghco-merge-box-expandable-wrapper.ghco-expanded {
+.ghco-overview-card .ghco-merge-box-expandable-wrapper.ghco-expanded,
+.ghco-overview-for-you .ghco-merge-box-expandable-wrapper.ghco-expanded {
   border-top: var(--borderWidth-thin, 1px) solid
     var(--borderColor-muted, var(--color-border-muted));
+}
+
+/* Overview page, merged or closed PR: a part of GitHub's box at the top,
+   below its merged or closed notice, divided from it as the summary grid
+   is on an open PR */
+.ghco-overview-for-you {
+  border-top: var(--borderWidth-thin, 1px) solid
+    var(--borderColor-default, var(--color-border-default));
+}
+
+.ghco-overview-for-you .ghco-section-header {
+  padding: var(--base-size-12, 12px) var(--base-size-16, 16px);
+}
+
+.ghco-overview-for-you .ghco-section-header h3 {
+  margin: 0;
+  font-size: var(--text-body-size-large, 16px);
+  font-weight: var(--base-text-weight-semibold, 600);
 }
 
 /* Overview page, open PR: our cell in GitHub's Checks/Comments/Approvals

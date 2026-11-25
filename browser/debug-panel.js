@@ -545,16 +545,15 @@ const handleSimulateMerge = () => {
     '[GHCO Debug] Simulating PR merge - removing sections and adding merged message'
   );
 
-  // Overview page: a merged PR has a notice where an open one has the
-  // summary grid, so dropping the grid's box gets our section its merged
-  // layout, a card above the description
+  // Overview page: a merged PR has no summary grid, so dropping the grid
+  // gets our section its merged layout, below the notice in the top box
   if (github.isOverviewPage()) {
-    const box = github.findOverviewMergeStatusBox();
-    if (!box) {
+    const grid = github.findOverviewMergeStatus();
+    if (!grid) {
       console.error('[GHCO Debug] Could not find the Overview summary grid');
       return;
     }
-    box.remove();
+    grid.remove();
     console.log('[GHCO Debug] Simulated merge on the Overview page');
     return;
   }

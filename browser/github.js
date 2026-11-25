@@ -928,13 +928,30 @@ export const findMergeBoxContainer = () => {
   );
 };
 
-// On a merged or closed PR, the Overview has no summary grid, and our section
-// stands alone just above the description, below the notice that takes the
-// grid's place. Present even when the PR has no description.
+// The bordered box at the top of the Overview: GitHub's recommended action
+// (the merged or closed notice on such PRs) and, on an open PR, the summary
+// grid below it. On a merged or closed PR our section is a part of it, below
+// the notice.
+export const findOverviewForYou = () =>
+  isOverviewPage()
+    ? document.querySelector('section[aria-label="Recommended action"]')
+        ?.parentElement ??
+      document.querySelector(
+        moduleClassSelector('CondensedForYouContainer', 'div')
+      )
+    : null;
+
+// The description, in GitHub's earlier layout, where a merged or closed PR
+// had no box at the top and our section stood alone just above it. GitHub
+// has since dropped the section's label.
 export const findOverviewAnchor = () =>
   isOverviewPage()
     ? document.querySelector('section[aria-label="Description"]')
     : null;
+
+// The column of sections the Overview's top box and description are in
+const findOverviewColumn = () =>
+  (findOverviewForYou() ?? findOverviewAnchor())?.parentElement ?? null;
 
 // The Checks/Comments/Approvals summary of an open PR on the Overview page,
 // which gets a Code owners cell of ours: by its label, or as the parent of
@@ -951,7 +968,7 @@ export const findOverviewMergeStatus = () =>
 // sections the description is in, however deep GitHub nests it
 export const findOverviewMergeStatusBox = () => {
   const mergeStatus = findOverviewMergeStatus();
-  const column = findOverviewAnchor()?.parentElement;
+  const column = findOverviewColumn();
   let box = mergeStatus;
   while (column && box?.parentElement && box.parentElement !== column) {
     box = box.parentElement;
@@ -963,9 +980,7 @@ export const findOverviewMergeStatusBox = () => {
 
 // The element our section goes into on the Overview page
 export const findOverviewContainer = () =>
-  findOverviewMergeStatusBox()?.parentElement ??
-  findOverviewAnchor()?.parentElement ??
-  null;
+  findOverviewMergeStatusBox()?.parentElement ?? findOverviewColumn();
 
 // Class names our "Code owners" section copies so it looks like GitHub's
 // sections. Read from GitHub's live sections first, because the new format's
