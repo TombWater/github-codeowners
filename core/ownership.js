@@ -1,4 +1,4 @@
-import {findFileOwners} from './codeowners';
+import {findFileOwners} from './codeowners.js';
 
 // userTeamsMap: user → set of teams, starting with a pseudo-team of their own
 // login. ownerApprovals: owners/teams that at least one approver belongs to.

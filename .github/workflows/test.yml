@@ -1,0 +1,19 @@
+# Unit tests (npm test) on every push and pull request. The smoke test
+# (test/smoke.js) needs a logged-in browser, so it stays a manual release step.
+name: Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
