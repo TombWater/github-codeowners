@@ -549,19 +549,15 @@ const parseDiffFilesFromDoc = (doc) => {
 const fetchAllDiffFiles = cacheResult(
   prCommitsCacheKey,
   async (owner, repo, num) => {
-    // Hint: Check the "Files changed" tab on the current page to see which URL it uses
-    const filesUrl =
-      document.querySelector(
-        `a[href$="/pull/${num}/files"], a[href$="/pull/${num}/changes"]`
-      )?.href || `https://github.com/${owner}/${repo}/pull/${num}/files`;
+    // The new files view, whatever the user's preference: it embeds the whole
+    // file list. The classic view, served to users who chose it, loads its
+    // diffs later from an include-fragment, so its HTML lists no files.
+    const pullUrl = `https://github.com/${owner}/${repo}/pull/${num}`;
+    let filesDoc = await loadPage(`${pullUrl}/changes?new_files_changed=true`);
 
-    let filesDoc = await loadPage(filesUrl);
-
-    // Fallback: If loading /files URL fails, try /changes URL
-    if (!filesDoc && /\/files([?#]|$)/.test(filesUrl)) {
-      filesDoc = await loadPage(
-        `https://github.com/${owner}/${repo}/pull/${num}/changes`
-      );
+    // Fallback: If loading the new view fails, try the /files URL
+    if (!filesDoc) {
+      filesDoc = await loadPage(`${pullUrl}/files`);
     }
 
     if (!filesDoc) {
@@ -569,14 +565,15 @@ const fetchAllDiffFiles = cacheResult(
       return new Map();
     }
 
-    // Try to extract files directly from the doc (e.g. via embedded data)
-    // This avoids an additional fetch to the /diffs endpoint if the reliable embedded data is present.
-    // Otherwise (Old UI), we might only get partial files from the DOM, so we must proceed to the /diffs fetch.
+    // The usual case: the new view embeds the whole file list, so no second
+    // fetch is needed
     const embeddedFiles = parseEmbeddedDiffFiles(filesDoc);
     if (embeddedFiles) {
       return embeddedFiles;
     }
 
+    // Fallback, for when GitHub served something other than the new view we
+    // asked for: no embedded file list, so fetch it from the /diffs endpoint
     const commits = getEmbeddedData(filesDoc, (payload) => {
       const baseCommit = findNestedProperty(payload, 'baseOid');
       const headCommit = findNestedProperty(payload, 'headOid');
@@ -586,21 +583,27 @@ const fetchAllDiffFiles = cacheResult(
       return null;
     });
 
-    if (!commits) {
+    // The classic view's own fragment, when the page names no commits
+    const diffsFragment = filesDoc.querySelector(
+      'include-fragment[src*="/diffs?"]'
+    );
+
+    if (!commits && !diffsFragment) {
       return parseDiffFilesFromDoc(filesDoc);
     }
 
-    const {baseRevision: baseCommit, headRevision: headCommit} = commits;
-
-    // Fetch all files via /diffs endpoint with start_entry=0
-    const diffsUrl =
-      `https://github.com/${owner}/${repo}/diffs?` +
-      `base_sha=${baseCommit}` +
-      `&sha1=${baseCommit}` +
-      `&sha2=${headCommit}` +
-      `&pull_number=${num}` +
-      `&start_entry=0` +
-      `&w=false`;
+    // The /diffs URL, from start_entry=0: built from the commits the page
+    // names, else (the classic view, which names none) the classic view's own
+    // fragment
+    const diffsUrl = commits
+      ? `https://github.com/${owner}/${repo}/diffs?` +
+        `base_sha=${commits.baseRevision}` +
+        `&sha1=${commits.baseRevision}` +
+        `&sha2=${commits.headRevision}` +
+        `&pull_number=${num}` +
+        `&start_entry=0` +
+        `&w=false`
+      : new URL(diffsFragment.getAttribute('src'), 'https://github.com').href;
 
     const diffsDoc = await loadPage(diffsUrl);
     if (!diffsDoc) {

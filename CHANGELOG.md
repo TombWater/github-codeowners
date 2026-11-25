@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 - **Fix** (Browser): The Code owners section shows again on the Overview page of merged and closed PRs
 - **Fix** (Browser): On the Overview page, a pull request with a merge conflict no longer shows code owner approval as "not required to merge"
+- **Fix** (Browser): The Code owners section no longer shows "No files to review", or opens empty, in some edge cases
 - **Fix** (Browser): Pull requests from forks take their code owners from the branch they target, not from the repository's default branch
 - **Fix**: A CODEOWNERS rule like `docs/*` no longer claims files in folders below `docs/`, as on GitHub
 

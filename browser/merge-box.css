@@ -60,6 +60,14 @@ div[class*=' wrapper__']:has(+ section[aria-label='Code owners']) {
   overflow: hidden !important;
 }
 
+/* Open GitHub's expandable grid, whose single row is 0fr until its isExpanded
+   class opens it. That class can only be read from a live expanded section,
+   so with every GitHub section collapsed we have none, and our section
+   opened to 0px. */
+.ghco-merge-box-expandable-wrapper.ghco-expanded {
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .ghco-merge-box-container {
   display: flex;
   flex-direction: column;
