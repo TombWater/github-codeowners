@@ -1,4 +1,5 @@
 import * as github from './github';
+import {describeApprovalStatusParts} from '../core/approval';
 import chevronRightSvg from './chevron-right-12.svg';
 import chevronDownSvg from './chevron-down-12.svg';
 
@@ -25,9 +26,9 @@ const chevronDownSvgDoc = parser.parseFromString(
 
 const OVERVIEW_CELL = 'ghco-mini-status';
 
-// The cell's short summary; the section's full line becomes its tooltip.
-// None while loading or without CODEOWNERS or files, as on GitHub's own cells
-// with nothing to show.
+// The cell's short summary; the section's full line becomes the bar's
+// tooltip. None while loading or without CODEOWNERS or files, as on GitHub's
+// own cells with nothing to show.
 const describeOverviewCell = (approvalStatus) => {
   if (!approvalStatus) return '';
   const {
@@ -81,6 +82,25 @@ const createOverviewCellBar = (approvalStatus) => {
   return bar;
 };
 
+// The section's summary as the bar's tooltip, a line for each part.
+// GitHub's <tool-tip> element shows it on hover and places it below the bar,
+// as on GitHub's own cells.
+const OVERVIEW_BAR_ID = 'ghco-mini-status-bar';
+const createOverviewCellTooltip = (lines) => {
+  const tooltip = document.createElement('tool-tip');
+  tooltip.setAttribute('for', OVERVIEW_BAR_ID);
+  tooltip.setAttribute('popover', 'manual');
+  tooltip.setAttribute('data-direction', 's');
+  tooltip.setAttribute('data-type', 'description');
+  tooltip.setAttribute('role', 'tooltip');
+  tooltip.classList.add('position-absolute', 'sr-only');
+  lines.forEach((line, i) => {
+    if (i) tooltip.appendChild(document.createElement('br'));
+    tooltip.appendChild(document.createTextNode(line));
+  });
+  return tooltip;
+};
+
 // One of GitHub's cell classes: from its own cells, else from its stylesheets,
 // as for a state (expanded, …) no cell is in at the moment
 const githubCellClass = (mergeStatus, name) =>
@@ -99,7 +119,6 @@ const createOverviewCell = (mergeStatus, section) => {
 
   const cell = document.createElement('section');
   cell.setAttribute('aria-label', 'Code owners approvals');
-  cell.title = description;
   // GitHub's cell classes, read from its own cells, for padding and borders
   const githubCell = mergeStatus.querySelector(
     `:scope > section:not(.${OVERVIEW_CELL})`
@@ -177,7 +196,18 @@ const createOverviewCell = (mergeStatus, section) => {
     label.appendChild(icon);
   }
   cell.appendChild(label);
-  cell.appendChild(createOverviewCellBar(status));
+  const bar = createOverviewCellBar(status);
+  bar.id = OVERVIEW_BAR_ID;
+  cell.appendChild(bar);
+  // The summary in parts, else the section's own text (loading, no
+  // CODEOWNERS)
+  if (description) {
+    cell.appendChild(
+      createOverviewCellTooltip(
+        status ? describeApprovalStatusParts(status) : [description]
+      )
+    );
+  }
   return cell;
 };
 
@@ -204,7 +234,7 @@ export const syncOverviewCell = (section) => {
   }
 
   const cell = createOverviewCell(mergeStatus, section);
-  const signature = cell.innerHTML + cell.title;
+  const signature = cell.innerHTML;
   const current = cells.length === 1 ? cells[0] : null;
   if (
     current?.parentElement === mergeStatus &&
@@ -558,8 +588,14 @@ export const placeOverviewSection = (section) => {
 // Our cell in the summary grid: toggle the section below it. True when the
 // click was on it.
 export const handleOverviewCellClick = (event) => {
-  const cellButton = event.target.closest('.ghco-mini-status-button');
-  if (!cellButton) return false;
+  // The bar sits above the button, and opens it too, as GitHub's does
+  const cell = event.target.closest(`.${OVERVIEW_CELL}`);
+  if (
+    !cell?.querySelector('.ghco-mini-status-button') ||
+    !event.target.closest('.ghco-mini-status-button, .ghco-mini-status-bar')
+  ) {
+    return false;
+  }
   const section = document.querySelector('section.ghco-overview-panel');
   const wasPinned = isOverviewPinned(section);
   overviewPinnedLast = !wasPinned;

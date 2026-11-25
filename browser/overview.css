@@ -156,11 +156,19 @@ div[data-ghco-open] {
     var(--borderColor-default, var(--color-border-default));
 }
 
-.ghco-mini-status:has(.ghco-mini-status-button):hover {
+/* GitHub's MiniStatusInteractive has its own hover, white */
+.ghco-mini-status:not([class*='MiniStatusInteractive']):has(
+    .ghco-mini-status-button
+  ):hover {
   background: var(
     --control-transparent-bgColor-hover,
     var(--color-action-list-item-default-hover-bg)
   );
+}
+
+/* The bar opens it too, like GitHub's bar segments */
+.ghco-mini-status:has(.ghco-mini-status-button) .ghco-mini-status-bar {
+  cursor: pointer;
 }
 
 /* Transparent rather than opacity 0, which would hide its focus outline too */
@@ -219,6 +227,10 @@ div[data-ghco-open] {
 }
 
 .ghco-mini-status-bar {
+  /* Above the cell's button, as GitHub's segments are, so the pointer
+     reaches it and its tooltip */
+  position: relative;
+  z-index: 2;
   display: flex;
   gap: 2px;
   height: 8px;

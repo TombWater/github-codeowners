@@ -102,8 +102,9 @@ export const sortOwnerGroups = (ownerGroupsMap, ownershipData) =>
     return diff || b.paths.length - a.paths.length;
   });
 
-// One-line summary, as shown under the "Code owners" heading
-export const describeApprovalStatus = (approvalStatus) => {
+// The summary's parts: the owner groups and files, then the approvals, if
+// anything is to be said about them
+export const describeApprovalStatusParts = (approvalStatus) => {
   const {
     groupApprovalsReceived,
     groupApprovalsRequired,
@@ -144,5 +145,9 @@ export const describeApprovalStatus = (approvalStatus) => {
     reviewText = `${reviewsRequired} ${approvalWord} required by reviewers with write access`;
   }
 
-  return [`${groupText} (${fileText})`, reviewText].filter(Boolean).join(' • ');
+  return [`${groupText} (${fileText})`, reviewText].filter(Boolean);
 };
+
+// One-line summary, as shown under the "Code owners" heading
+export const describeApprovalStatus = (approvalStatus) =>
+  describeApprovalStatusParts(approvalStatus).join(' • ');

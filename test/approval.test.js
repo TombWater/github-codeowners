@@ -7,6 +7,7 @@ import {
   approversOf,
   calculateApprovalStatus,
   describeApprovalStatus,
+  describeApprovalStatusParts,
   sortOwnerGroups,
 } from '../core/approval.js';
 
@@ -181,6 +182,23 @@ test('singular group and file', () => {
   assert.equal(
     describeApprovalStatus(approvalStatus),
     '1 owner group (1 file) • 0 of 1 owner groups approved'
+  );
+});
+
+test('the summary’s parts: groups and files, then approvals if any', () => {
+  const approvalStatus = {
+    groupApprovalsReceived: 1,
+    groupApprovalsRequired: 2,
+    totalFiles: 3,
+    ownerApprovalRequired: true,
+  };
+  assert.deepEqual(describeApprovalStatusParts(approvalStatus), [
+    '2 owner groups (3 files)',
+    '1 of 2 owner groups approved',
+  ]);
+  assert.deepEqual(
+    describeApprovalStatusParts({...approvalStatus, isMerged: true}),
+    ['2 owner groups (3 files)']
   );
 });
 
